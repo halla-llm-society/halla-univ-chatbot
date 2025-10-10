@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/remixicon/4.6.0/remixicon.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+  <div id="chatbot-container">
+    <img id="chatbot-toggle-btn" src="assets/chatbot-btn.png">
+
+    <div id="chatbot">
+      <div id="chatbot-header">
+        <div id="header-title">
+          한라대학교 GPT<br>
+          <span id="powered-by">powered by 
+            <a href="https://github.com/dryflowery" style="color: #00ade6; text-decoration: none;" target="_blank">Halla Univ. CE</a>
+          </span>
+        </div> 
+
+        <div id="header-actions">
+          <div class="dropdown-container">
+            <button id="lang-btn"><i class="ri-translate-2"></i></button>
+
+            <div id="lang-dropdown">
+              <ul id="lang-list">
+                <li data-value="KOR">KOR</li>
+                <li data-value="ENG">ENG</li>
+                <li data-value="VNM">VNM</li>
+                <li data-value="CHN">CHN</li>
+                <li data-value="UZB">UZB</li>
+                <li data-value="MNG">MNG</li>
+                <li data-value="IDN">IDN</li>
+              </ul>
+            </div>
+          </div>
+
+            <button id="info-btn"><i class="ri-question-line"></i></button>
+            <button id="reset-btn"><i class="ri-loop-left-line"></i></button>
+            <button id="close-btn"><i class="ri-close-line"></i></i></button>
+          </div>
+        </div>
+
+      <div id="chat-messages">
+        <!-- info modal -->
+        <div id="info-modal" class="modal-overlay"></div>
+
+        <!-- reset modal -->
+        <div id="reset-modal" class="modal-overlay"></div>
+      </div>
+
+      <div id="input-container">
+        <textarea id="user-input" placeholder="무엇이든 물어보세요!"></textarea>
+        <button id="send-btn"><i class="ri-send-plane-fill"></i></button>
+      </div>
+    </div>
+  </div>
+
+  <script src="messages.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
