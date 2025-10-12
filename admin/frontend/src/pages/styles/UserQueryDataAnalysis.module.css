@@ -1,0 +1,234 @@
+
+/*사용자 질의 데이터 분석 페이지 CSS 파일 */
+
+/*
+1번 부터 3번 까지는 모든 페이지에 적용하는 CSS 문법입니다.
+mainContent 부터는 페이지별 다른 CSS 문법입니다.
+*/
+
+/* 1. 외부 컨테이너 스타일 */
+.pageContainer {
+  width: 100%;
+  height: 100%;
+  padding: 1rem;
+  
+  /* Flexbox를 이용해 내부 컨테이너를 수평 중앙 정렬 */
+  display: flex;
+  justify-content: center;
+}
+
+/* 2. 내부 컨테이너 스타일 */
+.contentWrapper {
+  width: 100%;
+  max-width: 1400px;
+}
+
+/* 3. 페이지 헤더 스타일 */
+.pageHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem; /* 헤더와 메인 콘텐츠 사이 여백 */
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.pageHeader h1 {
+  margin: 0;
+  font-size: 1.75rem;
+}
+
+
+/* 메인 콘텐츠 영역 스타일 */
+.mainContent {
+  border: 1px solid #e0e0e0; /* 실선으로 변경 */
+  padding: 0; /* 테이블이 꽉 차도록 패딩 제거 */
+  display: block; /* Flexbox 대신 일반 블록으로 변경 */
+  color: #333; /* 기본 텍스트 색상 변경 */
+  overflow: hidden; /* 모서리 둥글게 할 때 필요 */
+}
+
+.searchContainer {
+  display: flex;
+  align-items: center;
+}
+
+.searchInput {
+  padding: 8px 12px;
+  font-size: 0.9rem;
+  border: 1px solid #ccc;
+  border-radius: 5px; /* 왼쪽 모서리만 둥글게 */
+  outline: none;
+  width: 250px; /* 검색창 너비 */
+  transition: border-color 0.2s ease;
+  background-color: #ffffff;
+  color: #000000;
+}
+
+.searchInput:focus {
+  border-color: #ff0000; /* 포커스 시 테두리 색상 변경 */
+}
+
+.searchButton {
+  padding: 6px 15px;
+  font-size: 0.9rem;
+  color: #fff;
+  background-color: #0070f3;
+  border: 1px solid #0070f3;
+  border-left: none; /* 입력창과 맞닿는 왼쪽 테두리 제거 */
+  border-radius: 5px; /* 오른쪽 모서리만 둥글게 */
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  margin-left: 5px;
+}
+
+.searchButton:hover {
+  background-color: #005bb5;
+}
+
+.searchCategory {
+  padding: 8px 8px;
+  font-size: 0.9rem;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  outline: none;
+  background-color: #f8f9fa;
+  color: #333;
+  cursor: pointer;
+  height: 35px; /* 검색창 높이와 맞춤 */
+  margin-right: 5px;
+}
+
+.dataTable {
+  width: 100%;
+  border-collapse: collapse; /* 테두리선을 한 줄로 합칩니다. */
+  font-size: 0.9rem;
+}
+
+/* 테이블 헤더 스타일 */
+.dataTable th {
+  background-color: #f8f9fa;
+  padding: 12px 15px;
+  border-bottom: 2px solid #dee2e6;
+  text-align: left;
+  font-weight: 600;
+  color: #495057;
+}
+
+/* 테이블 셀 스타일 */
+.dataTable td {
+  padding: 8px 15px;
+  border-bottom: 1px solid #e9ecef;
+
+  white-space: nowrap;      /* 1. 텍스트가 줄바꿈되지 않도록 강제 */
+  overflow: hidden;         /* 2. 셀의 너비를 벗어나는 텍스트를 숨김 */
+  text-overflow: ellipsis;  /* 3. 숨겨진 텍스트를 말 줄임표(...)로 표시 */
+}
+
+.dataTable td:nth-child(2),
+.dataTable td:nth-child(3) {
+  max-width: 300px; /* 이 너비를 넘어가면 말 줄임표가 나타나도록 */
+}
+
+/* 짝수 번째 행에 배경색을 주어 가독성을 높임 (Zebra-striping) */
+.dataTable tbody tr:nth-child(even) {
+  background-color: #f8f9fa;
+}
+
+/* 마지막 행의 아래쪽 테두리는 제거 */
+.dataTable tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.dataTable td:hover {
+  background-color: #e9ecef; /* 호버 시 배경색 변경 */
+  cursor: pointer;          /* 마우스 커서를 포인터로 변경 */
+}
+
+.tooltipBox {
+  position: fixed;
+  background-color: #333;
+  color: white;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  max-width: 400px;
+  z-index: 1001;
+  pointer-events: none;
+  
+  /* 기본 상태를 투명하고 보이지 않게 설정 */
+  opacity: 0;
+  visibility: hidden;
+
+  /* 사라질 때의 애니메이션 (딜레이 없음) */
+  transition: opacity 0.2s ease-in-out, visibility 0.2s;
+  
+}
+
+/* '.visible' 클래스가 추가되었을 때의 스타일 */
+.tooltipBox.visible {
+  opacity: 1;
+  visibility: visible;
+
+  /* 0.2초의 딜레이를 적용 */
+  transition-delay: 0.2s;
+}
+
+
+/* --- 패아자 네이션 스타일 --- */
+.paginationContainer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 1.5rem 0;
+}
+
+.pageButton {
+  background-color: #ffffff;
+  border: 1px solid #dee2e6;
+  color: #0070f3;
+  padding: 8px 12px;
+  margin: 0 4px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background-color 0.2s ease, color 0.2s ease;
+  font-size: 0.9rem;
+}
+
+.pageButton:hover {
+  background-color: #e9ecef;
+}
+
+.pageButton:disabled {
+  color: #adb5bd;
+  cursor: not-allowed;
+  background-color: #f8f9fa;
+}
+
+.activePage {
+  background-color: #0070f3;
+  color: #ffffff;
+  border-color: #0070f3;
+}
+
+.activePage:hover {
+  background-color: #005bb5;
+}
+
+.sortButton {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit; /* 전체 폰트를 상속받도록 설정 */
+  font-weight: 600;
+  font-size: inherit; /* 부모(th)의 폰트 사이즈를 상속 */
+  color: #495057;
+  display: flex;
+  align-items: center;
+  gap: 8px; /* 텍스트와 아이콘 사이의 간격 */
+  padding: 0;
+}
+
+.sortButton:hover {
+  color: #0070f3;
+}
