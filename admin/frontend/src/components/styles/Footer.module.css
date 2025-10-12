@@ -1,0 +1,34 @@
+
+.footer {
+  width: 100%;
+  padding: 0.5rem 0; /* 상하 패딩 */
+  background-color: #f8f9fa; /* 사이드바와 유사한 배경색 */
+  border-top: 1px solid #dee2e6; /* 상단 구분선 */
+}
+
+.footerContent {
+  text-align: center;
+}
+
+.copyright {
+  margin: 0 0 0.5rem 0; /* 텍스트 아래쪽에만 약간의 여백 */
+  font-size: 0.875rem; /* 14px */
+  color: #6c757d; /* 부드러운 회색 텍스트 */
+}
+
+.footerLinks a {
+  font-size: 0.875rem;
+  color: #6c757d;
+  text-decoration: none;
+  margin: 0 0.5rem; /* 링크 좌우 여백 */
+  transition: color 0.2s ease;
+}
+
+.footerLinks a:hover {
+  color: #212529; /* 호버 시 더 진한 색으로 변경 */
+  text-decoration: underline;
+}
+
+.footerLinks span {
+  color: #adb5bd; /* 구분선 색상 */
+}

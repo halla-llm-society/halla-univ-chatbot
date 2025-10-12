@@ -1,0 +1,194 @@
+
+@keyframes poofIn {
+  /* 애니메이션 시작 시점: 완전히 투명 */
+  0% {
+    opacity: 0;
+    transform: scale(0.9); /* 살짝 작아졌다가 커지는 효과 */
+  }
+  /* 애니메이션 종료 시점: 완전히 불투명 */
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.sidebar {
+  background-color: #f0f4f9;
+  border-right: 0.5px solid #dee2e6;
+
+  display: flex;
+  flex-direction: column;
+
+  transition: width 0.3s ease-in-out; /* 너비 변경 시 애니메이션 효과 */
+}
+
+/* 펼쳐졌을 때의 너비 */
+.sidebar.expanded {
+  width: 260px;
+}
+
+/* 접혔을 때의 너비 */
+.sidebar.collapsed {
+  width: 66px;
+}
+
+.nav {
+  flex-grow: 1; /* 메뉴 영역이 남은 공간을 모두 차지하도록 */
+  overflow-y: auto;
+  padding-top: 1rem;
+}
+
+.nav ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.nav a {
+  display: flex;
+  align-items: center;
+  padding: 0.75rem 1.5rem;
+  margin: 0.25rem 0.5rem;
+  text-decoration: none;
+  color: #495057;
+  white-space: nowrap; /* 텍스트가 줄바꿈되지 않도록 */
+  overflow: hidden; /* 영역을 벗어나는 텍스트 숨김 */
+
+  border-radius: 50px;
+
+  transition: padding 0.2s ease-in-out;
+}
+
+.nav a:hover {
+  background-color: #e9ecef;
+}
+
+.nav a.active {
+  background-color: #d3e3fd;
+  font-weight: bold;
+  color: #0842a0;
+}
+
+.icon {
+  font-size: 1.3rem;
+  margin-right: 1rem;
+}
+
+.text {
+  font-size: 1rem;
+  transition: opacity 0.2s ease, width 0.2s ease;
+  overflow: hidden;
+}
+
+/* 구분선 스타일 */
+.divider {
+  height: 1px;
+  background-color: #dee2e6;
+  margin: 0.5rem 1.5rem 2.5rem 0rem;
+}
+
+/* 접혔을 때 메뉴 텍스트를 투명하게 만듦 */
+.collapsed .text {
+  opacity: 0;
+  width: 0;
+}
+
+.collapsed .nav a {
+  padding: 0.75rem 0;
+  justify-content: center;
+}
+
+.collapsed .icon {
+  margin-right: 0;
+  opacity: 0;
+  animation: poofIn 0.3s forwards;
+  animation-delay: 0.2s;
+
+}
+
+.expanded .icon {
+  opacity: 1;
+}
+
+.expanded .icon {
+  opacity: 1;
+}
+
+/* 접혔을 때 구분선 숨기기 */
+.collapsed .divider {
+  margin: 0.5rem 1.5rem 2.5rem 0rem;
+  background-color: transparent;
+}
+
+.toggleButtonContainer {
+  padding: 0.5rem;
+  border-top: 1px solid #dee2e6;
+}
+
+.toggleButton {
+  width: 50px;
+  padding: 1rem;
+  background-color: #636363;
+  cursor: pointer;
+}
+
+.toggleButtonContainer {
+  padding: 0.44rem 0.75rem; /* 상하 패딩을 조절하여 버튼의 세로 위치 조정 */
+  align-items: center; /* 세로 중앙 정렬 */
+}
+
+.toggleButton {
+  background-color: transparent; /* 배경 투명 */
+  border: none;
+  cursor: pointer;
+  padding: 0.5rem; /* 버튼 자체의 패딩 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%; /* 원형을 만들기 위함 */
+  transition: background-color 0.2s ease-in-out; /* 호버 효과 애니메이션 */
+  width: 40px; /* 원형 버튼 크기 */
+  height: 40px; /* 원형 버튼 크기 */
+}
+
+.toggleButton:hover {
+  background-color: #e0e0e0; /* 마우스 올렸을 때 회색 원형 배경 */
+}
+
+/* 햄버거 아이콘 스타일 */
+.hamburger {
+  width: 15px; /* 햄버거 아이콘 전체 너비 */
+  height: 10px; /* 햄버거 아이콘 전체 높이 */
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between; /* 3줄을 균등하게 분배 */
+  padding: 0;
+}
+
+.bar {
+  display: block;
+  width: 100%;
+  height: 2px; /* 각 바의 높이 */
+  background-color: #333; /* 바의 색상 */
+  border-radius: 1px;
+}
+
+.testServerActive {
+  background-color: #d1f7c4; /* 연한 초록색 배경 */
+  font-weight: bold;
+  color: #1a5302; /* 진한 초록색 텍스트 */
+}
+
+.nav a, .navLink {
+  display: flex;
+  align-items: center;
+  /* ... 나머지 스타일은 동일 */
+}
+
+.nav a:hover, .navLink:hover {
+  background-color: #e9ecef;
+}
+
+.testServerActive:hover {
+  background-color: #d1f7c4;
+}

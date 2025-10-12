@@ -1,0 +1,66 @@
+
+/* 헤더 전체 컨테이너 */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 1.5rem; /* 좌우 패딩 조정 */
+  background-color: #ffffff;
+  border-bottom: 1px solid #eaeaea;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  height: 55px;
+}
+
+/* 왼쪽/오른쪽 섹션을 나누기 위한 Flexbox */
+.leftSection, .rightSection {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem; /* 각 섹션 내부 요소간의 간격 */
+}
+
+/* 사이드바 토글 버튼 */
+.sidebarToggleButton {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 로고 (이미지 + 사이트 이름 컨테이너) */
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem; /* 로고와 이름 사이 간격 */
+  text-decoration: none;
+}
+
+.logoImage {
+  height: 50px; /* 로고 이미지 높이 */
+  width: auto;
+}
+
+.siteName {
+  margin-top: 10px;
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: #333;
+}
+
+.userActions button {
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+  color: #fff;
+  background-color: #0070f3;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.2s ease-in-out;
+}
+
+.userActions button:hover {
+  background-color: #005bb5;
+}
