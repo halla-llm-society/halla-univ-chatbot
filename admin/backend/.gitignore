@@ -1,0 +1,79 @@
+# 환경변수 (절대 Git에 올리면 안됨!)
+.env
+.env.local
+.env.production
+.env.*.local
+apikey.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv
+
+# uv
+.uv/
+uv.lock
+
+# 데이터 파일
+app/data/*.jsonl
+app/data/*.jsonl.backup
+*.db
+*.sqlite
+*.sqlite3
+
+# 로그
+*.log
+logs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# MyPy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Jupyter
+.ipynb_checkpoints
+
+# pyenv
+.python-version
