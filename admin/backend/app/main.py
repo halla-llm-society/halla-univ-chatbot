@@ -3,67 +3,64 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pathlib import Path
+from .api import routers
 
+app = FastAPI(title="Chatbot Admin Service")
 
-from app.api import conversations, surveys, stats,metrics
+origins = [
+    ["*"]
+]
 
-# ======================
-# FastAPI 인스턴스
-# ======================
-app = FastAPI(title="Admin Dashboard API")
-
-# ======================
-# CORS 설정
-# ======================
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# ======================
-# API 라우터 등록
-# ======================
-app.include_router(conversations.router, prefix="/api")
-app.include_router(surveys.router, prefix="/api")
-app.include_router(stats.router, prefix="/api")
-app.include_router(metrics.router, prefix="/api")
+app.include_router(routers.router)
 
-# ======================
-# React 정적 파일 서빙
-# ======================
-FRONTEND_DIST = Path(__file__).parent.parent.parent / "frontend" / "dist"
+#------------------------------------------------
+# 프론트엔드 파일 서빙(Docker, Local 구분)                  
+#------------------------------------------------
 
-if FRONTEND_DIST.exists():
-    # /assets 정적 파일 서빙
-    app.mount("/assets", StaticFiles(directory=FRONTEND_DIST / "assets"), name="assets")
+# Docker 컨테이너 내부 경로: /app/static
+docker_frontend_path = Path(__file__).parent.parent / "static"
 
-    @app.get("/")
-    async def serve_spa():
-        """루트 경로에서 React 앱의 index.html 반환"""
-        return FileResponse(FRONTEND_DIST / "index.html")
+# 로컬 개발 환경 경로: ../../frontend/dist
+local_frontend_path = Path(__file__).parent.parent.parent / "frontend" / "dist"
 
-    @app.get("/{full_path:path}")
-    async def serve_spa_paths(full_path: str):
-        """
-        모든 경로에서 React SPA 서빙
-        API 경로가 아닌 경우 index.html 반환 (React Router 지원)
-        """
-        if full_path.startswith("api/"):
-            return {"detail": "Not Found"}
+FRONTEND_PATH = None
 
-        file_path = FRONTEND_DIST / full_path
-        if file_path.is_file():
-            return FileResponse(file_path)
+# 유효한 경로 대입
+if docker_frontend_path.exists():
+    FRONTEND_PATH = docker_frontend_path
+elif local_frontend_path.exists():
+    FRONTEND_PATH = local_frontend_path
 
-        return FileResponse(FRONTEND_DIST / "index.html")
-else:
-    @app.get("/")
-    def root():
-        return {
-            "status": "ok",
-            "message": "Backend is running. Frontend build not found.",
-            "note": "Run 'npm run build' in frontend directory"
-        }
+# 에셋 폴더 마운트
+app.mount(
+    "/assets", 
+    StaticFiles(directory=FRONTEND_PATH / "assets"), 
+    name="assets"
+)
+
+# 파일이 있으면 그대로 return, 없으면 react app에 위임
+@app.get("/{full_path:path}")
+async def serve_react_app(full_path: str):
+    file_path = FRONTEND_PATH / full_path
+
+    if file_path.is_file():
+        return FileResponse(file_path)
+    else:
+        return FileResponse(FRONTEND_PATH / "index.html")
+    
+
+# 접속 테스트
+@app.get("/")
+def root():
+    return {
+        "service": "admin",
+        "status": "ok"
+    }
