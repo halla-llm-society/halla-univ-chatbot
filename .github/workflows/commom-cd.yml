@@ -1,0 +1,79 @@
+# https://docs.github.com/ko/actions/how-tos/deploy/deploy-to-third-party-platforms/amazon-elastic-container-service
+# https://github.com/aws-actions/configure-aws-credentials
+# https://github.com/aws-actions/amazon-ecr-login
+# https://github.com/aws-actions/amazon-ecs-render-task-definition
+# https://github.com/aws-actions/amazon-ecs-deploy-task-definition
+
+name: Deploy to Amazon ECS
+
+# 다른 workflow가 호출 가능
+on:
+  workflow_call:
+    # 매개 변수
+    inputs:
+      environment:
+        required: true 
+        type: string   
+
+      service:
+        required: true 
+        type: string   
+
+# 환경 변수
+env:
+  AWS_REGION: ap-northeast-2
+  ECR_REGISTRY: 855738538544.dkr.ecr.ap-northeast-2.amazonaws.com 
+
+# 배포
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write   
+      contents: read    
+    steps:
+      # 1. 소스 코드 체크아웃
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # 2. AWS 자격 증명 설정
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          # IAM Role ARN
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # 3. Amazon ECR 로그인
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # 4. Docker 이미지 빌드 후 Amazon ECR에 푸시
+      - name: Build, tag, and push image to Amazon ECR
+        id: build-image 
+        env:
+          ECR_REPOSITORY: chatbot-${{ inputs.environment }}-${{ inputs.service }}-rep
+          IMAGE_TAG: ${{ github.sha }}
+          SOURCE_PATH: ./${{ inputs.environment }}/${{ inputs.service }}
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $SOURCE_PATH
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          echo "image_uri=$ECR_REGISTRY/$ECR_REPOSITORY@$(docker inspect --format='{{index .RepoDigests 0}}' $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG | cut -d'@' -f2)" >> $GITHUB_OUTPUT
+
+      # 5. Amazon ECS task definition에 새 이미지 ID 채우기
+      - name: Fill in the new image ID in the Amazon ECS task definition
+        id: task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: ./${{ inputs.environment }}/${{ inputs.service }}/${{ inputs.environment }}-${{ inputs.service }}-task-def.json
+          container-name: chatbot-${{ inputs.environment }}-${{ inputs.service }}
+          image: ${{ steps.build-image.outputs.image_uri }}
+
+      # 6. Amazon ECS task definition 배포
+      - name: Deploy Amazon ECS task definition
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.task-def.outputs.task-definition }}
+          cluster: halla-chatbot-${{ inputs.environment }}-cluster
+          service: chatbot-${{ inputs.environment }}-${{ inputs.service }}-service
+          wait-for-service-stability: true

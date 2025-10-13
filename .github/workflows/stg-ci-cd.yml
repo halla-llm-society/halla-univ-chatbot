@@ -1,0 +1,95 @@
+name: Staging CI/CD Pipeline
+
+# 실행 조건
+# main branch로 push나 pr이 발생했을 때, 변경 사항에 stg 폴더가 포함된 경우
+on:
+  push:
+    branches: [ main ]
+    paths: 
+      - 'stg/**'
+  pull_request:
+    branches: [ main ]
+    paths: 
+      - 'stg/**'
+
+jobs:
+  # 1. stg 폴더의 변경된 서비스 확인
+  check-changes:
+    name: Check for changed services in 'stg'
+    runs-on: ubuntu-latest
+    outputs: 
+      frontend: ${{ steps.changed-frontend.outputs.any_changed }}
+      backend: ${{ steps.changed-backend.outputs.any_changed }}
+      ai: ${{ steps.changed-ai.outputs.any_changed }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 } 
+
+      # 각 서비스 폴더의 변경 사항 확인
+      - name: Check stg/frontend
+        id: changed-frontend
+        uses: tj-actions/changed-files@v44
+        with: { files: "stg/frontend/**" }
+      - name: Check stg/backend
+        id: changed-backend
+        uses: tj-actions/changed-files@v44
+        with: { files: "stg/backend/**" }
+      - name: Check stg/ai
+        id: changed-ai
+        uses: tj-actions/changed-files@v44
+        with: { files: "stg/ai/**" }
+
+  # 2. 변경된 서비스의 Docker 이미지 빌드
+  # event가 pr일때만 실행. 코드가 정상적으로 빌드되는지 검증하는 목적.
+  run-ci-for-pr:
+    name: Build Check for PR
+    needs: check-changes
+    if: github.event_name == 'pull_request' 
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Build stg-frontend if changed
+        if: needs.check-changes.outputs.frontend == 'true'
+        run: docker build -t stg-frontend-build-test ./stg/frontend
+
+      - name: Build stg-backend if changed
+        if: needs.check-changes.outputs.backend == 'true'
+        run: docker build -t stg-backend-build-test ./stg/backend
+
+      - name: Build stg-ai if changed
+        if: needs.check-changes.outputs.ai == 'true'
+        run: docker build -t stg-ai-build-test ./stg/ai
+
+  # 3. 변경된 서비스 배포
+  # event가 push일때만 실행. common-cd 호출해서 배포.   
+  deploy-stg-frontend:
+    name: Deploy Staging Frontend
+    needs: check-changes 
+    if: github.event_name == 'push' && needs.check-changes.outputs.frontend == 'true'
+    uses: ./.github/workflows/common-cd.yml 
+    with: 
+      environment: stg
+      service: frontend
+    secrets: inherit 
+
+  deploy-stg-backend:
+    name: Deploy Staging Backend
+    needs: check-changes
+    if: github.event_name == 'push' && needs.check-changes.outputs.backend == 'true'
+    uses: ./.github/workflows/common-cd.yml
+    with:
+      environment: stg
+      service: backend
+    secrets: inherit
+
+  deploy-stg-ai:
+    name: Deploy Staging AI
+    needs: check-changes
+    if: github.event_name == 'push' && needs.check-changes.outputs.ai == 'true'
+    uses: ./.github/workflows/common-cd.yml
+    with:
+      environment: stg
+      service: ai
+    secrets: inherit
