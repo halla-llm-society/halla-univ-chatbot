@@ -71,7 +71,7 @@ jobs:
     permissions:
       id-token: write
       contents: read
-    uses: ./.github/workflows/reusable-deploy-ecs.yml
+    uses: ./.github/workflows/common-cd.yml
     with:
       environment: prod 
       service: frontend
@@ -84,7 +84,7 @@ jobs:
     permissions:
       id-token: write
       contents: read
-    uses: ./.github/workflows/reusable-deploy-ecs.yml
+    uses: ./.github/workflows/common-cd.yml
     with:
       environment: prod 
       service: backend
@@ -97,7 +97,7 @@ jobs:
     permissions:
       id-token: write
       contents: read
-    uses: ./.github/workflows/reusable-deploy-ecs.yml
+    uses: ./.github/workflows/common-cd.yml
     with:
       environment: prod 
       service: ai
