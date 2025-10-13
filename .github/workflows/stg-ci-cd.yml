@@ -68,6 +68,9 @@ jobs:
     name: Deploy Staging Frontend
     needs: check-changes 
     if: github.event_name == 'push' && needs.check-changes.outputs.frontend == 'true'
+    permissions:
+      id-token: write  
+      contents: read   
     uses: ./.github/workflows/common-cd.yml 
     with: 
       environment: stg
@@ -78,6 +81,9 @@ jobs:
     name: Deploy Staging Backend
     needs: check-changes
     if: github.event_name == 'push' && needs.check-changes.outputs.backend == 'true'
+    permissions:
+      id-token: write  
+      contents: read   
     uses: ./.github/workflows/common-cd.yml
     with:
       environment: stg
@@ -88,6 +94,9 @@ jobs:
     name: Deploy Staging AI
     needs: check-changes
     if: github.event_name == 'push' && needs.check-changes.outputs.ai == 'true'
+    permissions:
+      id-token: write  
+      contents: read   
     uses: ./.github/workflows/common-cd.yml
     with:
       environment: stg
