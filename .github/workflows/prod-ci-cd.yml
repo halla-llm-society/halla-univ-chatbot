@@ -1,0 +1,104 @@
+name: Production CI/CD Pipeline
+
+# 실행 조건
+# main branch로 push나 pr이 발생했을 때, 변경 사항에 prod 폴더가 포함된 경우
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'prod/**'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'prod/**'
+
+jobs:
+  # 1. prod 폴더의 변경된 서비스 확인
+  check-changes:
+    name: Check for changed services in 'prod'
+    runs-on: ubuntu-latest
+    outputs:
+      frontend: ${{ steps.changed-frontend.outputs.any_changed }}
+      backend: ${{ steps.changed-backend.outputs.any_changed }}
+      ai: ${{ steps.changed-ai.outputs.any_changed }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+
+      # 각 서비스 폴더의 변경 사항 확인
+      - name: Check prod/frontend
+        id: changed-frontend
+        uses: tj-actions/changed-files@v44
+        with: { files: "prod/frontend/**" }
+      - name: Check prod/backend
+        id: changed-backend
+        uses: tj-actions/changed-files@v44
+        with: { files: "prod/backend/**" }
+      - name: Check prod/ai
+        id: changed-ai
+        uses: tj-actions/changed-files@v44
+        with: { files: "prod/ai/**" }
+
+  # 2. 변경된 서비스의 Docker 이미지 빌드
+  # event가 pr일때만 실행. 코드가 정상적으로 빌드되는지 검증하는 목적.
+  run-ci-for-pr:
+    name: Build Check for Prod PR
+    needs: check-changes
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Build prod-frontend if changed
+        if: needs.check-changes.outputs.frontend == 'true'
+        run: docker build -t prod-frontend-build-test ./prod/frontend
+
+      - name: Build prod-backend if changed
+        if: needs.check-changes.outputs.backend == 'true'
+        run: docker build -t prod-backend-build-test ./prod/backend
+
+      - name: Build prod-ai if changed
+        if: needs.check-changes.outputs.ai == 'true'
+        run: docker build -t prod-ai-build-test ./prod/ai
+        
+  # 3. 변경된 서비스 배포
+  # event가 push일때만 실행. common-cd 호출해서 배포.  
+  deploy-prod-frontend:
+    name: Deploy Production Frontend
+    needs: check-changes
+    if: github.event_name == 'push' && needs.check-changes.outputs.frontend == 'true'
+    permissions:
+      id-token: write
+      contents: read
+    uses: ./.github/workflows/reusable-deploy-ecs.yml
+    with:
+      environment: prod 
+      service: frontend
+    secrets: inherit
+
+  deploy-prod-backend:
+    name: Deploy Production Backend
+    needs: check-changes
+    if: github.event_name == 'push' && needs.check-changes.outputs.backend == 'true'
+    permissions:
+      id-token: write
+      contents: read
+    uses: ./.github/workflows/reusable-deploy-ecs.yml
+    with:
+      environment: prod 
+      service: backend
+    secrets: inherit
+
+  deploy-prod-ai:
+    name: Deploy Production AI
+    needs: check-changes
+    if: github.event_name == 'push' && needs.check-changes.outputs.ai == 'true'
+    permissions:
+      id-token: write
+      contents: read
+    uses: ./.github/workflows/reusable-deploy-ecs.yml
+    with:
+      environment: prod 
+      service: ai
+    secrets: inherit

@@ -42,7 +42,7 @@ jobs:
   # 2. 변경된 서비스의 Docker 이미지 빌드
   # event가 pr일때만 실행. 코드가 정상적으로 빌드되는지 검증하는 목적.
   run-ci-for-pr:
-    name: Build Check for PR
+    name: Build Check for STG PR
     needs: check-changes
     if: github.event_name == 'pull_request' 
     runs-on: ubuntu-latest

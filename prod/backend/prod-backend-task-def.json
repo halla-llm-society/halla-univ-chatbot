@@ -1,5 +1,5 @@
 {
-    "family": "chatbot-stg-frontend-task",
+    "family": "chatbot-prod-backend-task",
     "executionRoleArn": "arn:aws:iam::855738538544:role/ecsTaskExecutionRole",
     "networkMode": "awsvpc",
     "requiresCompatibilities": [
@@ -9,21 +9,27 @@
     "memory": "512",
     "containerDefinitions": [
         {
-            "name": "chatbot-stg-frontend",
+            "name": "chatbot-prod-backend",
             "image": "<IMAGE_URI>",
             "essential": true,
             "cpu": 0,
             "portMappings": [
                 {
-                    "containerPort": 80,
+                    "containerPort": 8000,
                     "protocol": "tcp",
                     "appProtocol": "http"
+                }
+            ],
+            "secrets": [
+                {
+                    "name": "AI_SERVICE_URL",
+                    "valueFrom": "arn:aws:ssm:ap-northeast-2:855738538544:parameter/chatbot/AI_SERVICE_URL"
                 }
             ],
             "logConfiguration": {
                 "logDriver": "awslogs",
                 "options": {
-                    "awslogs-group": "/ecs/chatbot-stg-frontend-task",
+                    "awslogs-group": "/ecs/chatbot-prod-backend-task",
                     "awslogs-region": "ap-northeast-2",
                     "awslogs-stream-prefix": "ecs",
                     "awslogs-create-group": "true"
