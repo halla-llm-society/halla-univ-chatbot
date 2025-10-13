@@ -1,5 +1,5 @@
 {
-    "family": "chatbot-stg-frontend-task",
+    "family": "chatbot-stg-ai-task",
     "executionRoleArn": "arn:aws:iam::855738538544:role/ecsTaskExecutionRole",
     "networkMode": "awsvpc",
     "requiresCompatibilities": [
@@ -9,21 +9,35 @@
     "memory": "512",
     "containerDefinitions": [
         {
-            "name": "chatbot-stg-frontend",
+            "name": "chatbot-stg-ai",
             "image": "<IMAGE_URI>",
             "essential": true,
             "cpu": 0,
             "portMappings": [
                 {
-                    "containerPort": 80,
+                    "containerPort": 8000,
                     "protocol": "tcp",
                     "appProtocol": "http"
+                }
+            ],
+            "secrets": [
+                {
+                    "name": "MONGODB_URI",
+                    "valueFrom": "arn:aws:ssm:ap-northeast-2:855738538544:parameter/chatbot/stg/MONGODB_URI"
+                },
+                {
+                    "name": "OPENAI_API_KEY",
+                    "valueFrom": "arn:aws:ssm:ap-northeast-2:855738538544:parameter/chatbot/stg/OPENAI_API_KEY"
+                },
+                {
+                    "name": "PINECONE_API_KEY",
+                    "valueFrom": "arn:aws:ssm:ap-northeast-2:855738538544:parameter/chatbot/stg/PINECONE_API_KEY"
                 }
             ],
             "logConfiguration": {
                 "logDriver": "awslogs",
                 "options": {
-                    "awslogs-group": "/ecs/chatbot-stg-frontend-task",
+                    "awslogs-group": "/ecs/chatbot-stg-ai-task",
                     "awslogs-region": "ap-northeast-2",
                     "awslogs-stream-prefix": "ecs",
                     "awslogs-create-group": "true"
