@@ -1,0 +1,86 @@
+name: Admin CI/CD Pipeline
+
+# 실행 조건
+# main branch로 push나 pr이 발생했을 때, 변경 사항에 admin 폴더가 포함된 경우
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'admin/**'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'admin/**'
+
+env:
+  AWS_REGION: ap-northeast-2
+  ECR_REGISTRY: 855738538544.dkr.ecr.ap-northeast-2.amazonaws.com
+
+jobs:
+  # 1. Admin 서비스의 Docker 이미지 빌드
+  # event가 pr일때만 실행. 코드가 정상적으로 빌드되는지 검증하는 목적.
+  run-ci-for-pr:
+    name: Build Check for Admin PR
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Build admin
+        run: docker build -t admin-build-test ./admin
+
+  # 2. 변경 사항 적용 후 배포
+  # event가 push일때만 실행.
+  deploy-admin-frontend:
+    name: Deploy Admin
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      # 1. 코드 체크아웃
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # 2. AWS 자격 증명 설정
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # 3. Amazon ECR 로그인
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # 4. Docker 이미지 빌드 후 ECR 푸시
+      - name: Build, tag, and push image to Amazon ECR
+        id: build-image
+        env:
+          ECR_REPOSITORY: chatbot-admin-rep
+          IMAGE_TAG: ${{ github.sha }}
+          SOURCE_PATH: ./admin
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $SOURCE_PATH
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          echo "image_uri=$ECR_REGISTRY/$ECR_REPOSITORY@$(docker inspect --format='{{index .RepoDigests 0}}' $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG | cut -d'@' -f2)" >> $GITHUB_OUTPUT
+
+      # 5. 새 이미지 URI를 ECS Task Definition에 반영
+      - name: Fill in the new image ID in the Amazon ECS task definition
+        id: task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: ./admin/admin-task-def.json
+          container-name: chatbot-admin
+          image: ${{ steps.build-image.outputs.image_uri }}
+
+      # 6. ECS 서비스에 배포
+      - name: Deploy Amazon ECS task definition
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.task-def.outputs.task-definition }}
+          cluster: halla-chatbot-admin-cluster
+          service: chatbot-admin-service
+          wait-for-service-stability: true

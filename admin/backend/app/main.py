@@ -39,6 +39,14 @@ if docker_frontend_path.exists():
 elif local_frontend_path.exists():
     FRONTEND_PATH = local_frontend_path
 
+# 접속 테스트
+@app.get("/")
+def root():
+    return {
+        "service": "admin",
+        "status": "ok"
+    }
+
 # 에셋 폴더 마운트
 app.mount(
     "/assets", 
@@ -55,12 +63,3 @@ async def serve_react_app(full_path: str):
         return FileResponse(file_path)
     else:
         return FileResponse(FRONTEND_PATH / "index.html")
-    
-
-# 접속 테스트
-@app.get("/")
-def root():
-    return {
-        "service": "admin",
-        "status": "ok"
-    }
