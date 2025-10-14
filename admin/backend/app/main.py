@@ -40,7 +40,7 @@ elif local_frontend_path.exists():
     FRONTEND_PATH = local_frontend_path
 
 # 접속 테스트
-@app.get("/")
+@app.get("/health")
 def root():
     return {
         "service": "admin",
