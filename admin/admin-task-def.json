@@ -20,16 +20,6 @@
                     "appProtocol": "http"
                 }
             ],
-            "secrets": [
-                {
-                    "name": "ADMIN_API_URL",
-                    "valueFrom": "arn:aws:ssm:ap-northeast-2:855738538544:parameter/chatbot/prod/ADMIN_API_URL"
-                },
-                {
-                    "name": "ADMIN_ENV",
-                    "valueFrom": "arn:aws:ssm:ap-northeast-2:855738538544:parameter/chatbot/prod/ADMIN_ENV"
-                }
-            ],
             "logConfiguration": {
                 "logDriver": "awslogs",
                 "options": {
