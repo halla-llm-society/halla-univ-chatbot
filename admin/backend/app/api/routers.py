@@ -1,9 +1,9 @@
 from fastapi import APIRouter
 from . import conversations, surveys, metrics
 
-routers = APIRouter()
+router = APIRouter()
 
-routers.include_router(
+router.include_router(
     conversations.router,
     prefix="/api",
     tags=["Conversations"]
