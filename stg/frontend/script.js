@@ -270,10 +270,12 @@ const sendMessage = async () => {
   }
 
   sendBtn.disabled = true;
+  langBtn.disabled = true; // [추가] 언어 변경 버튼 비활성화
   appendUserMessage(userMsg);
   await delay(1000);
   await appendBotMessage(userMsg);
   sendBtn.disabled = false;
+  langBtn.disabled = false; // [추가] 언어 변경 버튼 다시 활성화
 }
 
 
@@ -358,7 +360,7 @@ const appendBotMessage = async (userMsg) => {
 
       for (const char of characters) {
         botMsg += char;
-        botMsgElement.innerHTML = escapeHTML(botMsg).replace(/\n/g, "<br>");
+        botMsgElement.innerHTML = DOMPurify.sanitize(marked.parse(botMsg));
         messages.scrollTop = messages.scrollHeight;
         await new Promise(r => setTimeout(r, 10)); 
       }
