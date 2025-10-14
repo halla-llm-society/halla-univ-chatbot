@@ -3,17 +3,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pathlib import Path
-from .api import routers
+from app.api import routers  
 
 app = FastAPI(title="Chatbot Admin Service")
 
-origins = [
-    ["*"]
-]
+# origins = [
+#     ["*"]
+# ]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins = ["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
