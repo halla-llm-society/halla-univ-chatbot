@@ -1,0 +1,164 @@
+/* src/pages/styles/UsageCostlnquiry.module.css */
+
+/* ================================== */
+/* 1. Page Layout                     */
+/* ================================== */
+
+.pageContainer {
+  width: 100%;
+  padding: 1rem;
+  display: flex;
+  justify-content: center;
+}
+
+.contentWrapper {
+  width: 100%;
+  max-width: 1280px;
+}
+
+.pageHeader {
+  display: flex;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.pageHeader h1 {
+  margin: 0;
+  font-size: 1.75rem;
+}
+
+.mainContent {
+  padding-bottom: 2.5rem; 
+}
+
+
+/* ================================== */
+/* 2. Section Titles & Layouts      */
+/* ================================== */
+
+.mainSectionTitle {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: #212529;
+}
+
+.chartSection {
+  margin-bottom: 1.5rem;
+}
+
+
+/* ================================== */
+/* 3. Total Cost Display              */
+/* ================================== */
+
+.totalCostContainer {
+  padding: 1.5rem;
+  margin-bottom: 2.5rem;
+  border-radius: 8px;
+  background-color: #fff;
+  border: 1px solid #dee2e6;
+  text-align: center;
+}
+
+.totalCostContainer h2 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.2rem;
+  color: #495057;
+  font-weight: 600;
+}
+
+.totalCostContainer p {
+  margin: 0;
+  font-size: 3.2rem;
+  font-weight: 700;
+  color: #212529;
+}
+
+
+/* ================================== */
+/* 4. Filterable Section & Buttons    */
+/* ================================== */
+
+.filterableSection {
+  background-color: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 2.5rem;
+}
+
+.filterableSection .chartSection:last-of-type {
+  margin-bottom: 0;
+}
+
+.filterContainer {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.filterButton, .activeButton {
+  padding: 0.5rem 1.2rem;
+  font-size: 0.9rem;
+  border-radius: 20px;
+  border: 1px solid #ced4da;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+.filterButton {
+  background-color: #fff;
+  color: #495057;
+}
+.filterButton:hover {
+  background-color: #f1f3f5;
+}
+
+.activeButton {
+  background-color: #0070f3;
+  color: #fff;
+  border-color: #0070f3;
+  font-weight: 600;
+}
+
+
+/* ================================== */
+/* 5. Chart Components                */
+/* ================================== */
+
+.sectionTitle {
+  font-size: 1.25rem;
+  margin-bottom: 0.75rem;
+  color: #343a40;
+}
+
+.graphCard {
+  background-color: #fff;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+.graphValue {
+  margin: 0 0 1rem 0;
+  text-align: left;
+  font-size: 1.25rem; 
+  font-weight: 600;
+  color: #212529;
+}
+
+.chartArea {
+  width: 100%;
+  height: 250px;
+}
+
+.loadingText {
+  text-align: center;
+  padding: 5rem 0;
+  color: #868e96;
+}

@@ -2,7 +2,12 @@
 
 import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { PiRobotBold } from "react-icons/pi";
+import { PiRobotBold } from "react-icons/pi"; // 로봇 아이콘
+import { FaGithub } from "react-icons/fa"; // 깃허브 아이콘
+import { FaBlogger } from "react-icons/fa6"; // 블로그 아이콘
+import { IoDocumentTextOutline } from "react-icons/io5"; //API 명세서 아이콘
+
+import { PiGithubLogoFill } from "react-icons/pi";
 
 
 import styles from '../styles/Sidemenu.module.css';
@@ -86,6 +91,22 @@ const Sidemenu = ({ isExpanded, onToggle }) => {
           </li>
         </ul>
       </nav>
+
+      <div className={styles.sidebarFooter}>
+        <a href="https://github.com/halla-llm-society/halla-univ-chatbot" target="_blank" rel="noopener noreferrer" className={styles.footerLink}>
+          <FaGithub className={styles.footerIcon} />
+          <span className={styles.footerText}>GitHub</span>
+        </a>
+        <a href="/blog" target="_blank" rel="noopener noreferrer" className={styles.footerLink}>
+          <FaBlogger className={styles.footerIcon} />
+          <span className={styles.footerText}>Blog</span>
+        </a>
+        <a href="https://clever-smash-243.notion.site/halla-univ-chatbot-API-28af5c37f4e080c8a06eef90daa4c438" target="_blank" rel="noopener noreferrer" className={styles.footerLink}>
+          <IoDocumentTextOutline className={styles.footerIcon} />
+          <span className={styles.footerText}>API</span>
+        </a>
+      </div>
+
     </aside>
   );
 };

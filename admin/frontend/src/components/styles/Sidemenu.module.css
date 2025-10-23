@@ -192,3 +192,41 @@
 .testServerActive:hover {
   background-color: #d1f7c4;
 }
+
+.sidebarFooter {
+  padding: 1rem 0;
+  margin: 0 0.5rem;
+  border-top: 1px solid #dee2e6;
+  display: flex;
+  justify-content: space-around; /* 아이콘들을 균등하게 배치 */
+  align-items: center;
+  transition: opacity 0.2s ease-in-out, visibility 0.2s;
+}
+
+.footerLink {
+  display: flex;
+  flex-direction: column; /* 아이콘과 텍스트를 세로로 배치 */
+  align-items: center;
+  text-decoration: none;
+  color: #5f6368;
+  transition: color 0.2s;
+}
+
+.footerLink:hover {
+  color: #0070f3;
+}
+
+.footerIcon {
+  font-size: 1.5rem; /* 아이콘 크기 */
+  margin-bottom: 0.25rem; /* 아이콘과 텍스트 사이 간격 */
+}
+
+.footerText {
+  font-size: 0.75rem; /* 텍스트 크기 */
+}
+
+/* 사이드바가 접혔을 때 푸터를 숨깁니다. */
+.collapsed .sidebarFooter {
+  opacity: 0;
+  visibility: hidden;
+}
