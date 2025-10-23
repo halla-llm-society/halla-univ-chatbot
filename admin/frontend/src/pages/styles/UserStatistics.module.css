@@ -1,0 +1,198 @@
+/* src/pages/styles/UserStatistics.module.css */
+
+/* ================================== */
+/* 1. Page Layout (재사용) */
+/* ================================== */
+.pageContainer {
+  width: 100%;
+  padding: 1rem;
+  display: flex;
+  justify-content: center;
+}
+
+.contentWrapper {
+  width: 100%;
+  max-width: 1280px;
+}
+
+.pageHeader {
+  display: flex;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.pageHeader h1 {
+  margin: 0;
+  font-size: 1.75rem;
+}
+
+.mainContent {
+  padding-bottom: 2.5rem; 
+}
+
+/* ================================== */
+/* 2. Filter Buttons (재사용) */
+/* ================================== */
+.filterContainer {
+  display: flex;
+  flex-wrap: wrap; /* 필터가 많아지면 줄바꿈 */
+  gap: 0.5rem;
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.filterButton, .activeButton {
+  padding: 0.5rem 1.2rem;
+  font-size: 0.9rem;
+  border-radius: 20px;
+  border: 1px solid #ced4da;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+.filterButton {
+  background-color: #fff;
+  color: #495057;
+}
+.filterButton:hover {
+  background-color: #f1f3f5;
+}
+
+.activeButton {
+  background-color: #0070f3;
+  color: #fff;
+  border-color: #0070f3;
+  font-weight: 600;
+}
+
+/* ================================== */
+/* 3. Stats Summary (신규) */
+/* ================================== */
+.statsSummaryContainer {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2.5rem;
+}
+
+.statBox {
+  background-color: #fff;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.statBox h2 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.2rem;
+  color: #495057;
+  font-weight: 600;
+}
+
+.statBox p {
+  margin: 0;
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #212529;
+}
+
+.statBox p span {
+  font-size: 1rem;
+  font-weight: 500;
+  color: #868e96;
+  margin-left: 0.25rem;
+}
+
+/* ================================== */
+/* 4. Chart Components (재사용) */
+/* ================================== */
+.chartSection {
+  margin-bottom: 2.5rem;
+}
+
+.sectionTitle {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: #212529;
+}
+
+.graphCard {
+  background-color: #fff;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+.chartArea {
+  width: 100%;
+  height: 300px; /* 막대 차트에 맞게 높이 조절 */
+}
+
+.loadingText {
+  text-align: center;
+  padding: 5rem 0;
+  color: #868e96;
+}
+
+/* ================================== */
+/* 5. Table Section (재사용) */
+/* ================================== */
+.tableSection {
+  margin-top: 2.5rem;
+}
+
+.tableWrapper {
+  border: 1px solid #e0e0e0;
+  overflow: hidden;
+  border-radius: 8px;
+}
+
+.dataTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.dataTable th {
+  background-color: #f8f9fa;
+  padding: 12px 15px;
+  border-bottom: 2px solid #dee2e6;
+  text-align: left;
+  font-weight: 600;
+  color: #495057;
+}
+
+.dataTable td {
+  padding: 12px 15px;
+  border-bottom: 1px solid #e9ecef;
+  color: #343a40;
+}
+
+/* 테이블의 '순서'와 '별점' 열은 중앙 정렬 */
+.dataTable th:nth-child(1), .dataTable td:nth-child(1),
+.dataTable th:nth-child(2), .dataTable td:nth-child(2) {
+  text-align: center;
+  width: 80px;
+}
+
+/* '질문에 대한 답변' 열은 너비를 더 차지하도록 함 */
+.dataTable th:nth-child(3) {
+  text-align: left;
+}
+.dataTable td:nth-child(3) {
+  text-align: left;
+  line-height: 1.5;
+}
+
+.dataTable tbody tr:nth-child(even) {
+  background-color: #f8f9fa;
+}
+
+.dataTable tbody tr:last-child td {
+  border-bottom: none;
+}
