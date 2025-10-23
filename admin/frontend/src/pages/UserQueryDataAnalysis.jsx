@@ -12,6 +12,9 @@ const UserQueryDataAnalysis = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [query, setQuery] = useState('');
   const [searchCategory, setSearchCategory] = useState('all');
+  // 날짜 범위 상태를 관리할 state 추가
+  const [startDate, setStartDate] = useState(null);
+  const [endDate, setEndDate] = useState(null);
 
   // 2. 툴팁의 상태를 관리할 state
   const [tooltipContent, setTooltipContent] = useState('');
@@ -61,11 +64,12 @@ const UserQueryDataAnalysis = () => {
           cnt: ITEMS_PER_PAGE,
           sort: sortOrder,
           search: query,
-          category: searchCategory, 
+          category: searchCategory,
+          startDate: startDate,
+          endDate: endDate,
         };
         
         console.log("🚀 API 요청 데이터:", params);
-
         const response = await getUserQueryData(params);
         setTableData(response.data);
         setTotalPages(response.totalPages);
@@ -95,6 +99,30 @@ const UserQueryDataAnalysis = () => {
   const handleSearch = () => {
     setCurrentPage(1); // 검색 시에는 1페이지부터 보도록 설정
     setQuery(searchTerm); // 현재 입력된 searchTerm을 확정된 query로 설정 -> useEffect 트리거
+
+    // 입력값이 'YYYY-MM-DD ~ YYYY-MM-DD' 형식인지 정규식으로 확인
+    const dateRangeRegex = /^\d{4}-\d{2}-\d{2}\s*~\s*\d{4}-\d{2}-\d{2}$/;
+    const singleDateRegex = /^\d{4}-\d{2}-\d{2}$/;
+
+    if (dateRangeRegex.test(searchTerm)) {
+      // 케이스 1: 날짜 범위 검색 ("YYYY-MM-DD ~ YYYY-MM-DD")
+      const [start, end] = searchTerm.split('~').map(s => s.trim());
+      setStartDate(start);
+      setEndDate(end);
+      setQuery(''); // 일반 검색어는 비움
+    } else if (singleDateRegex.test(searchTerm)) {
+      // 케이스 2: 단일 날짜 검색 ("YYYY-MM-DD")
+      // 시작일과 종료일을 같은 날짜로 설정하여 해당 날짜 하루만 검색
+      setStartDate(searchTerm.trim());
+      setEndDate(searchTerm.trim());
+      setQuery(''); // 일반 검색어는 비움
+    } else {
+      // 일반 키워드 검색일 경우
+      setQuery(searchTerm);
+      setStartDate(null); // 날짜 검색 조건은 비움
+      setEndDate(null);
+    }
+
   };
 
   // 4-3-1. Enter 키로 검색 실행
@@ -117,7 +145,7 @@ const UserQueryDataAnalysis = () => {
           <h1>사용자 질의 데이터 분석</h1>
 
           <div className={styles.searchContainer}>
-            {/* 카테고리 선택 드롭다운 추가 */}
+            {/* 카테고리 선택 드롭다운 */}
             <select 
               className={styles.searchCategory} 
               value={searchCategory} 
@@ -132,7 +160,7 @@ const UserQueryDataAnalysis = () => {
             <input 
               type="text" 
               className={styles.searchInput}
-              placeholder="검색어를 입력하세요..."
+              placeholder="검색어 또는 YYYY-MM-DD"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               onKeyDown={handleKeyDown}

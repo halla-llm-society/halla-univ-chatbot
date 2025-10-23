@@ -1,0 +1,149 @@
+/*트래픽 CSS 파일 */
+
+/*
+1번 부터 3번 까지는 모든 페이지에 적용하는 CSS 문법입니다.
+mainContent 부터는 페이지별 다른 CSS 문법입니다.
+*/
+
+/* 1. 외부 컨테이너 스타일 */
+.pageContainer {
+  width: 100%;
+  height: 100%;
+  padding: 1rem;
+  
+  /* Flexbox를 이용해 내부 컨테이너를 수평 중앙 정렬 */
+  display: flex;
+  justify-content: center;
+}
+
+/* 2. 내부 컨테이너 스타일 */
+.contentWrapper {
+  width: 100%;
+  max-width: 1400px;
+}
+
+/* 3. 페이지 헤더 스타일 */
+.pageHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem; /* 헤더와 메인 콘텐츠 사이 여백 */
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.pageHeader h1 {
+  margin: 0;
+  font-size: 1.75rem;
+}
+
+.smallTitle h3 {
+  margin: 0px 0px 3px 0px;
+}
+
+/* 메인 콘텐츠 영역 스타일 */
+.mainContent {
+  border: 0px solid #e9ecef;
+  padding: 0; /* 테이블이 꽉 차도록 패딩 제거 */
+  display: block; /* Flexbox 대신 일반 블록으로 변경 */
+  color: #333; /* 기본 텍스트 색상 변경 */
+  overflow: hidden; /* 모서리 둥글게 할 때 필요 */
+}
+
+.totalTrafficContainer {
+  padding: 1.5rem;
+  margin-bottom: 2.5rem;
+  border-radius: 8px;
+  background-color: #f8f9fa;
+  border: 1px solid #dee2e6;
+  text-align: center;
+}
+
+.filterContainer {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.5rem;
+  border: 1px solid #dee2e6;
+  border-radius: 10px;
+  background-color: #f8f9fa;
+  padding: 0.75em 1rem 0.75rem 1.5rem;
+}
+
+/* 버튼 공통 스타일 */
+.filterButton, .activeButton {
+  padding: 0.5rem 1.2rem;
+  font-size: 0.9rem;
+  border-radius: 20px;
+  border: 1px solid #ced4da;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+/* 기본 버튼 스타일 */
+.filterButton {
+  background-color: #fff;
+  color: #495057;
+}
+
+.filterButton:hover {
+  background-color: #f1f3f5;
+}
+
+/* 활성화된 버튼 스타일 */
+.activeButton {
+  background-color: #0070f3;
+  color: #fff;
+  border-color: #0070f3;
+  font-weight: 600;
+}
+
+.chartsContainer {
+  background-color: #f8f9fa; /* 연한 회색 배경 */
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 1.5rem 1.5rem 5rem 1.5rem;
+}
+
+/* 컨테이너 안의 마지막 차트는 하단 여백을 제거하여 깔끔하게 만듭니다. */
+.chartsContainer .chartSection:last-of-type {
+  margin-bottom: 0;
+}
+
+.chartSection {
+  margin-bottom: 2.5rem;
+}
+
+.sectionTitle {
+  font-size: 1.25rem;
+  margin-bottom: 0.75rem;
+  color: #343a40;
+}
+
+.graphCard {
+  background-color: #fff;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+.graphValue {
+  margin: 0 0 1rem 0;
+  text-align: left;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #212529;
+}
+
+.chartArea {
+  width: 100%;
+  height: 250px;
+}
+
+.loadingText {
+  text-align: center;
+  padding: 5rem 0;
+  color: #868e96;
+}
+
+

@@ -4,9 +4,11 @@ import apiClient from './apiClient';
 
 /**
  * 사용자 질의 데이터를 가져오는 API 함수
- * @param {object} params - { page, cnt, sort, search, category }
+ * @param {object} params - { page, cnt, sort, search, category, startDate, endDate }
  * @param {string} params.category - 검색할 카테고리 ('all', 'question', 'answer', 'decision')
  * @param {string} params.search - 검색어
+ * @param {string} params.startDate - 조회 시작일 (YYYY-MM-DD 형식)
+ * @param {string} params.endDate - 조회 종료일 (YYYY-MM-DD 형식)
  */
 
 export const getUserQueryData = async (params) => {
@@ -18,6 +20,7 @@ export const getUserQueryData = async (params) => {
 
   try {
     // 예시: /user-query-data?page=1&cnt=20&sort=asc&search=날씨
+    // 예시: GET /user-query-data?page=1&sort=desc&startDate=2025-10-10&endDate=2025-10-13
     const response = await apiClient.get('/user-query-data', { params });
     return response.data;
   } catch (error) {
