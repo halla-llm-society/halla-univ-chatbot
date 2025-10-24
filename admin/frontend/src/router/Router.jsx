@@ -18,7 +18,11 @@ const router = createBrowserRouter([
       { path: '/cost', element: <UsageCostInquiry /> }, // /cost 주소로 오면 이 페이지
     ],
   },
-]);
+], 
+  {
+    basename: "/admin"
+  }
+);
 
 const Router = () => {
   return <RouterProvider router={router} />;
