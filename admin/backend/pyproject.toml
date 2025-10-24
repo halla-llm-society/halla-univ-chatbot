@@ -1,16 +1,23 @@
 [project]
-name = "admin-backend"
+name = "app"
 version = "0.1.0"
-description = "Admin Dashboard Backend with FastAPI"
-requires-python = ">=3.11"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.9"
 dependencies = [
-    "fastapi>=0.115.0",
-    "uvicorn[standard]>=0.30.0",
-    "sqlalchemy>=2.0.0",
-    "python-jose[cryptography]>=3.3.0",
-    "passlib[bcrypt]>=1.7.4",
-    "pydantic>=2.0.0",
-    "pydantic-settings>=2.0.0",
-    "openai>=1.0.0",
-    "python-dotenv>=1.0.0",
+    "dotenv>=0.9.9",
+    "fastapi>=0.116.1",
+    "llama-index>=0.13.0",
+    "olefile>=0.47",
+    "openai>=1.98.0",
+    "pinecone>=7.3.0",
+    "pymongo[srv]>=4.13.2",
+    "dnspython>=2.6.1",
+    "certifi>=2024.7.4",
+    "pytest>=8.4.1",
+    "pytz>=2025.2",
+    "uvicorn>=0.35.0",
+    "beautifulsoup4>=4.12.3",
+    "pyyaml>=6.0.2",
+    "google-generativeai>=0.8.5",
 ]
