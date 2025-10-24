@@ -99,8 +99,8 @@ const appendUserMessage = (userMsg) => {
 }
 
 
-const appendBotMessage = async (userMsg) => {
-    // 응답 생성 메시지 띄우기
+// 응답 생성 전 대기 메시지 추가
+const appendWaitMessage = async () => {
     let msgElement = document.createElement("div");
     let waitMsg = `<span class="wait-msg">${waitMsgDict[language]}</span><span class="loader"></span>`;
 
@@ -114,9 +114,12 @@ const appendBotMessage = async (userMsg) => {
     messages.appendChild(msgElement);
     messages.scrollTop = messages.scrollHeight;
 
-    const botMsgElement = msgElement.querySelector(".message.bot");
+    return msgElement.querySelector(".message.bot");
+}
 
-    // 10초 단위로 wait message 변경
+
+// 10초 단위로 대기 메시지 변경
+const initWaitMessageInterval = async (botMsgElement) => {
     let elapsedTime = 1;
     let messagesForLang = waitMsgDict[language];
     botMsgElement.innerHTML = `<span class="wait-msg">${messagesForLang[0]}</span><span class="loader"></span>`;
@@ -126,6 +129,15 @@ const appendBotMessage = async (userMsg) => {
         botMsgElement.innerHTML = `<span class="wait-msg">${messagesForLang[Math.min(elapsedTime, messagesForLang.length - 1)]}</span><span class="loader"></span>`;
         elapsedTime++;
     }, 10000);
+
+    return waitMessageInterval;
+}
+
+
+// 메시지 전송
+const appendBotMessage = async (userMsg) => {
+    const botMsgElement = await appendWaitMessage();
+    const waitMessageInterval = await initWaitMessageInterval(botMsgElement);
 
     try {
         let baseURL = "";
@@ -140,11 +152,14 @@ const appendBotMessage = async (userMsg) => {
             baseURL = "https://halla-chatbot.com";
         }
 
+        // 현재 유저의 기존 메시지
+        userMessages = updateUserInfo(userMsg);
+
         // request
         const resp = await fetch(`${baseURL}/api/chat`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ "message": userMsg, "language": language })
+            body: JSON.stringify({ "message": userMessages, "language": language })
         });
 
         // response
@@ -172,6 +187,7 @@ const appendBotMessage = async (userMsg) => {
         }
     }
     catch (error) {
+        clearInterval(waitMessageInterval);
         botMsgElement.innerHTML = `❌ ${errorMsgDict[language]}:` + error.message;
     }
 
