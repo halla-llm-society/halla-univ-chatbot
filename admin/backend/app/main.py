@@ -39,6 +39,13 @@ if docker_frontend_path.exists():
 elif local_frontend_path.exists():
     FRONTEND_PATH = local_frontend_path
 
+# 에셋 폴더 마운트
+app.mount(
+    "/admin/assets", 
+    StaticFiles(directory=FRONTEND_PATH / "assets"), 
+    name="admin/assets"
+)
+
 # 접속 테스트
 @app.get("/health")
 def root():
@@ -46,13 +53,6 @@ def root():
         "service": "admin",
         "status": "ok"
     }
-
-# 에셋 폴더 마운트
-app.mount(
-    "/assets", 
-    StaticFiles(directory=FRONTEND_PATH / "assets"), 
-    name="assets"
-)
 
 # 파일이 있으면 그대로 return, 없으면 react app에 위임
 @app.get("/{full_path:path}")
