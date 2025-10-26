@@ -50,17 +50,97 @@
   color: #333;
 }
 
-.userActions button {
-  padding: 0.5rem 1rem;
-  font-size: 0.9rem;
-  color: #fff;
-  background-color: #0070f3;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  transition: background-color 0.2s ease-in-out;
+.userActions {
+  display: flex;
+  align-items: center;
 }
 
-.userActions button:hover {
-  background-color: #005bb5;
+/* 라벨과 스위치를 감싸는 컨테이너 */
+.envToggleContainer {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-family: 'Consolas', 'Menlo', monospace;
+  font-size: 0.9rem;
+}
+
+/* 'PROD', 'STG' 텍스트 라벨 스타일 */
+.envLabel {
+  font-weight: 600;
+  color: #aaa; /* 비활성 상태의 텍스트 색상 */
+  transition: color 0.2s ease-in-out;
+}
+
+/* 활성화된 라벨에 적용될 스타일 */
+.envLabel.active {
+  /*
+    .active 클래스는 Header.jsx에서
+    curEnv 값에 따라 동적으로 할당됩니다.
+  */
+  color: #333; /* 활성 상태의 텍스트 색상 */
+}
+
+/* 'prod' 활성 시 (체크 안됨) */
+.envToggleContainer span:first-of-type.active {
+  color: #0070f3; /* Prod 활성 색상 (초록) */
+}
+/* 'stg' 활성 시 (체크 됨) */
+.envToggleContainer span:last-of-type.active {
+  color: #f0ad4e; /* Stg 활성 색상 (주황) */
+}
+
+/* 스위치 UI의 <label> 요소 */
+.envToggleSwitch {
+  position: relative;
+  display: inline-block;
+  width: 44px; /* 스위치 너비 */
+  height: 24px; /* 스위치 높이 */
+}
+
+/* 실제 <input type="checkbox">는 숨깁니다. */
+.envToggleInput {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+/* 스위치의 배경(트랙)이 되는 <span> */
+.envToggleSlider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc; /* 기본 배경색 */
+  border-radius: 24px;
+  transition: .4s;
+}
+
+/* 스위치의 원(손잡이)이 되는 :before 가상 요소 */
+.envToggleSlider:before {
+  position: absolute;
+  content: "";
+  height: 18px; /* 원 높이 */
+  width: 18px; /* 원 너비 */
+  left: 3px;  /* 왼쪽 여백 */
+  bottom: 3px; /* 아래쪽 여백 */
+  background-color: white;
+  border-radius: 50%;
+  transition: .4s;
+}
+
+/* 'stg' (on) 상태일 때 : checked */
+.envToggleInput:checked + .envToggleSlider {
+  background-color: #f0ad4e; /* 'stg' (on) 상태 배경색 (주황색 계열) */
+}
+
+.envToggleInput:checked + .envToggleSlider:before {
+  /* (너비 44px) - (왼쪽여백 3px * 2) - (원 너비 18px) = 20px */
+  transform: translateX(20px); 
+}
+
+/* 'prod' (off) 상태일 때 : not(:checked) */
+.envToggleInput:not(:checked) + .envToggleSlider {
+  background-color: #0070f3; /* 'prod' (off) 상태 배경색 (파란색 계열) */
 }
