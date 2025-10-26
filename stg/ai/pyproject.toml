@@ -36,4 +36,6 @@ dependencies = [
     "typing-inspection>=0.4.1",
     "typing-extensions>=4.14.1",
     "beautifulsoup4>=4.12.3",
+    "pyyaml>=6.0.2",
+    "google-generativeai>=0.8.5",
 ]
