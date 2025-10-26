@@ -1,19 +1,25 @@
 // 사용자(session storage) 관련 함수
 
 
-const updateUserInfo = (userMsg) => {
-    // 세션 스토리지에 정보가 없으면 새로 생성
-    if (sessionStorage.getItem("survey") == null) {
-        sessionStorage.setItem("survey", "false");
-    }
+const setUserInfo = () => {
+    sessionStorage.setItem("survey", "false");
+    sessionStorage.setItem("message_history", JSON.stringify([]));
+}
 
-    const storedMessages = sessionStorage.getItem("userMessages");
-    let userMessages = storedMessages ? JSON.parse(storedMessages) : [];
 
-    const newMessage = { num: userMessages.length + 1, message: userMsg };
-    userMessages.push(newMessage);
+const getUserMessageHistory = () => {
+    return JSON.parse(sessionStorage.getItem("message_history"));
+}
 
-    sessionStorage.setItem("userMessages", JSON.stringify(userMessages));
 
-    return userMessages; 
+const updateMsgHistory = (userMsg, botMsg) => {
+    let messageHistory = JSON.parse(sessionStorage.getItem("message_history"));
+
+    const newUserMsg = { "role": "user", "content": userMsg };
+    const newBotMsg = { "role": "assistant", "content": botMsg };
+
+    messageHistory.push(newUserMsg);
+    messageHistory.push(newBotMsg);
+
+    sessionStorage.setItem("message_history", JSON.stringify(messageHistory));
 }

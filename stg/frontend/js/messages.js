@@ -108,13 +108,13 @@ const appendBotMessage = async (userMsg) => {
 
     try {
         // 현재 유저의 기존 메시지
-        let userMessages = updateUserInfo(userMsg);
+        let messageHistory = getUserMessageHistory();
 
         // request
         const resp = await fetch(`${baseURL}/api/chat`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ "message": userMessages, "language": language })
+            body: JSON.stringify({ "user_input": userMsg, "message_history": messageHistory, "language": language })
         });
 
         // response
@@ -137,9 +137,12 @@ const appendBotMessage = async (userMsg) => {
                 botMsg += char;
                 botMsgElement.innerHTML = escapeHTML(botMsg).replace(/\n/g, "<br>");
                 messages.scrollTop = messages.scrollHeight;
-                await new Promise(r => setTimeout(r, 10));
+
+                await new Promise(r => setTimeout(r, 20));
             }
         }
+
+        updateMsgHistory(userMsg, botMsg);
     }
     catch (error) {
         clearInterval(waitMessageInterval);

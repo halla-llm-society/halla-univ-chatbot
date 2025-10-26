@@ -1,6 +1,12 @@
 from pydantic import BaseModel
+from typing import List
 
-# /api/chat 엔드포인트의 request body type
+class MessageHistory(BaseModel):
+    role: str
+    content: str
+
+
 class ChatRequest(BaseModel):
-    message: str
+    user_input: str
+    message_history: List[MessageHistory]
     language: str
