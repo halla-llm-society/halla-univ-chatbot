@@ -1,17 +1,12 @@
 from fastapi import APIRouter
 from motor.motor_asyncio import AsyncIOMotorClient
-from datetime import datetime, timezone, timedelta
 from ..schemas.survey_schemans import SurveyRequest
-from ..db.database import save_survey
+from ..db.database import save_to_mongodb
 
 router = APIRouter()
 
 
 @router.post("")
 async def submit_survey(request: SurveyRequest):
-    data = request.model_dump()
-
-    utc_now = datetime.now(timezone.utc)
-    data = {"date": utc_now, **data}
-
-    await save_survey(data)
+    survey_data = request.model_dump()
+    await save_to_mongodb(survey_data, "stg-survey")
