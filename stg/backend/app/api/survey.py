@@ -8,7 +8,7 @@ import os
 router = APIRouter()
 
 load_dotenv()
-MONGODB_URI = os.getenv("MONGODB_URI")
+MONGODB_URI = os.getenv("BACKEND_MONGODB_URI")
 
 client = AsyncIOMotorClient(MONGODB_URI)
 db = client["halla-chatbot-stg"]
