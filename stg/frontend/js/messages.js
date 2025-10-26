@@ -137,7 +137,8 @@ const appendBotMessage = async (userMsg) => {
                 botMsg += char;
                 botMsgElement.innerHTML = escapeHTML(botMsg).replace(/\n/g, "<br>");
                 messages.scrollTop = messages.scrollHeight;
-                await new Promise(r => setTimeout(r, 10));
+
+                await new Promise(r => setTimeout(r, 20));
             }
         }
 
