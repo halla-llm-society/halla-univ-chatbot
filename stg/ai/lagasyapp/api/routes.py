@@ -1,3 +1,6 @@
+
+
+#lagacy code for stg/ai/app/api/routes.py
 import asyncio
 import os
 from openai import OpenAI
