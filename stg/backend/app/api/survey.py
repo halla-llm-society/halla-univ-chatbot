@@ -14,7 +14,7 @@ client = AsyncIOMotorClient(MONGODB_URI)
 db = client["halla-chatbot-stg"]
 collection = db["stg-survey"]
 
-@router.post("/")
+@router.post("")
 async def submit_survey(request: SurveyRequest):
     data = request.model_dump()
 
