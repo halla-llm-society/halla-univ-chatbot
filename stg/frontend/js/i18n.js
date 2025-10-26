@@ -45,6 +45,7 @@ const defaultMsgDict = {
 
 }
 
+
 const waitMsgDict = {
     "KOR": [
         "⏳ 응답 생성 중입니다...",
@@ -114,6 +115,7 @@ const errorMsgDict = {
     "MNG": "Алдаа гарлаа.",
     "IDN": "Terjadi kesalahan."
 };
+
 
 const infoModalDict = {
     "KOR": `<div class="modal">
@@ -215,6 +217,7 @@ const infoModalDict = {
           </div>`
 }
 
+
 const resetModalDict = {
     "KOR": `<div class="modal">
             <div class="modal-title">대화 내용 초기화</div>
@@ -308,6 +311,7 @@ const resetModalDict = {
           </div>`
 }
 
+
 const userInputPlaceHolderDict = {
     "KOR": "무엇이든 물어보세요!",
     "ENG": "Ask me anything!",
@@ -316,4 +320,255 @@ const userInputPlaceHolderDict = {
     "UZB": "Istagan narsangizni so'rashingiz mumkin!",
     "MNG": "Надаас юу ч асуугаарай!",
     "IDN": "Tanyakan apa saja kepada saya!"
+}
+
+
+const surveyStartDict = {
+  "KOR": "잠깐만요! 간단한 설문 부탁드려요 :)",
+  "ENG": "One moment! Could you please take a quick survey? :)",
+  "VNM": "Xin chờ một lát! Bạn vui lòng làm một khảo sát ngắn nhé :)",
+  "CHN": "请稍等！麻烦您做个简单的问卷调查 :)",
+  "UZB": "Bir daqiqa! Iltimos, qisqa so'rovnomani to'ldiring :)",
+  "MNG": "Түр хүлээнэ үү! Энгийн асуулгад хариулна уу :)",
+  "IDN": "Tunggu sebentar! Mohon isi survei singkat kami :)"
+}
+
+
+const surveyBtnDict = {
+  "KOR": [
+    "이전",
+    "다음",
+    "제출하기",
+    "추가 설문 참여하기"
+  ],
+  "ENG": [
+    "Prev",  
+    "Next",
+    "Submit",
+    "Take additional survey" 
+  ],
+  "VNM": [
+    "Trước",
+    "Tiếp",  
+    "Gửi",   
+    "Tham gia khảo sát thêm"
+  ],
+  "CHN": [
+    "上一步",
+    "下一步", 
+    "提交",   
+    "参与额外问卷"
+  ],
+  "UZB": [
+    "Orqaga", 
+    "Keyingisi", 
+    "Yuborish",
+    "Qo'shimcha so'rovnomada qatnashish"
+  ],
+  "MNG": [
+    "Өмнөх", 
+    "Дараах", 
+    "Илгээх", 
+    "Нэмэлт судалгаанд оролцох"
+  ],
+  "IDN": [
+    "Kembali", 
+    "Lanjut",   
+    "Kirim",     
+    "Ikuti survei tambahan"
+  ]
+}
+
+
+const survey0Dict = {
+  "KOR": [
+    "현재 소속을 알려주세요!",
+    "1학년",
+    "2학년",
+    "3학년",
+    "4학년",
+    "대학원생",
+    "교직원",
+    "외부인"
+  ],
+  "ENG": [
+    "What is your affiliation?",
+    "1st Year",
+    "2nd Year",
+    "3rd Year",
+    "4th Year",
+    "Graduate",
+    "Staff",    
+    "Visitor"
+  ],
+  "VNM": [
+    "Bạn là ai?", 
+    "Năm 1",    
+    "Năm 2",
+    "Năm 3",
+    "Năm 4",
+    "Cao học",  
+    "Nhân viên", 
+    "Khách"
+  ],
+  "CHN": [
+    "您的身份是？", 
+    "一年级",
+    "二年级",
+    "三年级",
+    "四年级",
+    "研究生",
+    "教职员",
+    "访客"    
+  ],
+  "UZB": [
+    "Mansubligingiz?", 
+    "1-kurs",
+    "2-kurs",
+    "3-kurs",
+    "4-kurs",
+    "Magistrant",
+    "Xodim",    
+    "Mehmon"   
+  ],
+  "MNG": [
+    "Таны харьяалал?",
+    "1-р курс",
+    "2-р курс",
+    "3-р курс",
+    "4-р курс",
+    "Магистрант", 
+    "Ажилтан",   
+    "Зочин"
+  ],
+  "IDN": [
+    "Afiliasi Anda?", 
+    "Thn 1", 
+    "Thn 2",
+    "Thn 3",
+    "Thn 4",
+    "Pasca",
+    "Staf", 
+    "Pengunjung"
+  ]
+}
+
+
+const survey1Dict = {
+  "KOR": "저희 서비스에 점수를 매겨주세요!",
+  "ENG": "Please rate our service!",
+  "VNM": "Vui lòng xếp hạng dịch vụ của chúng tôi!",
+  "CHN": "请为我们的服务打分！",
+  "UZB": "Bizning xizmatimizni baholang!",
+  "MNG": "Манай үйлчилгээнд үнэлгээ өгнө үү!",
+  "IDN": "Silakan beri nilai untuk layanan kami!"
+}
+
+
+const survey2Dict = {
+  "KOR": [
+    "챗봇의 응답 품질을 평가해주세요!",
+    "답변 속도",
+    "답변 정확도"
+  ],
+  "ENG": [
+    "Please rate the response quality!",
+    "Speed",   
+    "Accuracy"  
+  ],
+  "VNM": [
+    "Đánh giá chất lượng phản hồi!", 
+    "Tốc độ",   
+    "Độ chính xác" 
+  ],
+  "CHN": [
+    "请评价回复质量！", 
+    "速度",   
+    "准确性" 
+  ],
+  "UZB": [
+    "Javob sifatini baholang!", 
+    "Tezlik",  
+    "Aniqlik"  
+  ],
+  "MNG": [
+    "Хариултын чанарыг үнэлнэ үү!",
+    "Хурд",   
+    "Оновч"   
+  ],
+  "IDN": [
+    "Silakan nilai kualitas respons!",
+    "Kecepatan", 
+    "Akurasi"   
+  ]
+}
+
+
+const survey3Dict = {
+  "KOR": [
+    "기타 의견이 있으신가요?",
+    "자유롭게 의견을 남겨주세요..."
+  ],
+  "ENG": [
+    "Do you have any other comments?",
+    "Please leave your comments freely..."
+  ],
+  "VNM": [
+    "Bạn có ý kiến nào khác không?",
+    "Vui lòng để lại ý kiến của bạn..."
+  ],
+  "CHN": [
+    "还有其他意见吗？",
+    "请随意留言..."
+  ],
+  "UZB": [
+    "Boshqa fikrlaringiz bormi?",
+    "Fikrlaringizni erkin qoldiring..."
+  ],
+  "MNG": [
+    "Бусад санал байна уу?",
+    "Саналаа чөлөөтэй үлдээнэ үү..."
+  ],
+  "IDN": [
+    "Ada masukan lain?",
+    "Silakan sampaikan masukan Anda..."
+  ]
+}
+
+
+const surveyEndDict = {
+  "KOR": `
+    <p>대화는 즐거우셨나요?<br>
+    마지막으로 짧은 설문에 참여하시면<br>
+    감사의 마음으로 <strong>기프티콘</strong>을 드려요!</p>
+  `,
+  "ENG": `
+    <p>Did you enjoy the conversation?<br>
+    Lastly, if you participate in a short survey,<br>
+    we'll give you a <strong>gift certificate</strong> as a token of our appreciation!</p>
+  `,
+  "VNM": `
+    <p>Cuộc trò chuyện có vui vẻ không?<br>
+    Cuối cùng, nếu bạn tham gia một khảo sát ngắn,<br>
+    chúng tôi sẽ tặng bạn một <strong>phiếu quà tặng</strong> (gifticon) như lời cảm ơn!</p>
+  `,
+  "CHN": `
+    <p>对话愉快吗？<br>
+    最后，如果您参加一个简短的问卷调查，<br>
+    我们将赠送一张<strong>礼品卡</strong>以表感谢！</p>
+  `,
+  "UZB": `
+    <p>Suhbat sizga yoqdimi?<br>
+    So'ngida, agar qisqa so'rovnomada qatnashsangiz,<br>
+    minnatdorchilik sifatida sizga <strong>sovg'a sertifikati</strong> (gifticon) taqdim etamiz!</p>
+  `,
+  "MNG": `
+    <p>Яриа танд таалагдсан уу?<br>
+    Эцэст нь, богино асуулгад оролцвол<br>талархал болгон <strong>бэлгийн карт</strong> (gifticon) өгөх болно!</p>
+  `,
+  "IDN": `
+    <p>Apakah percakapan Anda menyenangkan?<br>
+    Terakhir, jika Anda berpartisipasi dalam survei singkat,<br>
+    kami akan memberikan <strong>voucher hadiah</strong> (gifticon) sebagai tanda terima kasih!</p>
+  `
 }

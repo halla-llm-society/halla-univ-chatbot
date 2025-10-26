@@ -1,11 +1,11 @@
 // 메시지 관련 함수
 
 // 초기 메시지 생성
-const sendDefaultMesage = () => {
+const sendDefaultMessage = () => {
     let defaultMsgElement = document.createElement('div');
 
     defaultMsgElement.innerHTML = `
-  <div class="bot-message-container" id="default-message">
+  <div class="bot-message-container animate" id="default-message">
     <img class="bot-avatar" src="assets/bot-avatar.png" alt="bot" />
     <div class="message bot">${defaultMsgDict[language]}</div>
   </div>
@@ -74,6 +74,7 @@ const sendMessage = async () => {
 
     sendBtn.disabled = true;
     langBtn.disabled = true;
+    isBotResponding = true;
     appendUserMessage(userMsg);
 
     await delay(1000);
@@ -81,6 +82,7 @@ const sendMessage = async () => {
 
     sendBtn.disabled = false;
     langBtn.disabled = false;
+    isBotResponding = false;
 }
 
 
@@ -99,61 +101,14 @@ const appendUserMessage = (userMsg) => {
 }
 
 
-// 응답 생성 전 대기 메시지 추가
-const appendWaitMessage = async () => {
-    let msgElement = document.createElement("div");
-    let waitMsg = `<span class="wait-msg">${waitMsgDict[language]}</span><span class="loader"></span>`;
-
-    msgElement.innerHTML = `
-    <div class="bot-message-container animate">
-      <img class="bot-avatar" src="assets/bot-avatar.png" alt="bot" />
-      <div class="message bot">${waitMsg}</div>
-    </div>
-  `;
-
-    messages.appendChild(msgElement);
-    messages.scrollTop = messages.scrollHeight;
-
-    return msgElement.querySelector(".message.bot");
-}
-
-
-// 10초 단위로 대기 메시지 변경
-const initWaitMessageInterval = async (botMsgElement) => {
-    let elapsedTime = 1;
-    let messagesForLang = waitMsgDict[language];
-    botMsgElement.innerHTML = `<span class="wait-msg">${messagesForLang[0]}</span><span class="loader"></span>`;
-
-    const waitMessageInterval = setInterval(() => {
-        messagesForLang = waitMsgDict[language];
-        botMsgElement.innerHTML = `<span class="wait-msg">${messagesForLang[Math.min(elapsedTime, messagesForLang.length - 1)]}</span><span class="loader"></span>`;
-        elapsedTime++;
-    }, 10000);
-
-    return waitMessageInterval;
-}
-
-
 // 메시지 전송
 const appendBotMessage = async (userMsg) => {
-    const botMsgElement = await appendWaitMessage();
-    const waitMessageInterval = await initWaitMessageInterval(botMsgElement);
+    const botMsgElement = appendWaitMessage();
+    const waitMessageInterval = initWaitMessageInterval(botMsgElement);
 
     try {
-        let baseURL = "";
-
-        if (window.location.hostname.includes("localhost")) {
-            baseURL = "http://localhost:8080";
-        }
-        else if (window.location.pathname.startsWith("/stg")) {
-            baseURL = "https://halla-chatbot.com/stg";
-        }
-        else {
-            baseURL = "https://halla-chatbot.com";
-        }
-
         // 현재 유저의 기존 메시지
-        userMessages = updateUserInfo(userMsg);
+        let userMessages = updateUserInfo(userMsg);
 
         // request
         const resp = await fetch(`${baseURL}/api/chat`, {
@@ -190,6 +145,57 @@ const appendBotMessage = async (userMsg) => {
         clearInterval(waitMessageInterval);
         botMsgElement.innerHTML = `❌ ${errorMsgDict[language]}:` + error.message;
     }
-
+    
     messages.scrollTop = messages.scrollHeight;
 };
+
+
+// 응답 생성 전 대기 메시지 추가
+const appendWaitMessage = () => {
+    let msgElement = document.createElement("div");
+    let waitMsg = `<span class="wait-msg">${waitMsgDict[language]}</span><span class="loader"></span>`;
+
+    msgElement.innerHTML = `
+    <div class="bot-message-container animate">
+      <img class="bot-avatar" src="assets/bot-avatar.png" alt="bot" />
+      <div class="message bot">${waitMsg}</div>
+    </div>
+  `;
+
+    messages.appendChild(msgElement);
+    messages.scrollTop = messages.scrollHeight;
+
+    return msgElement.querySelector(".message.bot");
+}
+
+
+// 10초 단위로 대기 메시지 변경
+const initWaitMessageInterval = (botMsgElement) => {
+    let elapsedTime = 1;
+    let messagesForLang = waitMsgDict[language];
+    botMsgElement.innerHTML = `<span class="wait-msg">${messagesForLang[0]}</span><span class="loader"></span>`;
+
+    const waitMessageInterval = setInterval(() => {
+        messagesForLang = waitMsgDict[language];
+        botMsgElement.innerHTML = `<span class="wait-msg">${messagesForLang[Math.min(elapsedTime, messagesForLang.length - 1)]}</span><span class="loader"></span>`;
+        elapsedTime++;
+    }, 10000);
+
+    return waitMessageInterval;
+}
+
+
+// 설문조사 메시지 추가
+const appendSurveyMessage = (surveyMsg) => {
+    let msgElement = document.createElement("div");
+    
+    msgElement.innerHTML = `
+    <div class="bot-message-container animate">
+        <img class="bot-avatar" src="assets/bot-avatar.png" alt="bot" />
+        <div class="message bot">${surveyMsg}</div> 
+    </div>
+    `;
+
+    messages.appendChild(msgElement);
+    messages.scrollTop = messages.scrollHeight;
+}
