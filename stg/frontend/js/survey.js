@@ -325,7 +325,7 @@ class ChatbotSurvey {
     fetch(`${baseURL}/api/survey`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ data: this.surveyData })
+      body: JSON.stringify(this.surveyData)
     })
   }
 }
