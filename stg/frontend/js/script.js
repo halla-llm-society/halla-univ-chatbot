@@ -41,4 +41,5 @@ window.addEventListener('DOMContentLoaded', () => {
     setInputAndSend();
 
     setBaseURL();
+    setUserInfo();
 });
