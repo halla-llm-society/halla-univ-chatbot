@@ -3,6 +3,12 @@
 // 언어
 let language = "KOR";
 
+// 봇 답변 기다리는 중인지 체크
+let isBotResponding = false
+
+// local, docker, aws 호환
+let baseURL = null;
+
 // DOM 요소 선택
 const chatbotContainer = document.getElementById("chatbot-container");
 const chatbot = document.getElementById("chatbot");
@@ -26,11 +32,13 @@ const messages = document.getElementById("chat-messages");
 
 // 초기화 및 기본 이벤트
 window.addEventListener('DOMContentLoaded', () => {
-    sendDefaultMesage();
+    sendDefaultMessage();
     setModal();
     setUserInputPlaceHolder();
 
     setChatbotExpanded();
     setLangDropdown();
     setInputAndSend();
+
+    setBaseURL();
 });

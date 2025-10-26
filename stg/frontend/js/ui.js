@@ -72,13 +72,11 @@ const setResetModal = () => {
 
 // 챗봇 UI 제어
 const setChatbotExpanded = () => {
-    toggleBtn.addEventListener("click", async () => {   // 챗봇 열기
+    toggleBtn.addEventListener("click", () => {   // 챗봇 열기
         chatbotContainer.classList.add("expanded");
     });
 
-    closeBtn.addEventListener("click", async () => {   // 챗봇 닫기
-        chatbotContainer.classList.remove("expanded");
-    });
+    closeBtn.addEventListener("click", checkSurveyBeforeClose); // 챗봇 닫기
 }
 
 
@@ -135,7 +133,7 @@ const setLangDropdown = () => {
                     document.querySelector('.bot-message-container').remove();
                 }
 
-                sendDefaultMesage();
+                sendDefaultMessage();
                 setModal();
                 setUserInputPlaceHolder();
             }
