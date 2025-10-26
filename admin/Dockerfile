@@ -15,16 +15,17 @@ RUN npm run build
 FROM python:3.11-slim
 WORKDIR /app
 
-# pip 업그레이드 및 pip-tools 설치
-RUN pip install --no-cache-dir --upgrade pip pip-tools
+# uv 설치
+RUN pip install --no-cache-dir uv
 
-# 의존성 정의 복사 및 requirements.txt 생성
-# 도커가 pyproject.toml과 uv.lock을 인식하지 못하는 일이 종종 있어서, requirements.txt로 의존성 작성(추후 수정)
+# pyproject.toml 복사
 COPY backend/pyproject.toml ./
-RUN pip-compile pyproject.toml --output-file=requirements.txt
+
+# uv.lock 파일 toml 기반에서 pip 기반으로 변경
+RUN uv pip compile pyproject.toml -o uv.lock
 
 # 의존성 설치
-RUN pip install --no-cache-dir -r requirements.txt
+RUN uv pip sync uv.lock --link-mode=copy --system
 
 # 백엔드 코드 복사
 COPY backend/app ./app
