@@ -195,7 +195,7 @@ class ChatbotSurvey {
   _getPage3() {
     return `
       <div class="survey-question">${survey3Dict[language][0]}</div>
-      <textarea id="survey-comment" class="survey-textarea" placeholder="${survey3Dict[language][1]}"></textarea>
+      <textarea id="survey-comment" class="survey-textarea" placeholder="${survey3Dict[language][1]}" maxlength="100"></textarea>
 
       <div class="survey-button-container">
         <button class="survey-button" id="survey-page3-prev">${surveyBtnDict[language][0]}</button>
