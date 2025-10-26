@@ -23,7 +23,9 @@ const checkSurveyBeforeClose = async () => {
 
 // 채팅 1회당 설문조사 뜰 확률 20%씩 증가
 const shouldShowSurvey = () => {
-  const messageCnt = (JSON.parse(sessionStorage.getItem("userMessages") || "[]")).length;
+  const messageHistory = JSON.parse(sessionStorage.getItem("message_history") || "[]");
+  const messageCnt = messageHistory.filter(msg => msg.role === 'user').length;
+  
   const probabilityIncrement = 20;
   const probability = Math.min(messageCnt * probabilityIncrement, 100);
   return Math.random() * 100 < probability;
