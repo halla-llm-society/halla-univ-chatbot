@@ -120,6 +120,35 @@ class GeminiProvider(BaseLLMProvider):
             print(f"[GeminiProvider] simple_completion failed: {e}")
             raise
     
+    def _clean_schema_for_gemini(self, schema: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Gemini API용 스키마 정리 (additionalProperties 등 제거)
+        
+        Args:
+            schema: 원본 JSON 스키마
+        
+        Returns:
+            Dict: Gemini 호환 스키마
+        """
+        cleaned = schema.copy()
+        
+        # additionalProperties 제거 (Gemini 미지원)
+        if "additionalProperties" in cleaned:
+            del cleaned["additionalProperties"]
+        
+        # properties 내부도 재귀적으로 정리
+        if "properties" in cleaned:
+            cleaned["properties"] = {
+                key: self._clean_schema_for_gemini(val) if isinstance(val, dict) else val
+                for key, val in cleaned["properties"].items()
+            }
+        
+        # items 내부도 재귀적으로 정리 (배열의 경우)
+        if "items" in cleaned and isinstance(cleaned["items"], dict):
+            cleaned["items"] = self._clean_schema_for_gemini(cleaned["items"])
+        
+        return cleaned
+    
     def structured_completion(
         self,
         messages: List[Dict[str, Any]],
@@ -149,11 +178,14 @@ class GeminiProvider(BaseLLMProvider):
             # OpenAI 형식 → Gemini 형식 변환
             gemini_messages = self.converter.openai_to_gemini(messages)
             
+            # 스키마 정리 (Gemini 호환)
+            cleaned_schema = self._clean_schema_for_gemini(schema)
+            
             # Generation config with schema
             generation_config = {
                 "temperature": temperature,
                 "response_mime_type": "application/json",
-                "response_schema": schema
+                "response_schema": cleaned_schema
             }
             
             # 스키마 지원 모델로 재초기화
