@@ -4,6 +4,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pathlib import Path
 from app.api import routers  
+from app.api import metrics  
 
 app = FastAPI(title="Chatbot Admin Service")
 

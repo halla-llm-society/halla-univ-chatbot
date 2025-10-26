@@ -1,284 +1,195 @@
 # backend/app/api/metrics.py
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 from datetime import datetime, timedelta
 from pathlib import Path
-import json
+from typing import Dict, Any, List
+import json, yaml, os, boto3
 
 router = APIRouter(prefix="/metrics", tags=["metrics"])
 
-# 데이터 파일 경로
-DATA_FILE = Path(__file__).resolve().parent.parent / "data" / "sample.jsonl"
+# =========================
+# ✅ 파일 경로 설정
+# =========================
+DATA_FILE = Path(__file__).resolve().parent.parent / "data" / "sample.jsonl"   # LLM 사용 로그
+PRICING_FILE = Path(__file__).resolve().parent.parent / "config" / "pricing.yaml"  # 모델 단가 설정
 
-# OpenAI 가격 (2024년 기준)
-MODELS = {
-    "gpt-4o-mini": {
-        "input": 0.150,   # $ per 1M tokens
-        "output": 0.600,  # $ per 1M tokens
-    },
-    "gpt-4o": {
-        "input": 2.50,
-        "output": 10.00,
-    },
-    "gpt-4-turbo": {
-        "input": 10.00,
-        "output": 30.00,
-    },
-    "gpt-3.5-turbo": {
-        "input": 0.50,
-        "output": 1.50,
-    }
-}
+# =========================
+# ✅ YAML 가격 파일 로드
+# =========================
+def load_pricing():
+    """pricing.yaml 파일에서 모델별 단가를 읽어옵니다."""
+    if not PRICING_FILE.exists():
+        return []
+    try:
+        with open(PRICING_FILE, "r", encoding="utf-8") as f:
+            config = yaml.safe_load(f)
+            return config.get("models", [])
+    except Exception as e:
+        print(f"Error loading pricing.yaml: {e}")
+        return []
 
-# 서버 비용 (월 예상)
-SERVER_COST_MONTHLY = 50.0  # AWS/GCP 기본 인스턴스
-DB_COST_MONTHLY = 20.0      # 소규모 DB
-
-
-def get_conversations_from_logs():
-    """로그 파일에서 대화 기록 가져오기"""
+# =========================
+# ✅ 대화 로그 로드
+# =========================
+def get_conversations():
+    """LLM 호출 로그(JSONL)를 불러와 파싱합니다."""
     if not DATA_FILE.exists():
         return []
-    
-    conversations = []
+    convs = []
     try:
         with open(DATA_FILE, "r", encoding="utf-8") as f:
             for line in f:
                 if line.strip():
-                    conversations.append(json.loads(line))
-    except Exception:
-        pass
-    
-    return conversations
+                    convs.append(json.loads(line))
+    except Exception as e:
+        print(f"Error loading sample.jsonl: {e}")
+    return convs
 
+# =========================
+# ✅ 토큰 사용량 데이터 추출
+# =========================
+def extract_token_usage(conv: Dict[str, Any]) -> Dict[str, Any]:
+    """대화 데이터에서 토큰 사용량과 비용을 추출합니다."""
+    token_usage = conv.get("token_usage", {})
 
-def calculate_llm_cost(conversations, model="gpt-4o-mini"):
-    """LLM 비용 계산"""
-    if model not in MODELS:
-        model = "gpt-4o-mini"
-    
-    prices = MODELS[model]
-    total_input_tokens = 0
-    total_output_tokens = 0
-    
-    for conv in conversations:
-        # 실제 토큰 정보가 있으면 사용, 없으면 추정
-        if "tokens" in conv and isinstance(conv["tokens"], dict):
-            total_input_tokens += conv["tokens"].get("prompt", 100)
-            total_output_tokens += conv["tokens"].get("completion", 200)
-        else:
-            # 추정값 (대화당 평균)
-            total_input_tokens += 100
-            total_output_tokens += 200
-    
-    input_cost = (total_input_tokens / 1_000_000) * prices["input"]
-    output_cost = (total_output_tokens / 1_000_000) * prices["output"]
-    total_cost = input_cost + output_cost
-    
     return {
-        "model": model,
-        "input_tokens": total_input_tokens,
-        "output_tokens": total_output_tokens,
-        "total_tokens": total_input_tokens + total_output_tokens,
-        "input_cost": input_cost,
-        "output_cost": output_cost,
-        "total_cost": total_cost,
-        "price_per_1m_input": prices["input"],
-        "price_per_1m_output": prices["output"],
-        "conversations_count": len(conversations)
+        "input_tokens": token_usage.get("input_tokens", 0),
+        "output_tokens": token_usage.get("output_tokens", 0),
+        "total_cost_usd": token_usage.get("total_cost_usd", 0)
     }
 
-
-@router.get("/llm-usage")
-def llm_usage(period: str = "day"):
+# =========================
+# ✅ AWS 비용 계산 (Cost Explorer API)
+# =========================
+def get_aws_costs(days: int = 7):
     """
-    LLM 토큰 사용량: 일(day) / 주(week) / 월(month)
-    실제 로그 데이터 기반
+    AWS Cost Explorer API로 최근 n일간의 EC2, S3, DynamoDB 등 비용을 가져옵니다.
+    API 오류가 발생하면 기본값(0원)을 반환합니다.
     """
-    conversations = get_conversations_from_logs()
-    now = datetime.now()
-    data = {}
+    try:
+        client = boto3.client("ce", region_name="us-east-1")
 
-    # 기간별 데이터 집계
-    for conv in conversations:
-        if not conv.get("created_at"):
-            continue
-        
-        try:
-            created_at = datetime.strptime(conv["created_at"], "%Y-%m-%d %H:%M:%S")
-        except Exception:
-            continue
+        end = datetime.utcnow().date()
+        start = end - timedelta(days=days)
 
-        # 토큰 정보 가져오기
-        if "tokens" in conv and isinstance(conv["tokens"], dict):
-            tokens = conv["tokens"].get("total", 300)
-        else:
-            tokens = 300  # 기본값 (입력 100 + 출력 200)
+        response = client.get_cost_and_usage(
+            TimePeriod={"Start": start.strftime("%Y-%m-%d"), "End": end.strftime("%Y-%m-%d")},
+            Granularity="DAILY",
+            Metrics=["UnblendedCost"],
+            GroupBy=[{"Type": "DIMENSION", "Key": "SERVICE"}],
+        )
 
-        # 기간에 따라 키 생성
-        if period == "day":
-            # 시간별 (24시간)
-            if (now - created_at).days == 0:
-                key = f"{created_at.hour}시"
-                data[key] = data.get(key, 0) + tokens
-        elif period == "week":
-            # 일별 (7일)
-            if (now - created_at).days < 7:
-                key = created_at.strftime("%Y-%m-%d")
-                data[key] = data.get(key, 0) + tokens
-        elif period == "month":
-            # 일별 (30일)
-            if (now - created_at).days < 30:
-                key = created_at.strftime("%Y-%m-%d")
-                data[key] = data.get(key, 0) + tokens
+        service_costs = {}
+        daily_points = {}
 
-    # 데이터 포맷팅
-    if period == "day":
-        result = [{"time": f"{h}시", "tokens": data.get(f"{h}시", 0)} for h in range(24)]
-    elif period == "week":
-        result = []
-        for d in range(6, -1, -1):
-            day = (now - timedelta(days=d)).strftime("%Y-%m-%d")
-            result.append({"date": day, "tokens": data.get(day, 0)})
-    elif period == "month":
-        result = []
-        for d in range(29, -1, -1):
-            day = (now - timedelta(days=d)).strftime("%Y-%m-%d")
-            result.append({"date": day, "tokens": data.get(day, 0)})
-    else:
-        result = []
+        for result in response.get("ResultsByTime", []):
+            date = result["TimePeriod"]["Start"]
+            for group in result.get("Groups", []):
+                service = group["Keys"][0]
+                amount = float(group["Metrics"]["UnblendedCost"]["Amount"])
+                service_costs[service] = service_costs.get(service, 0) + amount
+                if service not in daily_points:
+                    daily_points[service] = []
+                daily_points[service].append({"time": date, "value": round(amount, 4)})
 
-    return {"period": period, "items": result}
+        total_cost = round(sum(service_costs.values()), 4)
 
-
-@router.get("/costs")
-def get_costs(model: str = "gpt-4o-mini"):
-    """
-    실제 비용 계산
-    - OpenAI API 토큰 사용량 기반
-    - 서버/DB 월 고정 비용
-    """
-    conversations = get_conversations_from_logs()
-    
-    # LLM 비용 계산
-    llm_stats = calculate_llm_cost(conversations, model)
-    
-    # 일할 계산 (월 비용을 현재 날짜 기준으로)
-    days_in_month = 30
-    current_day = datetime.now().day
-    server_cost = (SERVER_COST_MONTHLY / days_in_month) * current_day
-    db_cost = (DB_COST_MONTHLY / days_in_month) * current_day
-    
-    total_cost = llm_stats["total_cost"] + server_cost + db_cost
-    
-    return {
-        "llm": round(llm_stats["total_cost"], 4),
-        "server": round(server_cost, 2),
-        "db": round(db_cost, 2),
-        "total": round(total_cost, 4),
-        "llm_details": {
-            "model": llm_stats["model"],
-            "input_tokens": llm_stats["input_tokens"],
-            "output_tokens": llm_stats["output_tokens"],
-            "total_tokens": llm_stats["total_tokens"],
-            "input_cost": round(llm_stats["input_cost"], 4),
-            "output_cost": round(llm_stats["output_cost"], 4),
-            "price_per_1m_input": llm_stats["price_per_1m_input"],
-            "price_per_1m_output": llm_stats["price_per_1m_output"],
-            "conversations_count": llm_stats["conversations_count"]
-        }
-    }
-
-
-@router.get("/llm-cost-breakdown")
-def get_llm_cost_breakdown():
-    """
-    모든 모델별 비용 비교
-    """
-    conversations = get_conversations_from_logs()
-    
-    breakdown = {}
-    for model_name in MODELS.keys():
-        stats = calculate_llm_cost(conversations, model_name)
-        breakdown[model_name] = {
-            "total_cost": round(stats["total_cost"], 4),
-            "input_cost": round(stats["input_cost"], 4),
-            "output_cost": round(stats["output_cost"], 4),
-            "total_tokens": stats["total_tokens"],
-            "price_per_1m_input": stats["price_per_1m_input"],
-            "price_per_1m_output": stats["price_per_1m_output"]
-        }
-    
-    return {
-        "models": breakdown,
-        "conversations_count": len(conversations)
-    }
-
-
-@router.get("/daily-llm-costs")
-def get_daily_llm_costs(days: int = 30, model: str = "gpt-4o-mini"):
-    """
-    일별 LLM 비용 추이
-    """
-    conversations = get_conversations_from_logs()
-    now = datetime.now()
-    daily_data = {}
-    
-    if model not in MODELS:
-        model = "gpt-4o-mini"
-    
-    prices = MODELS[model]
-    
-    # 일별로 데이터 집계
-    for conv in conversations:
-        if not conv.get("created_at"):
-            continue
-        
-        try:
-            created_at = datetime.strptime(conv["created_at"], "%Y-%m-%d %H:%M:%S")
-        except Exception:
-            continue
-        
-        if (now - created_at).days >= days:
-            continue
-        
-        date_key = created_at.strftime("%Y-%m-%d")
-        
-        if date_key not in daily_data:
-            daily_data[date_key] = {
-                "input_tokens": 0,
-                "output_tokens": 0
+        return {
+            "total_cost_usd": total_cost,
+            "by_service": service_costs,
+            "daily_points": daily_points,  
             }
-        
-        # 토큰 정보 가져오기
-        if "tokens" in conv and isinstance(conv["tokens"], dict):
-            daily_data[date_key]["input_tokens"] += conv["tokens"].get("prompt", 100)
-            daily_data[date_key]["output_tokens"] += conv["tokens"].get("completion", 200)
-        else:
-            daily_data[date_key]["input_tokens"] += 100
-            daily_data[date_key]["output_tokens"] += 200
-    
-    # 비용 계산 및 포맷팅
-    result = []
-    for d in range(days - 1, -1, -1):
-        date = (now - timedelta(days=d)).strftime("%Y-%m-%d")
-        data = daily_data.get(date, {"input_tokens": 0, "output_tokens": 0})
-        
-        input_cost = (data["input_tokens"] / 1_000_000) * prices["input"]
-        output_cost = (data["output_tokens"] / 1_000_000) * prices["output"]
-        
-        result.append({
-            "date": date,
-            "input_tokens": data["input_tokens"],
-            "output_tokens": data["output_tokens"],
-            "total_tokens": data["input_tokens"] + data["output_tokens"],
-            "input_cost": round(input_cost, 4),
-            "output_cost": round(output_cost, 4),
-            "total_cost": round(input_cost + output_cost, 4)
-        })
-    
+
+    except Exception as e:
+        print(f"[AWS ERROR] {e}")
+        # 실패해도 구조는 유지해야 함
+        return {
+            "total_cost_usd": 0,
+            "by_service": {},
+            "daily_points": {},  
+        }
+# =========================
+# ✅ LLM (토큰 기반) 비용 계산
+# =========================
+def get_llm_costs(days: int = 7):
+    """
+    sample.jsonl 로그를 기반으로 LLM API 호출 비용을 계산합니다.
+    기간(days) 동안의 총합 및 일별 데이터 포인트를 반환합니다.
+    """
+    now = datetime.now()
+    convs = get_conversations()
+    total_cost = 0.0
+    points = {}
+
+    for c in convs:
+        if not c.get("created_at"):
+            continue
+        try:
+            t = datetime.strptime(c["created_at"], "%Y-%m-%d %H:%M:%S")
+        except:
+            continue
+        # N일 이상 지난 데이터는 제외
+        if (now - t).days >= days:
+            continue
+        usage = extract_token_usage(c)
+        total_cost += usage["total_cost_usd"]
+        date_key = t.strftime("%Y-%m-%d")
+        points[date_key] = points.get(date_key, 0) + usage["total_cost_usd"]
+
+    # 날짜순 정렬 후 그래프용 포맷으로 변환
+    data_points = [{"time": k, "value": round(v, 4)} for k, v in sorted(points.items())]
+    return {"total": round(total_cost, 4), "points": data_points}
+
+# =========================
+# ✅ FastAPI 엔드포인트
+# =========================
+@router.get("/costs")
+def get_combined_costs(period: str = Query("week", enum=["day", "week", "month"])):
+    """
+    LLM + AWS 서버 + DB 사용 비용을 통합 계산합니다.
+    프론트엔드의 UsageCostInquiry.jsx에서 이 엔드포인트를 사용합니다.
+    """
+    # 기간 → 일수 변환
+    days = {"day": 1, "week": 7, "month": 30}.get(period, 7)
+
+    # LLM 및 AWS 비용 조회
+    llm = get_llm_costs(days)
+    aws = get_aws_costs(days)
+
+    # AWS 서비스별 비용 분리
+    server_cost = aws["by_service"].get("AmazonEC2", 0)  # 서버 (EC2)
+    # DB: S3 + RDS 모두 포함
+    db_cost = aws["by_service"].get("AmazonS3", 0) + aws["by_service"].get("AmazonRDS", 0)
+    llm_cost = llm["total"]
+
+    # 총합 계산
+    total = round(llm_cost + server_cost + db_cost, 4)
+
+    # 월 예상비용 (30일 기준 환산)
+    estimated_monthly = round(total * (30 / days), 4)
+
+    # =====================
+    # ✅ 프론트엔드 구조에 맞는 응답
+    # =====================
     return {
-        "model": model,
-        "days": days,
-        "data": result,
-        "total_cost": round(sum(item["total_cost"] for item in result), 4)
+        "period": period,
+        "grandTotal": total,
+        "periodCosts": {
+            "llm": llm,  # LLM 토큰 비용
+            "server": {
+                "total": round(server_cost, 4),
+                "points": aws["daily_points"].get("AmazonEC2", [])
+            },
+            "db": {
+                "total": round(db_cost, 4),
+                "points": (
+                    aws["daily_points"].get("AmazonS3", [])
+                    + aws["daily_points"].get("AmazonRDS", [])
+                )
+            }
+        },
+        "estimatedMonthlyCost": {
+            "total": estimated_monthly,
+            "points": []
+        }
     }
