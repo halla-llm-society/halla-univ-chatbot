@@ -3,7 +3,7 @@
 
 const setUserInfo = () => {
     sessionStorage.setItem("survey", "false");
-    sessionStorage.getItem("message_history", []);
+    sessionStorage.setItem("message_history", JSON.stringify([]));
 }
 
 
