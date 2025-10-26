@@ -10,7 +10,7 @@ router = APIRouter(prefix="/metrics", tags=["metrics"])
 # =========================
 # ✅ 파일 경로 설정
 # =========================
-DATA_FILE = Path(__file__).resolve().parent.parent / "data" / "sample.jsonl"   # LLM 사용 로그
+DATA_FILE = Path(__file__).resolve().parent.parent / "data" / "data.jsonl"   # LLM 사용 로그
 PRICING_FILE = Path(__file__).resolve().parent.parent / "config" / "pricing.yaml"  # 모델 단가 설정
 
 # =========================
