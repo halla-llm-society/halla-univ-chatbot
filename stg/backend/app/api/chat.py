@@ -2,12 +2,12 @@ import os
 import httpx
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
-from .schemas import ChatRequest
+from ..schemas.chat_schemas import ChatRequest
 
 router = APIRouter()
 AI_SERVICE_URL = os.getenv("AI_SERVICE_URL", "http://chatbot-ai-container:8000")
 
-@router.post("/chat")
+@router.post("")
 async def proxy_chat_to_ai(request: ChatRequest):
     return StreamingResponse(stream_ai_response(request), media_type="text/event-stream")
 

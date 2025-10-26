@@ -1,7 +1,7 @@
 import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .api import routers
+from .api.routers import router as api_router 
 
 ROOT_PATH = os.getenv("ROOT_PATH", "") # stg용 root path
 app = FastAPI(
@@ -22,7 +22,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(routers.router)
+app.include_router(api_router, prefix="/api")
 
 # 접속 테스트
 @app.get("/")
