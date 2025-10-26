@@ -1,0 +1,15 @@
+llama-index
+llama-index-vector-stores-pinecone
+llama-index-embeddings-openai
+openai
+pinecone-client  
+python-dotenv  
+tqdm
+google-generativeai
+tiktoken
+pyyaml
+fastapi
+uvicorn
+pydantic
+beautifulsoup4
+requests

@@ -16,7 +16,7 @@ from .preset_manager import PresetManager
 class LLMManager:
     """LLM Provider 선택 및 라우팅 관리자"""
     
-    def __init__(self, config_path: str = "ai/config/llm_config.yaml"):
+    def __init__(self, config_path: str = "config/llm_config.yaml"):
         """
         LLMManager 초기화
         

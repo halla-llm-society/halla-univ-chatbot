@@ -1,4 +1,3 @@
-from chatbotDirectory.common import client, model, makeup_response
 import json
 import requests
 from pprint import pprint
@@ -7,15 +6,59 @@ import time
 from datetime import datetime, timedelta
 from typing import Optional
 from bs4 import BeautifulSoup
-
 import os
+from pathlib import Path
+from openai import OpenAI
+from dotenv import load_dotenv
+from dataclasses import dataclass
+
+# LLM Manager import
+try:
+    from app.ai.llm import get_provider
+except ImportError:
+    # 상대 경로로 시도
+    from ..llm import get_provider
+
+# 순환 참조 방지: config 대신 직접 생성
+_BASE_DIR = Path(__file__).resolve().parent.parent.parent  # app/
+_DOTENV_PATH = _BASE_DIR / "apikey.env"
+load_dotenv(_DOTENV_PATH)
+
+@dataclass(frozen=True)
+class Model: 
+    basic: str = "gpt-3.5-turbo-1106"
+    advanced: str = "gpt-4.1"
+    o3_mini: str = "o3-mini"
+    o1: str = "o1"
+
+model = Model()
+api_key = os.getenv("OPENAI_API_KEY")
+client = OpenAI(api_key=api_key, max_retries=1)
+
+def makeup_response(message, finish_reason="ERROR"):
+    '''api 응답형식으로 반환해서
+       개발자가 임의로 생성한 메세지를
+       기존 출력 함수로 출력하는 용도인 함수'''
+    return {
+        "choices": [
+            {
+                "finish_reason": finish_reason,
+                "index": 0,
+                "message": {
+                    "role": "assistant",
+                    "content": message
+                }                   
+            }
+        ],
+        "usage": {"total_tokens": 0},
+    }
+    
 tools = [
         
             {
             "type": "function",
             "name": "search_internet",
             "description": "Searches the internet based on user input and retrieves relevant information",
-            "strict": True,
             "parameters": {
                 "type": "object",
                 "required": [
@@ -34,7 +77,6 @@ tools = [
             "type": "function",
             "name": "get_halla_cafeteria_menu",
             "description": "원주 한라대학교 학생식당의 메뉴를 궁금해 하면 이 함수를 호출하세요. 주간 식단 페이지에서 특정 날짜/끼니의 메뉴를 추출합니다.",
-            "strict": True,
             "parameters": {
                 "type": "object",
                 "required": ["date"],
@@ -58,7 +100,7 @@ tools = [
     ]
 
 # --- 공지 카테고리 LLM 분류기 ---
-def _classify_notice_category_llm(user_input: str, context_info: str | None = None) -> str | None:
+def _classify_notice_category_llm(user_input: str, context_info: str | None = None, token_counter=None) -> str | None:
     """사용자 입력이 어떤 공지사항 카테고리인지 LLM으로 분류하여 카테고리 문자열을 반환.
     반환 가능 값: "학사공지", "비교과공지", "장학공지", "일반공지", "해당없음". 인식 실패 시 None.
     """
@@ -74,14 +116,24 @@ def _classify_notice_category_llm(user_input: str, context_info: str | None = No
             "정답:"
         )
 
-        resp = client.responses.create(
-            model=model.o3_mini,
-            input=[{
-                "role": "user",
-                "content": [{"type": "input_text", "text": prompt}],
-            }],
-        )
-        raw = (getattr(resp, "output_text", None) or "").strip()
+        # LLM Manager를 통해 Provider 선택 (교체 가능)
+        provider = get_provider("category")
+        messages = [{
+            "role": "user",
+            "content": [{"type": "input_text", "text": prompt}],
+        }]
+        raw = provider.simple_completion(messages).strip()
+        
+        # ✅ 토큰 계산 추가
+        if token_counter:
+            token_counter.count_with_provider(
+                provider=provider,
+                input_text=prompt,
+                output_text=raw,
+                role="category",
+                category="function"
+            )
+        
         print("공지 카테고리 분류기 원문:", raw)
         # 정규화 및 선택
         text_norm = raw.replace(" ", "").replace("\n", "")
@@ -89,11 +141,12 @@ def _classify_notice_category_llm(user_input: str, context_info: str | None = No
             if a in text_norm:
                 return a
         return None
-    except Exception:
+    except Exception as e:
+        print(f"[_classify_notice_category_llm] Error: {e}")
         return None
 
 # --- 규칙 기반 사이트 선호 라우팅 ---
-def _prefer_halla_site_query(user_input: str, context_info: str | None = None) -> str | None:
+def _prefer_halla_site_query(user_input: str, context_info: str | None = None, token_counter=None) -> str | None:
     """특정 요구사항일 때 한라대 특정 페이지를 우선 탐색하도록 검색어를 구성.
     매칭되면 URL과 site 필터를 포함한 쿼리를 반환, 없으면 None.
     """
@@ -107,7 +160,7 @@ def _prefer_halla_site_query(user_input: str, context_info: str | None = None) -
         return f"site:halla.ac.kr {url} {user_input}"
 
     # 공지 라우팅: LLM 분류 기반 → 실패 시 키워드 기반 폴백
-    category = _classify_notice_category_llm(user_input, context_info)
+    category = _classify_notice_category_llm(user_input, context_info, token_counter)
     category_to_url = {
         "학사공지": "https://www.halla.ac.kr/kr/242/subview.do",
         "비교과공지": "https://www.halla.ac.kr/kr/243/subview.do",
@@ -136,7 +189,7 @@ def _prefer_halla_site_query(user_input: str, context_info: str | None = None) -
     # 미매칭 시 라우팅 없음
     return None
 
-def search_internet(user_input: str, chat_context=None) -> str:
+def search_internet(user_input: str, chat_context=None, token_counter=None) -> str:
     start_ts = time.time()
     print(f"[WEB][START] query='{user_input}' chat_ctx={'Y' if chat_context else 'N'}")
     try:
@@ -150,21 +203,31 @@ def search_internet(user_input: str, chat_context=None) -> str:
             recent_messages = []
             context_info = ""
 
-        preferred = _prefer_halla_site_query(user_input, context_info if context_info else None)
+        preferred = _prefer_halla_site_query(user_input, context_info if context_info else None, token_counter)
+        
+        # LLM 에이전트로 검색어 재작성 (context_info 포함)
+        rewrite_prompt = (
+            f"{user_input}\n\n[대화 문맥]: {context_info} 를 참고해 (이전 문맥과 연결된 후속 질문이면 연관된 핵심 키워드 포함) "
+            "간결한 검색어 조합을 새로 만들어라. 가능하면 site:halla.ac.kr 또는 관련 공식 URL 포함."
+        )
+        
+        # preferred가 있으면 추가 정보로 활용
         if preferred:
-            search_text = preferred
-        else:
-            # 재작성 요청
-            rewrite_prompt = (
-                f"{user_input}\n\n[대화 문맥]: {context_info} 를 참고해 (이전 문맥과 연결된 후속 질문이면 연관된 핵심 키워드 포함) "
-                "간결한 검색어 조합을 새로 만들어라. 가능하면 site:halla.ac.kr 또는 관련 공식 URL 포함."
+            rewrite_prompt += f"\n\n[추천 사이트]: {preferred}"
+        
+        provider = get_provider("search_rewrite")
+        messages = [{"role": "user", "content": [{"type": "input_text", "text": rewrite_prompt}]}]
+        search_text = provider.simple_completion(messages).strip()
+        
+        # ✅ 토큰 계산 추가
+        if token_counter:
+            token_counter.count_with_provider(
+                provider=provider,
+                input_text=rewrite_prompt,
+                output_text=search_text,
+                role="search_rewrite",
+                category="function"
             )
-            rewrite_resp = client.responses.create(
-                model="gpt-4o",
-                input=[{"role": "user", "content": [{"type": "input_text", "text": rewrite_prompt}]}],
-                text={"format": {"type": "text"}},
-            )
-            search_text = rewrite_resp.output_text.strip()
         print(f"[WEB] final_search_text='{search_text}'")
 
         context_input = [{
@@ -409,8 +472,9 @@ def get_halla_cafeteria_menu(date: Optional[str] = None, meal: Optional[str] = N
     return out
 
 class FunctionCalling:
-    def __init__(self, model, available_functions=None):
+    def __init__(self, model, available_functions=None, token_counter=None):
         self.model = model
+        self.token_counter = token_counter
         default_functions = {
             "search_internet": search_internet,
             "get_halla_cafeteria_menu": get_halla_cafeteria_menu,
@@ -422,9 +486,69 @@ class FunctionCalling:
         self.available_functions = default_functions
        
     def analyze(self, user_message, tools):
+        """사용자 메시지를 분석하여 필요한 함수와 판단 근거를 반환
+        
+        Returns:
+            dict: {
+                "reasoning": str (판단 근거),
+                "output": list (함수 호출 목록, 기존 response.output 형식)
+            }
+        """
         if not user_message or user_message.strip() == "":
-            return {"type": "error", "message": "입력이 비어있습니다. 질문을 입력해주세요."}
-        # 구조화된 input 사용 (tool 선택 정확도 향상)
+            return {
+                "reasoning": "입력이 비어있어 함수를 선택할 수 없습니다.",
+                "output": []
+            }
+        
+        # 1단계: LLM으로 함수 선택 이유 생성 (structured output)
+        reasoning = None
+        try:
+            from app.ai.chatbot import character
+            from app.ai.llm import get_provider
+            
+            prompt = [
+                {"role": "system", "content": character.decide_function},
+                {"role": "user", "content": user_message},
+            ]
+            
+            schema = {
+                "type": "object",
+                "properties": {
+                    "reasoning": {"type": "string"},
+                    "selected_tools": {
+                        "type": "array",
+                        "items": {"type": "string"}
+                    }
+                },
+                "required": ["reasoning", "selected_tools"],
+                "additionalProperties": False,
+            }
+            
+            provider = get_provider("function_analyze")
+            raw = provider.structured_completion(prompt, schema).strip()
+            
+            # 토큰 계산
+            if self.token_counter:
+                prompt_text = "\n".join([msg.get('content', '') for msg in prompt])
+                self.token_counter.count_with_provider(
+                    provider=provider,
+                    input_text=prompt_text,
+                    output_text=raw,
+                    role="function_analyze",
+                    category="function"
+                )
+            
+            if raw:
+                payload = json.loads(raw)
+                reasoning = payload.get("reasoning", "").strip() or None
+                selected_tools = payload.get("selected_tools", [])
+                print(f"[DEBUG][analyze] reasoning={reasoning}")
+                print(f"[DEBUG][analyze] selected_tools={selected_tools}")
+        except Exception as e:
+            print(f"[DEBUG][analyze] reasoning generation failed: {e}")
+            reasoning = f"추론 생성 실패 ({e})"
+        
+        # 2단계: 기존 함수 호출 분석 (OpenAI API)
         structured_input = [
             {
                 "role": "user",
@@ -441,10 +565,18 @@ class FunctionCalling:
                 tool_choice="auto",
             )
             print("[DEBUG][analyze] raw_output_types:",[getattr(o,'type',None) for o in response.output])
-            return response.output
+            return {
+                "reasoning": reasoning,
+                "selected_tools": selected_tools,  # reasoning에서 선택된 도구 목록 추가
+                "output": response.output
+            }
         except Exception as e:
             print(f"[DEBUG][analyze] tool analyze failed: {e}")
-            return []
+            return {
+                "reasoning": reasoning,
+                "selected_tools": selected_tools if 'selected_tools' in locals() else [],
+                "output": []
+            }
     
 
     def run(self, analyzed,context):

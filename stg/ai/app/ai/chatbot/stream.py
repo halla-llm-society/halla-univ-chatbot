@@ -28,18 +28,8 @@ class ChatbotStream:
           - 사용할 모델명 저장
           - 사용자 이름
         """
-        # 현재 시간 정보 추가
-        from app.ai.chatbot.config import get_current_time_context
-        time_context = get_current_time_context()
-        
-        # 시스템 역할에 시간 정보 추가
-        enhanced_system_role = f"""{system_role}
-
-{time_context}
-"""
-        
-        self.system_role = enhanced_system_role
-        self.context = [{"role": "system","content": enhanced_system_role}]
+        self.system_role = system_role
+        self.context = [{"role": "system","content": system_role}]
                
         self.current_field = "main"
         

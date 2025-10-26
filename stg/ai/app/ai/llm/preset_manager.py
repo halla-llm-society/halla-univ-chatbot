@@ -21,7 +21,7 @@ class PresetInfo:
 class PresetManager:
     """LLM 조합 프리셋 관리자"""
     
-    def __init__(self, config_path: str = "ai/config/llm_config.yaml"):
+    def __init__(self, config_path: str = "config/llm_config.yaml"):
         """
         PresetManager 초기화
         

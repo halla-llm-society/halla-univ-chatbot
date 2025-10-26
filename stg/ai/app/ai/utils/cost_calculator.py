@@ -23,7 +23,7 @@ class CostCalculator:
     Decimal을 사용하여 소수점 정밀도를 유지합니다.
     """
     
-    def __init__(self, pricing_path: str = "ai/config/pricing.yaml"):
+    def __init__(self, pricing_path: str = "config/pricing.yaml"):
         """비용 계산기 초기화
         
         Args:

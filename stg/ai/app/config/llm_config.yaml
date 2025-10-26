@@ -1,4 +1,4 @@
-active_preset: balanced
+active_preset: budget
 presets:
   original:
     name: 원래 조합 (리팩토링 전)
@@ -174,15 +174,12 @@ role_descriptions:
   function_calling: 함수 호출 판단 및 실행 (OpenAI 전용)
   web_search: 웹 검색 실행 (OpenAI web_search_preview 전용)
   streaming: 스트리밍 응답 생성 (OpenAI 전용)
-
 provider_config:
   openai:
-    message_overhead: 3        # 각 메시지당 구조 오버헤드 (role, content)
-    reply_priming_overhead: 3  # 응답 준비용 오버헤드
-    name_field_overhead: 1     # name 필드 추가 시 오버헤드
-    # 참고: https://github.com/openai/openai-cookbook/blob/main/examples/How_to_count_tokens_with_tiktoken.ipynb
-    
+    message_overhead: 3
+    reply_priming_overhead: 3
+    name_field_overhead: 1
   gemini:
-    message_overhead: 0        # Gemini는 메시지 구조 오버헤드 없음
-    reply_priming_overhead: 0  # model.count_tokens() API가 실제 토큰 수 제공
+    message_overhead: 0
+    reply_priming_overhead: 0
     name_field_overhead: 0

@@ -1,6 +1,3 @@
-
-
-#lagacy code for stg/ai/app/api/routes.py
 import asyncio
 import os
 from openai import OpenAI
@@ -8,10 +5,9 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from dotenv import load_dotenv  
 from fastapi.responses import StreamingResponse
-from ..chatbotDirectory import chatbot
-from ..chatbotDirectory.functioncalling import tools, FunctionCalling
-from ..chatbotDirectory.functioncalling import model
-from ..chatbotDirectory.chatbot import ChatbotStream
+from app.ai.chatbot.stream import ChatbotStream
+from app.ai.functions.analyzer import tools, FunctionCalling
+from app.ai.chatbot.config import model
 import json
 
 
@@ -68,8 +64,9 @@ async def stream_chat(user_input: UserRequest):
     instruction = instruction_map.get(user_input.language, instruction_map["KOR"])
     chatbot.context[-1]["content"] += " " + instruction
 
-    # 3) RAG 컨텍스트 준비
-    rag_ctx = chatbot.get_rag_context(user_input.message)
+    # 3) RAG 컨텍스트 준비 (RagService 경유)
+    rag_result = chatbot.rag_service.build_context(user_input.message)
+    rag_ctx = rag_result.context_text
     has_rag = bool(rag_ctx and rag_ctx.strip())
 
     # 4) 함수 호출 분석 및 실행
@@ -124,7 +121,6 @@ async def stream_chat(user_input: UserRequest):
     lowered = user_input.message.lower()
     cafeteria_keywords = any(k in lowered for k in ["학식", "식단", "점심", "저녁", "메뉴", "조식", "석식", "아침", "오늘 메뉴", "밥 뭐"])
     already_called_cafeteria = any(m.get("name") == "get_halla_cafeteria_menu" for m in func_msgs if m.get("type") == "function_call")
-
 
     if cafeteria_keywords and not already_called_cafeteria:
         try:
@@ -199,21 +195,21 @@ async def stream_chat(user_input: UserRequest):
                 "role": "system",
                 "content": (
                     f"""
-당신은 긴 규정/세칙 문서 묶음에서 사용자 질문과 직접 관련된 부분을 "넓은 맥락"으로 추출·표시하는 어시스턴트입니다.
-규칙(넓은 맥락 포함):
-1) 원문 전체는 <기억검색> 태그 안에 있습니다.
-2) 사용자 질문과 직접 관련된 근거는 <반영>...</반영> 태그 안에 담되, 다음을 포함하세요.
-   - 표/목록/번호 조항은 해당 항목의 머리글(제목/헤더)과 인접 행·항까지 함께 포함(최소 ±5~10줄 맥락).
-   - "주)" 형태의 주석/비고가 붙은 경우 해당 주석 전부 포함.
-   - 학점·과목·배분영역·트랙과 같은 숫자/항목은 표의 열 머리말과 같이 포함(헤더+행 세트).
-3) 사용자가 특정 번호(예: 1번, 2번)를 언급했지만 모호할 경우, 후보 번호 2~3개를 모두 포함하되 각 블록 앞에 [후보] 표기.
-4) 관련 근거가 충분치 않다고 판단되면, 상위 단락(조/항/표 제목) 단위까지 확장하여 최소 15줄 이상을 담고, 지나친 요약을 피하세요.
-5) 원문 구조(조/항/호/표 제목)는 유지하고 임의 재작성 금지. 반드시 원문을 거의 그대로 인용하세요.
-6) 원문 밖 추론/창작 금지.
+                        당신은 긴 규정/세칙 문서 묶음에서 사용자 질문과 직접 관련된 부분을 "넓은 맥락"으로 추출·표시하는 어시스턴트입니다.
+                        규칙(넓은 맥락 포함):
+                        1) 원문 전체는 <기억검색> 태그 안에 있습니다.
+                        2) 사용자 질문과 직접 관련된 근거는 <반영>...</반영> 태그 안에 담되, 다음을 포함하세요.
+                        - 표/목록/번호 조항은 해당 항목의 머리글(제목/헤더)과 인접 행·항까지 함께 포함(최소 ±5~10줄 맥락).
+                        - "주)" 형태의 주석/비고가 붙은 경우 해당 주석 전부 포함.
+                        - 학점·과목·배분영역·트랙과 같은 숫자/항목은 표의 열 머리말과 같이 포함(헤더+행 세트).
+                        3) 사용자가 특정 번호(예: 1번, 2번)를 언급했지만 모호할 경우, 후보 번호 2~3개를 모두 포함하되 각 블록 앞에 [후보] 표기.
+                        4) 관련 근거가 충분치 않다고 판단되면, 상위 단락(조/항/표 제목) 단위까지 확장하여 최소 15줄 이상을 담고, 지나친 요약을 피하세요.
+                        5) 원문 구조(조/항/호/표 제목)는 유지하고 임의 재작성 금지. 반드시 원문을 거의 그대로 인용하세요.
+                        6) 원문 밖 추론/창작 금지.
 
-사용자 질문: {user_input.message}
-<기억검색>{sanitized_rag}</기억검색>
-"""
+                        사용자 질문: {user_input.message}
+                        <기억검색>{sanitized_rag}</기억검색>
+                        """
                 ),
             }
         ]
