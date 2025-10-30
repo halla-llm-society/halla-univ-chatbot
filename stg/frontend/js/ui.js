@@ -55,7 +55,7 @@ const setResetModal = () => {
 
         botMessages.forEach(msg => msg.remove());
         userMessages.forEach(msg => msg.remove());
-        sendDefaultMesage();
+        sendDefaultMessage();
 
         resetModal.classList.remove('fade-in');
         resetModal.classList.add('fade-out');
