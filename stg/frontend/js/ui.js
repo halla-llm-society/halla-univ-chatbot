@@ -72,9 +72,11 @@ const setResetModal = () => {
 
 // 챗봇 UI 제어
 const setChatbotExpanded = () => {
+    /*
     toggleBtn.addEventListener("click", () => {   // 챗봇 열기
         chatbotContainer.classList.add("expanded");
     });
+    */
 
     closeBtn.addEventListener("click", checkSurveyBeforeClose); // 챗봇 닫기
 }
