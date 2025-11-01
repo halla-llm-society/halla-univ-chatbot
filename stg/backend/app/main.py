@@ -2,8 +2,8 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .api.routers import router as api_router 
+from .configure import ROOT_PATH
 
-ROOT_PATH = os.getenv("ROOT_PATH", "") # stg용 root path
 app = FastAPI(
     title="Chatbot Prod Backend Service",
     root_path=ROOT_PATH 
