@@ -18,23 +18,23 @@ async def proxy_chat_to_ai(request: ChatRequest):
 async def stream_ai_response(request: ChatRequest):
     ai_endpoint = f"{AI_SERVICE_URL}/api/chat"
 
-    ################### For stg-chat ###################
+    ################### For chat ###################
     data = request.model_dump()
     question = data["user_input"]
     answer = ""
     decision = ""
-    ################### For stg-chat ###################
+    ################### For chat ###################
 
 
-    ################### For stg-token ##################
+    ################### For token ##################
     preset = ""
     totalTokens = ""
-    ################### For stg-token ##################
+    ################### For token ##################
 
 
-    ################### For stg-metadata ###############
+    ################### For metadata ###############
     metadata = {}
-    ################### For stg-metadata ###############
+    ################### For metadata ###############
 
     try:
         async with httpx.AsyncClient() as client:
@@ -74,17 +74,17 @@ async def stream_ai_response(request: ChatRequest):
 
         chatId = await save_chat_and_return_id(
             {"question": question, "answer": answer, "decision": decision},
-            "stg-chat"
+            "chat"
         )
 
         await save_to_mongodb(
             {"chatId": chatId, "preset": preset, "totalTokens": totalTokens },
-            "stg-token"
+            "token"
         )
 
         await save_to_mongodb(
             {"chatId": chatId, "metadata": metadata},
-            "stg-metadata"
+            "metadata"
         )
 
     except httpx.RequestError as exc:

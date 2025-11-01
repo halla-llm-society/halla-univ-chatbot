@@ -9,4 +9,4 @@ router = APIRouter()
 @router.post("")
 async def submit_survey(request: SurveyRequest):
     survey_data = request.model_dump()
-    await save_to_mongodb(survey_data, "stg-survey")
+    await save_to_mongodb(survey_data, "survey")
