@@ -546,6 +546,7 @@ class ChatbotStream:
         message: str,
         condensed_rag: Optional[str],
         func_results: List[FunctionCallMetadata],
+        language: str = "KOR",
     ) -> List[Dict[str, str]]:
         """최종 LLM 입력 컨텍스트를 구성합니다.
 
@@ -556,6 +557,7 @@ class ChatbotStream:
             message: 현재 사용자 질문.
             condensed_rag: LLM으로 가공된 기억검색 요약 문자열. 없으면 None.
             func_results: 함수 호출 메타데이터 목록.
+            language: 응답 언어 코드 (KOR, ENG, VI, JPN, CHN, UZB, MNG, IDN).
 
         Returns:
             OpenAI Responses API에 전달할 컨텍스트 리스트.
@@ -690,10 +692,20 @@ class ChatbotStream:
             )
             sections.append("[통합지침]\n" + merge_instruction)
 
-        # 추가 정보가 없으면 원본 컨텍스트 사용
+        # 언어 지침 추가 (항상 마지막에 추가)
+        language_instruction = self._get_language_instruction(language)
+
+        # 추가 정보가 없으면 원본 컨텍스트에 언어 지침만 추가
         if not (has_rag or has_funcs):
+            base_context.append({
+                "role": "system",
+                "content": f"[언어지침]\n{language_instruction}",
+            })
             self._last_web_status = web_status
             return base_context
+
+        # 추가 정보가 있으면 sections 마지막에 언어 지침 추가
+        sections.append(f"[언어지침]\n{language_instruction}")
 
         base_context.append({
             "role": "system",
@@ -990,25 +1002,25 @@ class ChatbotStream:
         language: str = "KOR"
     ) -> AsyncGenerator[str, None]:
         """챗봇 스트리밍 통합 메서드
-        
+
         JSON Lines 형식으로 응답을 스트리밍합니다.
-        
+
         처리 흐름:
         1. 사용자 메시지 추가 및 메타데이터 초기화
-        2. 언어별 지침 추가
-        3. RAG 컨텍스트 준비 및 요약
-        4. 함수 호출 분석/실행
-        5. 최종 컨텍스트 구성
-        6. 스트리밍 응답 생성
-        7. 메타데이터 전송
-        8. 완료 신호
-        9. 응답 저장
-        
+        2. RAG 컨텍스트 준비 및 요약
+        3. 함수 호출 분석/실행
+        4. 최종 컨텍스트 구성 (언어 지침 포함)
+        5. 스트리밍 응답 생성
+        5.5. 출처 정보 스트리밍
+        6. 메타데이터 전송
+        7. 완료 신호
+        8. 응답 저장
+
         Args:
             message: 현재 사용자 입력 메시지
             message_history: 프론트가 전달한 기존 대화 히스토리 (optional)
             language: 응답 언어 (KOR, ENG, VI, JPN, CHN, UZB, MNG, IDN)
-            
+
         Yields:
             JSON Lines 형식의 스트리밍 이벤트
         """
@@ -1022,14 +1034,9 @@ class ChatbotStream:
         metadata = ChatMetadata()
         self.token_counter.reset()  # 토큰 카운터 초기화
         self._dbg("[STREAM_CHAT] 1단계: 메시지 추가 완료")
-        
-        # === 2단계: 언어별 지침 추가 ===
-        language_instruction = self._get_language_instruction(language)
-        self.context[-1]["content"] += " " + language_instruction
-        self._dbg(f"[STREAM_CHAT] 2단계: 언어 지침 추가 완료 - {language}")
-        
-        # === 3단계: RAG 컨텍스트 준비 ===
-        self._dbg("[STREAM_CHAT] 3단계: RAG 검사 시작...")
+
+        # === 2단계: RAG 컨텍스트 준비 ===
+        self._dbg("[STREAM_CHAT] 2단계: RAG 검사 시작...")
         rag_result = self.rag_service.retrieve_context(user_input)
         condensed_rag = None
         
@@ -1094,8 +1101,8 @@ class ChatbotStream:
                 condensed_context=None,
             )
         
-        # === 4단계: 함수 호출 분석/실행 ===
-        self._dbg("[STREAM_CHAT] 4단계: 함수 호출 분석/실행 시작...")
+        # === 3단계: 함수 호출 분석/실행 ===
+        self._dbg("[STREAM_CHAT] 3단계: 함수 호출 분석/실행 시작...")
         func_reasoning, func_results = await self._analyze_and_execute_functions(user_input)
         metadata.functions = func_results
         self._dbg(f"[STREAM_CHAT] 함수 호출 완료 - {len(func_results)}개 함수 실행")
@@ -1122,17 +1129,18 @@ class ChatbotStream:
         else:
             metadata.web_search_status = "not-run"
         
-        # === 5단계: 최종 컨텍스트 구성 ===
+        # === 4단계: 최종 컨텍스트 구성 (언어 지침 포함) ===
         final_context = self._build_final_context(
             message=user_input,
             condensed_rag=condensed_rag,
             func_results=func_results,
+            language=language,
         )
         
         # 입력 토큰 계산 (OpenAI API 형식 오버헤드 포함, 역할 추적 포함)
         self.token_counter.count_openai_streaming_tokens(final_context, role="streaming")
         
-        # === 6단계: 스트리밍 응답 생성 ===
+        # === 5단계: 스트리밍 응답 생성 ===
         completed_text = ""
         async for chunk in self._stream_openai_response(final_context):
             if chunk["type"] == "delta":
@@ -1143,8 +1151,8 @@ class ChatbotStream:
                 yield json.dumps(chunk, ensure_ascii=False) + "\n"
                 return
         
-        # === 6.5단계: 출처 정보 스트리밍 ===
-        self._dbg("[STREAM_CHAT] 6.5단계: 출처 정보 스트리밍")
+        # === 5.5단계: 출처 정보 스트리밍 ===
+        self._dbg("[STREAM_CHAT] 5.5단계: 출처 정보 스트리밍")
         
         # (1) 웹 검색 링크 표시
         web_links = self._extract_web_links(func_results)
@@ -1162,8 +1170,8 @@ class ChatbotStream:
                 yield json.dumps({"type": "delta", "content": "\n\n📚 참고 문서:\n"}, ensure_ascii=False) + "\n"
                 yield json.dumps({"type": "delta", "content": sources_text + "\n"}, ensure_ascii=False) + "\n"
         
-        # === 7단계: 메타데이터 전송 ===
-        self._dbg("[STREAM_CHAT] 7단계: 메타데이터 전송")
+        # === 6단계: 메타데이터 전송 ===
+        self._dbg("[STREAM_CHAT] 6단계: 메타데이터 전송")
         
         # 토큰 사용량 및 비용 계산
         token_usage = self.token_counter.get_total()
@@ -1197,14 +1205,14 @@ class ChatbotStream:
             "data": metadata.to_dict()
         }, ensure_ascii=False) + "\n"
         
-        # === 8단계: 완료 신호 ===
-        self._dbg("[STREAM_CHAT] 8단계: 완료 신호 전송")
+        # === 7단계: 완료 신호 ===
+        self._dbg("[STREAM_CHAT] 7단계: 완료 신호 전송")
         yield json.dumps({"type": "done"}, ensure_ascii=False) + "\n"
         
-        # === 9단계: 응답 저장 ===
+        # === 8단계: 응답 저장 ===
         # 프론트엔드가 히스토리를 관리하므로 내부 컨텍스트 누적은 중단합니다.
         # self.add_response_stream(completed_text)
-        self._dbg(f"[STREAM_CHAT] 9단계: 응답 저장 완료 - 길이: {len(completed_text)}자")
+        self._dbg(f"[STREAM_CHAT] 8단계: 응답 저장 완료 - 길이: {len(completed_text)}자")
 
 
         self._dbg("[STREAM_CHAT] 전체 처리 완료!")
