@@ -47,7 +47,12 @@ async def stream_ai_response(request: ChatRequest):
                     if not line.strip():
                         continue
 
-                    payload = json.loads(line)
+                    try:
+                        payload = json.loads(line)
+                    except json.JSONDecodeError:
+                        print(f"JSON 파싱 오류: {line}")
+                        continue
+
                     type = payload.get("type")
 
                     if type == "delta":
@@ -69,24 +74,40 @@ async def stream_ai_response(request: ChatRequest):
                     elif type == "error":
                         error_msg = payload.get("message", "Unknown AI error")
                         error_code = payload.get("code", "UNKNOWN")
-                        detailed_error = f"[AI Error ({error_code})]: {error_msg}"
-                        yield detailed_error.encode("utf-8")
-
-        chatId = await save_chat_and_return_id(
-            {"question": question, "answer": answer, "decision": decision},
-            "chat"
-        )
-
-        await save_to_mongodb(
-            {"chatId": chatId, "preset": preset, "totalTokens": totalTokens },
-            "token"
-        )
-
-        await save_to_mongodb(
-            {"chatId": chatId, "metadata": metadata},
-            "metadata"
-        )
+                        print(f"[AI Error ({error_code})]: {error_msg}") # 개발자용 로그
+                        
+                        friendly_error = "죄송합니다. AI 응답 생성 중 오류가 발생했습니다."
+                        yield friendly_error.encode("utf-8")
+                        break
 
     except httpx.RequestError as exc:
-        error_message = f"Error calling AI service: {exc}"
-        yield error_message.encode("utf-8")
+        print(f"AI 서비스 연결 실패: {exc}") # 개발자용 로그
+        friendly_error = "죄송합니다. 챗봇 서버에 연결할 수 없습니다."
+        yield friendly_error.encode("utf-8")
+
+    except Exception as e:
+        # httpx 오류도, AI가 준 error도 아닌, 코드 로직상의 오류(KeyError 등)
+        print(f"스트리밍 중 예상치 못한 오류: {e}") # 개발자용 로그
+        friendly_error = "죄송합니다. 알 수 없는 오류가 발생했습니다."
+        yield friendly_error.encode("utf-8")            
+
+    try:
+        if answer: # 답변이 성공적으로 생성되었을 때만 저장
+            chatId = await save_chat_and_return_id(
+                {"question": question, "answer": answer, "decision": decision},
+                "chat"
+            )
+            await save_to_mongodb(
+                {"chatId": chatId, "preset": preset, "totalTokens": totalTokens },
+                "token"
+            )
+            await save_to_mongodb(
+                {"chatId": chatId, "metadata": metadata},
+                "metadata"
+            )
+    except Exception as e:
+        # 이 오류는 사용자에게 보낼 수 없음
+        print(f"!!! DB 저장 실패: {e} !!!")
+        print(f"저장 실패 데이터 (question): {question}")
+        print(f"저장 실패 데이터 (answer): {answer}")
+
