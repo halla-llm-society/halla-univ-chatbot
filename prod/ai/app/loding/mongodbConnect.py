@@ -6,9 +6,9 @@ import certifi
 
 # .env에서 MONGODB_URI 불러오기
 load_dotenv('.env')
-MONGODB_URI = os.getenv("MONGODB_URI")
+MONGODB_URI = os.getenv("PROD_MONGODB_URI")
 if not MONGODB_URI:
-    raise ValueError("MONGODB_URI 환경 변수가 설정되지 않았습니다.")
+    raise ValueError("PROD_MONGODB_URI 환경 변수가 설정되지 않았습니다.")
 COLLECTION_NAME = "regulation_chunks"
 DB_NAME = "halla_academic_db"
 

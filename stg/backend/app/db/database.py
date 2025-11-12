@@ -1,10 +1,10 @@
 import os
 from motor.motor_asyncio import AsyncIOMotorClient
 from datetime import datetime, timezone
-from app.configure import MONGODB_URI, MONGODB_SUFFIX
+from app.configure import STG_MONGODB_URI, MONGODB_SUFFIX
 
 
-client = AsyncIOMotorClient(MONGODB_URI)
+client = AsyncIOMotorClient(STG_MONGODB_URI)
 db = client["halla-chatbot" + MONGODB_SUFFIX]
 
 
