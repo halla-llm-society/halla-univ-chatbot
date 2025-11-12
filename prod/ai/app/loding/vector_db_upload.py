@@ -11,7 +11,7 @@ import uuid  # ID 생성용
 
 # apikey.env를 명시적으로 로드 (기본 .env가 아닐 수 있음)
 load_dotenv(".env")
-MONGODB_URI = os.getenv("PROD_MONGODB_URI")
+MONGODB_URI = os.getenv("PROD_MONGODB_URI" )
 PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 

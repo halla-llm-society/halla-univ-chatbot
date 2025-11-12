@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from app.configure import STG_MONGODB_URI, MONGODB_SUFFIX
 
 
-client = AsyncIOMotorClient(STG_MONGODB_URI)
+client = AsyncIOMotorClient(STG_MONGODB_URI )
 db = client["halla-chatbot" + MONGODB_SUFFIX]
 
 
