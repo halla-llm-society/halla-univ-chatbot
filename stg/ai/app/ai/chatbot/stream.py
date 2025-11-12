@@ -481,7 +481,8 @@ class ChatbotStream:
         try:
             # LLM Manager 사용 (교체 가능)
             provider = get_provider("condense")
-            condensed = provider.simple_completion(condense_prompt).strip()
+            condensed = await provider.simple_completion(condense_prompt)
+            condensed = condensed.strip()
             
             self._dbg(f"[CONDENSE] 1차 결과 - 길이: {len(condensed)}자, 줄 수: {condensed.count(chr(10))}줄")
             
@@ -507,7 +508,8 @@ class ChatbotStream:
                 try:
                     self._dbg("[CONDENSE] 2차 요약 시도 중...")
                     # LLM Manager 사용 (교체 가능)
-                    condensed2 = provider.simple_completion(broader_prompt).strip()
+                    condensed2 = await provider.simple_completion(broader_prompt)
+                    condensed2 = condensed2.strip()
                     
                     self._dbg(f"[CONDENSE] 2차 결과 - 길이: {len(condensed2)}자, 줄 수: {condensed2.count(chr(10))}줄")
                     
