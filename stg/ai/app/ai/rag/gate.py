@@ -34,7 +34,7 @@ class RegulationGate:
         self._debug = debug_fn or (lambda _: None)
         self.token_counter = token_counter
 
-    def decide(self, question: str) -> GateDecision:
+    async def decide(self, question: str) -> GateDecision:
         self._debug(
             f"gate.decide: evaluating question='{question[:60]}...' with model={self._model_name}"
         )
@@ -59,7 +59,8 @@ class RegulationGate:
         try:
             # LLM Manager 사용 (교체 가능, JSON 스키마 지원 모델 필요)
             provider = get_provider("gate")
-            raw = provider.structured_completion(prompt, schema).strip()
+            raw = await provider.structured_completion(prompt, schema)
+            raw = raw.strip()
             
             # ✅ 토큰 계산 추가
             if self.token_counter:
