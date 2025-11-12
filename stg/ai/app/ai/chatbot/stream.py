@@ -1037,7 +1037,7 @@ class ChatbotStream:
 
         # === 2단계: RAG 컨텍스트 준비 ===
         self._dbg("[STREAM_CHAT] 2단계: RAG 검사 시작...")
-        rag_result = self.rag_service.retrieve_context(user_input)
+        rag_result = await self.rag_service.retrieve_context(user_input)
         condensed_rag = None
         
         if rag_result.merged_documents_text:
