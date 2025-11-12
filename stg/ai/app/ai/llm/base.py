@@ -23,7 +23,7 @@ class BaseLLMProvider(ABC):
         self.config = kwargs
     
     @abstractmethod
-    def simple_completion(
+    async def simple_completion(
         self,
         messages: List[Dict[str, Any]],
         temperature: float = 1.0,
@@ -52,7 +52,7 @@ class BaseLLMProvider(ABC):
         pass
     
     @abstractmethod
-    def structured_completion(
+    async def structured_completion(
         self,
         messages: List[Dict[str, Any]],
         schema: Dict[str, Any],
