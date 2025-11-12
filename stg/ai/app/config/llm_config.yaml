@@ -1,4 +1,4 @@
-active_preset: budget
+active_preset: openai_only
 presets:
   original:
     name: 원래 조합 (리팩토링 전)
