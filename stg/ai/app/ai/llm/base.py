@@ -29,28 +29,34 @@ class BaseLLMProvider(ABC):
         temperature: float = 1.0,
         max_tokens: Optional[int] = None,
         **kwargs
-    ) -> str:
+    ) -> tuple[str, Dict[str, int]]:
         """
         단순 텍스트 생성
-        
+
         OpenAI Responses API 형식의 메시지를 받아 텍스트 응답을 반환합니다.
         Provider 내부에서 필요 시 메시지 포맷을 변환합니다.
-        
+
         Args:
             messages: OpenAI Responses API 형식 메시지 리스트
                      예: [{"role": "user", "content": [{"type": "input_text", "text": "..."}]}]
             temperature: 생성 온도 (0.0 ~ 2.0)
             max_tokens: 최대 출력 토큰 수 (None이면 모델 기본값)
             **kwargs: 추가 파라미터
-        
+
         Returns:
-            str: 생성된 텍스트
-        
+            tuple: (생성된 텍스트, usage 정보)
+                  usage = {
+                      "input_tokens": int,
+                      "output_tokens": int,
+                      "reasoning_tokens": int,
+                      "total_tokens": int
+                  }
+
         Raises:
             Exception: API 호출 실패 시
         """
         pass
-    
+
     @abstractmethod
     async def structured_completion(
         self,
@@ -58,19 +64,25 @@ class BaseLLMProvider(ABC):
         schema: Dict[str, Any],
         temperature: float = 1.0,
         **kwargs
-    ) -> str:
+    ) -> tuple[str, Dict[str, int]]:
         """
         JSON 스키마 기반 구조화된 출력 생성
-        
+
         Args:
             messages: OpenAI Responses API 형식 메시지 리스트
             schema: JSON 스키마 (type, properties, required 등)
             temperature: 생성 온도
             **kwargs: 추가 파라미터
-        
+
         Returns:
-            str: JSON 형식의 문자열
-        
+            tuple: (JSON 형식의 문자열, usage 정보)
+                  usage = {
+                      "input_tokens": int,
+                      "output_tokens": int,
+                      "reasoning_tokens": int,
+                      "total_tokens": int
+                  }
+
         Raises:
             NotImplementedError: 해당 Provider가 스키마 기반 출력을 지원하지 않을 때
             Exception: API 호출 실패 시
