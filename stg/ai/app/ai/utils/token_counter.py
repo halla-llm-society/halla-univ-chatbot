@@ -32,7 +32,7 @@ class TokenCounter:
     
     def __init__(self, model: str = "gpt-4"):
         """토큰 카운터 초기화
-        
+
         Args:
             model: 모델 ID (예: "gpt-4", "gemini-2.0-flash")
                    OpenAI 모델은 tiktoken, Gemini는 폴백
@@ -43,30 +43,42 @@ class TokenCounter:
             # 폴백: cl100k_base (gpt-4, gpt-3.5-turbo 공통)
             self.encoding = tiktoken.get_encoding("cl100k_base")
             print(f"[TokenCounter] 모델 {model}의 encoding이 없어 cl100k_base 사용")
-        
+
         self.model = model
-        
+
         # 카테고리별 토큰 누적
         self.input_tokens = 0
         self.output_tokens = 0
         self.function_tokens = 0
         self.rag_tokens = 0
-        
-        # 역할별 세부 추적 (새로 추가)
+        self.reasoning_tokens = 0  # o3-mini 등 추론 토큰
+
+        # 역할별 세부 추적
         self._role_breakdown: Dict[str, Dict[str, int]] = {}
-        
+
+        # 역할별 모델 추적 (비용 계산용)
+        self._role_model_map: Dict[str, str] = {}
+
         self._delta_buffer = []
         self._lock = threading.Lock()
-        
-        # 프로바이더 설정 로드 (새로 추가)
-        self.provider_overheads = self._load_provider_config()
-        
+
+        # 프로바이더 설정 및 토큰 추적 설정 로드
+        config = self._load_full_config()
+        self.provider_overheads = config.get("provider_config", {})
+        self._tracking_config = config.get("token_tracking", {})
+        self._tracking_mode = self._tracking_config.get("mode", "tiktoken_only")
+
+        print(f"[TokenCounter] 토큰 추적 모드: {self._tracking_mode}")
+
         # Provider별 실제 토큰 수 추적 (Gemini 등)
         self._provider_tokens = {
             "input": {},    # {role: actual_tokens}
             "output": {},   # {role: actual_tokens}
             "rag": {}       # {role: actual_tokens}
         }
+
+        # API usage 캐시 (hybrid 모드에서 비교용)
+        self._api_usage_cache: Dict[str, Dict[str, int]] = {}
     
     def count_openai_chat_input_tokens(self, messages: List[Dict[str, str]]) -> int:
         """OpenAI Chat API 입력 토큰 수 계산 (API 포맷 오버헤드 포함)
@@ -112,14 +124,15 @@ class TokenCounter:
             self.output_tokens += num_tokens
             return num_tokens
     
-    def count_output_delta(self, delta: str) -> None:
+    def count_output_delta(self, delta: str, role: str = "streaming") -> None:
         """스트리밍 델타 청크 누적 (배치 인코딩)
-        
+
         성능 최적화를 위해 10개 청크마다 배치로 인코딩합니다.
         개별 청크를 바로 인코딩하는 것보다 효율적입니다.
-        
+
         Args:
             delta: 스트리밍 응답 델타 청크
+            role: 역할 이름 (기본: "streaming")
         """
         with self._lock:
             self._delta_buffer.append(delta)
@@ -127,18 +140,33 @@ class TokenCounter:
                 batch_text = "".join(self._delta_buffer)
                 num_tokens = len(self.encoding.encode(batch_text))
                 self.output_tokens += num_tokens
+
+                # role_breakdown에도 추가
+                if role not in self._role_breakdown:
+                    self._role_breakdown[role] = {"input": 0, "output": 0, "reasoning": 0}
+                self._role_breakdown[role]["output"] += num_tokens
+
                 self._delta_buffer.clear()
-    
-    def flush_delta_buffer(self) -> None:
+
+    def flush_delta_buffer(self, role: str = "streaming") -> None:
         """남은 델타 버퍼 처리 (스트리밍 완료 시)
-        
+
         스트리밍 완료 후 버퍼에 남은 청크를 처리합니다.
+
+        Args:
+            role: 역할 이름 (기본: "streaming")
         """
         with self._lock:
             if self._delta_buffer:
                 batch_text = "".join(self._delta_buffer)
                 num_tokens = len(self.encoding.encode(batch_text))
                 self.output_tokens += num_tokens
+
+                # role_breakdown에도 추가
+                if role not in self._role_breakdown:
+                    self._role_breakdown[role] = {"input": 0, "output": 0, "reasoning": 0}
+                self._role_breakdown[role]["output"] += num_tokens
+
                 self._delta_buffer.clear()
     
     def count_openai_tools_tokens(self, tools: List[Dict[str, Any]]) -> int:
@@ -294,7 +322,7 @@ class TokenCounter:
     
     def get_total(self) -> Dict[str, int]:
         """누적 토큰 통계 반환
-        
+
         Returns:
             Dict: 토큰 통계
                 {
@@ -302,6 +330,7 @@ class TokenCounter:
                     "output_tokens": int,
                     "function_tokens": int,
                     "rag_tokens": int,
+                    "reasoning_tokens": int,
                     "total_tokens": int
                 }
         """
@@ -311,17 +340,18 @@ class TokenCounter:
                 "output_tokens": self.output_tokens,
                 "function_tokens": self.function_tokens,
                 "rag_tokens": self.rag_tokens,
+                "reasoning_tokens": self.reasoning_tokens,
                 "total_tokens": (
-                    self.input_tokens + 
-                    self.output_tokens + 
-                    self.function_tokens + 
+                    self.input_tokens +
+                    self.output_tokens +
+                    self.function_tokens +
                     self.rag_tokens
                 ),
             }
     
     def reset(self) -> None:
         """카운터 초기화
-        
+
         대화 완료 후 카운터를 리셋합니다.
         """
         with self._lock:
@@ -329,36 +359,46 @@ class TokenCounter:
             self.output_tokens = 0
             self.function_tokens = 0
             self.rag_tokens = 0
+            self.reasoning_tokens = 0
             self._delta_buffer.clear()
             self._role_breakdown.clear()
+            self._role_model_map.clear()
+            self._api_usage_cache.clear()
     
-    def _load_provider_config(self) -> Dict[str, Dict[str, int]]:
-        """llm_config.yaml에서 프로바이더별 오버헤드 설정 로드
-        
+    def _load_full_config(self) -> Dict[str, Any]:
+        """llm_config.yaml에서 전체 설정 로드
+
         Returns:
-            Dict: {provider_name: {message_overhead: X, reply_priming_overhead: Y, ...}}
+            Dict: 전체 설정 (provider_config, token_tracking 등)
         """
         try:
             config_path = Path(__file__).parent.parent.parent / "config" / "llm_config.yaml"
             with open(config_path, 'r', encoding='utf-8') as f:
                 config = yaml.safe_load(f)
-            
+
             provider_config = config.get("provider_config", {})
             print(f"[TokenCounter] Provider config loaded: {provider_config}")
-            return provider_config
+            return config
         except Exception as e:
-            print(f"[TokenCounter] Failed to load provider config: {e}")
+            print(f"[TokenCounter] Failed to load config: {e}")
             # 폴백: 기본값 사용
             return {
-                "openai": {
-                    "message_overhead": 3,
-                    "reply_priming_overhead": 3,
-                    "name_field_overhead": 1
+                "provider_config": {
+                    "openai": {
+                        "message_overhead": 3,
+                        "reply_priming_overhead": 3,
+                        "name_field_overhead": 1
+                    },
+                    "gemini": {
+                        "message_overhead": 0,
+                        "reply_priming_overhead": 0,
+                        "name_field_overhead": 0
+                    }
                 },
-                "gemini": {
-                    "message_overhead": 0,
-                    "reply_priming_overhead": 0,
-                    "name_field_overhead": 0
+                "token_tracking": {
+                    "mode": "tiktoken_only",
+                    "fallback_to_tiktoken": True,
+                    "track_reasoning_tokens": False
                 }
             }
     
@@ -430,7 +470,7 @@ class TokenCounter:
             
             # 4. 역할별 세부 추적
             if role not in self._role_breakdown:
-                self._role_breakdown[role] = {"input": 0, "output": 0}
+                self._role_breakdown[role] = {"input": 0, "output": 0, "reasoning": 0}
             self._role_breakdown[role]["input"] += input_tokens
             self._role_breakdown[role]["output"] += output_tokens
             
@@ -442,23 +482,145 @@ class TokenCounter:
     
     def count_openai_streaming_tokens(self, context: List[Dict[str, Any]], role: str = "streaming") -> int:
         """OpenAI 스트리밍 응답용 입력 토큰 계산
-        
+
         Args:
             context: OpenAI API 메시지 컨텍스트
             role: 역할 이름 (기본: "streaming")
-        
+
         Returns:
             int: 계산된 토큰 수
         """
         tokens = self.count_openai_chat_input_tokens(context)
-        
+
         # 역할별 추적 (input_tokens는 이미 count_openai_chat_input_tokens에서 누적됨)
         with self._lock:
             if role not in self._role_breakdown:
-                self._role_breakdown[role] = {"input": 0, "output": 0}
+                self._role_breakdown[role] = {"input": 0, "output": 0, "reasoning": 0}
             self._role_breakdown[role]["input"] += tokens
-        
+
         return tokens
+
+    def update_from_api_usage(
+        self,
+        usage: Dict[str, int],
+        role: str,
+        model: str,
+        category: str = "input",
+        replace: bool = False
+    ) -> None:
+        """OpenAI API response.usage로 토큰 카운터 갱신
+
+        API가 반환한 실제 usage 정보를 사용하여 카운터를 업데이트합니다.
+        api_first 또는 hybrid 모드에서 사용됩니다.
+
+        Args:
+            usage: API response의 usage 객체
+                   {"input_tokens": N, "output_tokens": M, "reasoning_tokens": K, "total_tokens": T}
+            role: 역할 이름 (gate, condense, function_analyze 등)
+            model: 사용한 모델 ID (예: "o3-mini", "gpt-4.1")
+            category: 토큰 카테고리 (input, output, rag, function)
+            replace: True일 때 기존 role의 토큰을 제거하고 새 값으로 교체 (streaming 등에서 사용)
+        """
+        with self._lock:
+            input_tok = usage.get("input_tokens", 0)
+            output_tok = usage.get("output_tokens", 0)
+            reasoning_tok = usage.get("reasoning_tokens", 0)
+
+            # 모드별 처리
+            if self._tracking_mode == "api_first":
+                # API usage를 실제값으로 사용
+                pass
+            elif self._tracking_mode == "hybrid":
+                # 비교를 위해 캐시에 저장
+                self._api_usage_cache[role] = usage.copy()
+                print(f"[TokenCounter][hybrid] {role} API usage: {usage}")
+
+            # replace 모드: 기존 role의 토큰을 제거
+            if replace and role in self._role_breakdown:
+                old_tokens = self._role_breakdown[role]
+
+                # 카테고리별 기존 토큰 제거
+                if category == "rag":
+                    self.rag_tokens -= (old_tokens["input"] + old_tokens["output"])
+                elif category == "function":
+                    self.function_tokens -= (old_tokens["input"] + old_tokens["output"])
+                else:
+                    self.input_tokens -= old_tokens["input"]
+                    self.output_tokens -= old_tokens["output"]
+
+                # reasoning tokens 제거
+                self.reasoning_tokens -= old_tokens["reasoning"]
+
+                print(f"[TokenCounter] {role} 기존 토큰 제거 (replace=True): "
+                      f"input={old_tokens['input']}, output={old_tokens['output']}, reasoning={old_tokens['reasoning']}")
+
+                # role_breakdown 초기화
+                self._role_breakdown[role] = {"input": 0, "output": 0, "reasoning": 0}
+
+            # 카테고리별 누적
+            if category == "rag":
+                self.rag_tokens += (input_tok + output_tok)
+            elif category == "function":
+                self.function_tokens += (input_tok + output_tok)
+            else:
+                self.input_tokens += input_tok
+                self.output_tokens += output_tok
+
+            # reasoning tokens 누적
+            if reasoning_tok > 0:
+                self.reasoning_tokens += reasoning_tok
+
+            # 역할별 세부 추적
+            if role not in self._role_breakdown:
+                self._role_breakdown[role] = {"input": 0, "output": 0, "reasoning": 0}
+
+            self._role_breakdown[role]["input"] += input_tok
+            self._role_breakdown[role]["output"] += output_tok
+            self._role_breakdown[role]["reasoning"] += reasoning_tok
+
+            # 역할별 모델 추적 (비용 계산용)
+            self._role_model_map[role] = model
+
+            print(f"[TokenCounter] {role} ({model}) API usage 반영 (replace={replace}): "
+                  f"input={input_tok}, output={output_tok}, reasoning={reasoning_tok}")
+
+    def get_role_usage_for_cost_calc(self) -> List[Dict[str, any]]:
+        """비용 계산용 role별 사용량 데이터 생성
+
+        CostCalculator.calculate_batch()에 전달할 형식으로 데이터를 반환합니다.
+        각 role에서 사용한 모델과 토큰 수를 포함합니다.
+
+        Returns:
+            List: 사용량 리스트
+                 예: [
+                     {"model": "o3-mini", "input_tokens": 638, "output_tokens": 55},
+                     {"model": "gpt-4.1-nano", "input_tokens": 4195, "output_tokens": 287},
+                     ...
+                 ]
+        """
+        with self._lock:
+            usage_list = []
+
+            for role, tokens in self._role_breakdown.items():
+                model = self._role_model_map.get(role, self.model)  # 기본값: streaming 모델
+
+                usage_list.append({
+                    "role": role,
+                    "model": model,
+                    "input_tokens": tokens["input"],
+                    "output_tokens": tokens["output"],
+                    "reasoning_tokens": tokens.get("reasoning", 0),
+                })
+
+            return usage_list
+
+    def get_tracking_mode(self) -> str:
+        """현재 토큰 추적 모드 반환
+
+        Returns:
+            str: 추적 모드 (api_first, tiktoken_only, hybrid)
+        """
+        return self._tracking_mode
 
 
 # ============================================================
