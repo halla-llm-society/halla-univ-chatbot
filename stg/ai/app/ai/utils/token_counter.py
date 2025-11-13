@@ -345,7 +345,8 @@ class TokenCounter:
                     self.input_tokens +
                     self.output_tokens +
                     self.function_tokens +
-                    self.rag_tokens
+                    self.rag_tokens +
+                    self.reasoning_tokens
                 ),
             }
     
