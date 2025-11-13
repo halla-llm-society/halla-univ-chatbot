@@ -486,8 +486,8 @@ class ChatbotStream:
             
             self._dbg(f"[CONDENSE] 1차 결과 - 길이: {len(condensed)}자, 줄 수: {condensed.count(chr(10))}줄")
             
-            # 결과가 지나치게 짧으면(줄 수<15 또는 길이<1000자) 넓은 맥락 재시도
-            if (condensed.count("\n") < 15) or (len(condensed) < 1000):
+            # 1차 결과가 너무 짧으면 2차 시도
+            if (len(condensed) <200):
                 self._dbg("[CONDENSE] 1차 결과 너무 짧음 -> 2차 시도 (넓은 맥락)")
                 broader_prompt = [
                     {
