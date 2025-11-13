@@ -994,6 +994,29 @@ class ChatbotStream:
                     }
                     return
 
+                elif event.type == "response.completed":
+                    # 완료 이벤트 - API usage 정보 추출
+                    if hasattr(event, 'usage') and event.usage:
+                        usage_data = {
+                            "input_tokens": getattr(event.usage, "input_tokens", 0),
+                            "output_tokens": getattr(event.usage, "output_tokens", 0),
+                            "total_tokens": getattr(event.usage, "total_tokens", 0),
+                            "reasoning_tokens": getattr(event.usage.output_tokens_details, 'reasoning_tokens', 0) if hasattr(event.usage, 'output_tokens_details') else 0,
+                        }
+
+                        # TokenCounter 업데이트 (tiktoken 추정값을 API 실제값으로 교체)
+                        self.token_counter.update_from_api_usage(
+                            usage=usage_data,
+                            role="streaming",
+                            model=self.model,
+                            category="input",
+                            replace=True
+                        )
+
+                        self._dbg(f"[STREAM] API usage 반영: input={usage_data['input_tokens']}, "
+                                  f"output={usage_data['output_tokens']}, "
+                                  f"reasoning={usage_data['reasoning_tokens']}")
+
             # 스트리밍 완료 후 버퍼 플러시 (남은 델타 처리)
             self._dbg(f"[STREAM] 스트리밍 완료, 델타 버퍼 플러시")
             self.token_counter.flush_delta_buffer(role="streaming")

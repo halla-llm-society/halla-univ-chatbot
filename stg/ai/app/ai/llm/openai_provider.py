@@ -87,10 +87,16 @@ class OpenAIProvider(BaseLLMProvider):
                 # Usage 정보 추출
                 usage = {}
                 if hasattr(response, "usage") and response.usage:
+                    # output_tokens_details에서 reasoning_tokens 추출
+                    reasoning_tokens = 0
+                    if hasattr(response.usage, "output_tokens_details"):
+                        details = response.usage.output_tokens_details
+                        reasoning_tokens = getattr(details, "reasoning_tokens", 0)
+
                     usage = {
                         "input_tokens": getattr(response.usage, "input_tokens", 0),
                         "output_tokens": getattr(response.usage, "output_tokens", 0),
-                        "reasoning_tokens": 0,  # simple_completion은 reasoning 없음
+                        "reasoning_tokens": reasoning_tokens,
                         "total_tokens": getattr(response.usage, "total_tokens", 0),
                     }
 
