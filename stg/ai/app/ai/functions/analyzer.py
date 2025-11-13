@@ -100,7 +100,7 @@ tools = [
     ]
 
 # --- 공지 카테고리 LLM 분류기 ---
-def _classify_notice_category_llm(user_input: str, context_info: str | None = None, token_counter=None) -> str | None:
+async def _classify_notice_category_llm(user_input: str, context_info: str | None = None, token_counter=None) -> str | None:
     """사용자 입력이 어떤 공지사항 카테고리인지 LLM으로 분류하여 카테고리 문자열을 반환.
     반환 가능 값: "학사공지", "비교과공지", "장학공지", "일반공지", "해당없음". 인식 실패 시 None.
     """
@@ -122,7 +122,8 @@ def _classify_notice_category_llm(user_input: str, context_info: str | None = No
             "role": "user",
             "content": [{"type": "input_text", "text": prompt}],
         }]
-        raw = provider.simple_completion(messages).strip()
+        raw = await provider.simple_completion(messages)
+        raw = raw.strip()
         
         # ✅ 토큰 계산 추가
         if token_counter:
@@ -146,7 +147,7 @@ def _classify_notice_category_llm(user_input: str, context_info: str | None = No
         return None
 
 # --- 규칙 기반 사이트 선호 라우팅 ---
-def _prefer_halla_site_query(user_input: str, context_info: str | None = None, token_counter=None) -> str | None:
+async def _prefer_halla_site_query(user_input: str, context_info: str | None = None, token_counter=None) -> str | None:
     """특정 요구사항일 때 한라대 특정 페이지를 우선 탐색하도록 검색어를 구성.
     매칭되면 URL과 site 필터를 포함한 쿼리를 반환, 없으면 None.
     """
@@ -160,7 +161,7 @@ def _prefer_halla_site_query(user_input: str, context_info: str | None = None, t
         return f"site:halla.ac.kr {url} {user_input}"
 
     # 공지 라우팅: LLM 분류 기반 → 실패 시 키워드 기반 폴백
-    category = _classify_notice_category_llm(user_input, context_info, token_counter)
+    category = await _classify_notice_category_llm(user_input, context_info, token_counter)
     category_to_url = {
         "학사공지": "https://www.halla.ac.kr/kr/242/subview.do",
         "비교과공지": "https://www.halla.ac.kr/kr/243/subview.do",
@@ -189,7 +190,7 @@ def _prefer_halla_site_query(user_input: str, context_info: str | None = None, t
     # 미매칭 시 라우팅 없음
     return None
 
-def search_internet(user_input: str, chat_context=None, token_counter=None) -> str:
+async def search_internet(user_input: str, chat_context=None, token_counter=None) -> str:
     start_ts = time.time()
     print(f"[WEB][START] query='{user_input}' chat_ctx={'Y' if chat_context else 'N'}")
     try:
@@ -203,7 +204,7 @@ def search_internet(user_input: str, chat_context=None, token_counter=None) -> s
             recent_messages = []
             context_info = ""
 
-        preferred = _prefer_halla_site_query(user_input, context_info if context_info else None, token_counter)
+        preferred = await _prefer_halla_site_query(user_input, context_info if context_info else None, token_counter)
         
         # LLM 에이전트로 검색어 재작성 (context_info 포함)
         rewrite_prompt = (
@@ -217,7 +218,8 @@ def search_internet(user_input: str, chat_context=None, token_counter=None) -> s
         
         provider = get_provider("search_rewrite")
         messages = [{"role": "user", "content": [{"type": "input_text", "text": rewrite_prompt}]}]
-        search_text = provider.simple_completion(messages).strip()
+        search_text = await provider.simple_completion(messages)
+        search_text = search_text.strip()
         
         # ✅ 토큰 계산 추가
         if token_counter:
@@ -485,7 +487,7 @@ class FunctionCalling:
 
         self.available_functions = default_functions
        
-    def analyze(self, user_message, tools):
+    async def analyze(self, user_message, tools):
         """사용자 메시지를 분석하여 필요한 함수와 판단 근거를 반환
         
         Returns:
@@ -525,7 +527,8 @@ class FunctionCalling:
             }
             
             provider = get_provider("function_analyze")
-            raw = provider.structured_completion(prompt, schema).strip()
+            raw = await provider.structured_completion(prompt, schema)
+            raw = raw.strip()
             
             # 토큰 계산
             if self.token_counter:
@@ -547,6 +550,7 @@ class FunctionCalling:
         except Exception as e:
             print(f"[DEBUG][analyze] reasoning generation failed: {e}")
             reasoning = f"추론 생성 실패 ({e})"
+            selected_tools = []  # exception 발생 시 기본값 설정
         
         # 2단계: 기존 함수 호출 분석 (OpenAI API)
         structured_input = [
@@ -574,7 +578,7 @@ class FunctionCalling:
             print(f"[DEBUG][analyze] tool analyze failed: {e}")
             return {
                 "reasoning": reasoning,
-                "selected_tools": selected_tools if 'selected_tools' in locals() else [],
+                "selected_tools": selected_tools,
                 "output": []
             }
     

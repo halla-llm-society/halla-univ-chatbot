@@ -737,7 +737,7 @@ class ChatbotStream:
         func_results: List[FunctionCallMetadata] = []
         
         # 1) 함수 분석 (추론 + 함수 호출 목록)
-        analyze_result = self.func_calling.analyze(message, self.tools)
+        analyze_result = await self.func_calling.analyze(message, self.tools)
         reasoning = analyze_result.get("reasoning")
         analyzed = analyze_result.get("output", [])
         
