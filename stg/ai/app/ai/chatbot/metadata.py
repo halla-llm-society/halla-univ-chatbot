@@ -157,57 +157,75 @@ class ToolReasoningMetadata:
 @dataclass
 class TokenUsageMetadata:
     """토큰 사용량 및 비용 메타데이터
-    
-    tiktoken 기반 토큰 계산 결과와 비용을 담습니다.
+
+    OpenAI API usage 또는 tiktoken 기반 토큰 계산 결과와 비용을 담습니다.
     """
-    
+
     input_tokens: int
     """입력 토큰 수 (시스템 프롬프트 + 사용자 메시지 + RAG 컨텍스트)"""
-    
+
     output_tokens: int
     """출력 토큰 수 (LLM 응답)"""
-    
+
     function_tokens: int
     """함수 호출 토큰 수 (함수 정의 + 인자 + 결과)"""
-    
+
     rag_tokens: int
     """RAG 컨텍스트 토큰 수 (MongoDB 원문 + 요약)"""
-    
+
     total_tokens: int
     """총 토큰 수"""
-    
+
     input_cost_usd: float
     """입력 비용 (USD)"""
-    
+
     output_cost_usd: float
     """출력 비용 (USD)"""
-    
+
     total_cost_usd: float
     """총 비용 (USD)"""
-    
+
     currency: str = "USD"
     """통화 단위"""
-    
+
     model: str = ""
     """사용된 모델 이름"""
-    
+
     preset: Optional[str] = None
     """현재 활성 프리셋 이름 (예: balanced, budget, premium)
-    
+
     각 LLM 업체마다 비용/토큰이 다르므로 프리셋 정보를 통해
     어떤 Provider 조합을 사용했는지 파악할 수 있습니다.
     """
-    
+
+    reasoning_tokens: int = 0
+    """추론 토큰 수 (o3-mini 등 추론 모델의 사고 토큰)
+
+    o3-mini 같은 reasoning 모델은 내부적으로 추론 과정을 거치면서
+    추가 토큰을 소비합니다. 이 토큰은 output_tokens에 포함되어 있지만,
+    실제 사용자에게 보이는 출력과는 별개입니다.
+
+    OpenAI Responses API의 output_tokens_details.reasoning_tokens에서 추출됩니다.
+    """
+
+    tracking_mode: str = "tiktoken_only"
+    """토큰 계산 방식
+
+    - api_first: OpenAI API usage 우선 사용, 없으면 tiktoken 폴백
+    - tiktoken_only: tiktoken 기반 예측만 사용
+    - hybrid: API usage와 tiktoken 예측을 모두 추적
+    """
+
     role_breakdown: Optional[Dict[str, Dict[str, int]]] = None
     """역할별 토큰 상세 분석
-    
+
     예: {
-        "gate": {"input": 150, "output": 30},
-        "condense": {"input": 3000, "output": 500},
-        "category": {"input": 50, "output": 20},
-        "search_rewrite": {"input": 100, "output": 30},
-        "function_analyze": {"input": 200, "output": 50},
-        "streaming": {"input": 4000, "output": 300}
+        "gate": {"input": 150, "output": 30, "reasoning": 0},
+        "condense": {"input": 3000, "output": 500, "reasoning": 0},
+        "category": {"input": 50, "output": 20, "reasoning": 0},
+        "search_rewrite": {"input": 100, "output": 30, "reasoning": 0},
+        "function_analyze": {"input": 200, "output": 50, "reasoning": 128},
+        "streaming": {"input": 4000, "output": 300, "reasoning": 0}
     }
     """
     
@@ -218,22 +236,24 @@ class TokenUsageMetadata:
             "output_tokens": self.output_tokens,
             "function_tokens": self.function_tokens,
             "rag_tokens": self.rag_tokens,
+            "reasoning_tokens": self.reasoning_tokens,
             "total_tokens": self.total_tokens,
             "input_cost_usd": self.input_cost_usd,
             "output_cost_usd": self.output_cost_usd,
             "total_cost_usd": self.total_cost_usd,
             "currency": self.currency,
             "model": self.model,
+            "tracking_mode": self.tracking_mode,
         }
-        
+
         # preset이 있으면 추가
         if self.preset:
             result["preset"] = self.preset
-        
+
         # role_breakdown이 있으면 추가
         if self.role_breakdown:
             result["role_breakdown"] = self.role_breakdown
-        
+
         return result
 
 
