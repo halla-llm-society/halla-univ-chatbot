@@ -122,16 +122,15 @@ async def _classify_notice_category_llm(user_input: str, context_info: str | Non
             "role": "user",
             "content": [{"type": "input_text", "text": prompt}],
         }]
-        raw = await provider.simple_completion(messages)
+        raw, usage = await provider.simple_completion(messages)
         raw = raw.strip()
-        
-        # ✅ 토큰 계산 추가
-        if token_counter:
-            token_counter.count_with_provider(
-                provider=provider,
-                input_text=prompt,
-                output_text=raw,
+
+        # ✅ API usage 기반 토큰 계산
+        if token_counter and usage:
+            token_counter.update_from_api_usage(
+                usage=usage,
                 role="category",
+                model=provider.get_model_name(),
                 category="function"
             )
         
@@ -218,16 +217,15 @@ async def search_internet(user_input: str, chat_context=None, token_counter=None
         
         provider = get_provider("search_rewrite")
         messages = [{"role": "user", "content": [{"type": "input_text", "text": rewrite_prompt}]}]
-        search_text = await provider.simple_completion(messages)
+        search_text, usage = await provider.simple_completion(messages)
         search_text = search_text.strip()
-        
-        # ✅ 토큰 계산 추가
-        if token_counter:
-            token_counter.count_with_provider(
-                provider=provider,
-                input_text=rewrite_prompt,
-                output_text=search_text,
+
+        # ✅ API usage 기반 토큰 계산
+        if token_counter and usage:
+            token_counter.update_from_api_usage(
+                usage=usage,
                 role="search_rewrite",
+                model=provider.get_model_name(),
                 category="function"
             )
         print(f"[WEB] final_search_text='{search_text}'")
@@ -527,17 +525,15 @@ class FunctionCalling:
             }
             
             provider = get_provider("function_analyze")
-            raw = await provider.structured_completion(prompt, schema)
+            raw, usage = await provider.structured_completion(prompt, schema)
             raw = raw.strip()
-            
-            # 토큰 계산
-            if self.token_counter:
-                prompt_text = "\n".join([msg.get('content', '') for msg in prompt])
-                self.token_counter.count_with_provider(
-                    provider=provider,
-                    input_text=prompt_text,
-                    output_text=raw,
+
+            # ✅ API usage 기반 토큰 계산
+            if self.token_counter and usage:
+                self.token_counter.update_from_api_usage(
+                    usage=usage,
                     role="function_analyze",
+                    model=provider.get_model_name(),
                     category="function"
                 )
             
