@@ -5,7 +5,7 @@ AI 관련 모듈 통합 패키지
 모든 AI 관련 로직을 포함합니다.
 """
 
-from .chatbot import ChatbotStream, ChatMetadata, TokenUsageMetadata
+from .chatbot.stream import ChatbotStream, ChatMetadata, TokenUsageMetadata
 from .utils import TokenCounter, CostCalculator
 from .functions import FunctionCalling, tools
 from .rag.service import RagService
