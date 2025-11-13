@@ -29,7 +29,7 @@ class MongoChunkRepository:
         self._mongo_available = mongo_available
         self._debug = debug_fn or (lambda _: None)
 
-    def fetch_chunks(self, chunk_ids: Sequence[Any]) -> list[dict]:
+    async def fetch_chunks(self, chunk_ids: Sequence[Any]) -> list[dict]:
         self._debug(
             f"repository.fetch_chunks: requested_ids={len(chunk_ids)} sample={list(chunk_ids)[:5]}"
         )
@@ -58,7 +58,10 @@ class MongoChunkRepository:
                 object_id = chunk_id
 
             try:
-                document = self._collection.find_one({"_id": object_id})
+                # Note: pymongo의 find_one은 동기 함수이므로 asyncio.to_thread로 래핑
+                # motor (비동기 MongoDB 드라이버)로 전환하면 더 나은 성능 기대
+                import asyncio
+                document = await asyncio.to_thread(self._collection.find_one, {"_id": object_id})
             except Exception as exc:  # pragma: no cover - defensive logging
                 self._debug(f"    -> Mongo query error for _id={chunk_id}: {exc}")
                 continue

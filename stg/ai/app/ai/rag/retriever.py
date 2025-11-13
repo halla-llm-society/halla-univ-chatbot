@@ -53,11 +53,13 @@ class PineconeRetriever:
         self._top_k = top_k
         self._debug = debug_fn or (lambda _: None)
 
-    def search(self, query: str, *, threshold: float = 0.4) -> RetrieverResult:
+    async def search(self, query: str, *, threshold: float = 0.4) -> RetrieverResult:
         start_ts = time.time()
         self._debug(
             f"retriever.search: query='{query[:80]}' namespaces={self._namespaces} top_k={self._top_k} threshold={threshold}"
         )
+        # Note: get_embedding은 동기 함수이지만 CPU 연산이므로 asyncio.to_thread로 처리할 수 있음
+        # 현재는 단순히 async로 래핑 (추후 필요시 to_thread 적용)
         embedding = self._embed(query)
 
         # all_hits: 네임스페이스별 Pinecone 질의에서 얻은 "매치 객체"(score/id/metadata 포함)들을 전부 모아둔 임시 바구니

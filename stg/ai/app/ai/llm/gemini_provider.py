@@ -73,7 +73,7 @@ class GeminiProvider(BaseLLMProvider):
         # Context converter
         self.converter = ContextConverter()
     
-    def simple_completion(
+    async def simple_completion(
         self,
         messages: List[Dict[str, Any]],
         temperature: float = 1.0,
@@ -95,26 +95,33 @@ class GeminiProvider(BaseLLMProvider):
             str: 생성된 텍스트
         """
         try:
-            # OpenAI 형식 → Gemini 형식 변환
-            gemini_messages = self.converter.openai_to_gemini(messages)
+            # Note: Gemini 클라이언트는 동기 API이므로 asyncio.to_thread로 래핑
+            import asyncio
             
-            # Generation config 설정
-            generation_config = {
-                "temperature": temperature,
-                "top_p": kwargs.get("top_p", 0.95),
-                "top_k": kwargs.get("top_k", 40),
-            }
-            if max_tokens:
-                generation_config["max_output_tokens"] = max_tokens
+            def _sync_call():
+                # OpenAI 형식 → Gemini 형식 변환
+                gemini_messages = self.converter.openai_to_gemini(messages)
+                
+                # Generation config 설정
+                generation_config = {
+                    "temperature": temperature,
+                    "top_p": kwargs.get("top_p", 0.95),
+                    "top_k": kwargs.get("top_k", 40),
+                }
+                if max_tokens:
+                    generation_config["max_output_tokens"] = max_tokens
+                
+                # Gemini API 호출
+                response = self.model.generate_content(
+                    gemini_messages,
+                    generation_config=generation_config
+                )
+                
+                # 응답 텍스트 추출
+                return response.text.strip()
             
-            # Gemini API 호출
-            response = self.model.generate_content(
-                gemini_messages,
-                generation_config=generation_config
-            )
-            
-            # 응답 텍스트 추출
-            return response.text.strip()
+            # 비동기로 실행
+            return await asyncio.to_thread(_sync_call)
             
         except Exception as e:
             print(f"[GeminiProvider] simple_completion failed: {e}")
@@ -149,7 +156,7 @@ class GeminiProvider(BaseLLMProvider):
         
         return cleaned
     
-    def structured_completion(
+    async def structured_completion(
         self,
         messages: List[Dict[str, Any]],
         schema: Dict[str, Any],
@@ -175,30 +182,37 @@ class GeminiProvider(BaseLLMProvider):
             NotImplementedError: 모델이 스키마 기반 출력을 지원하지 않을 때
         """
         try:
-            # OpenAI 형식 → Gemini 형식 변환
-            gemini_messages = self.converter.openai_to_gemini(messages)
+            # Note: Gemini 클라이언트는 동기 API이므로 asyncio.to_thread로 래핑
+            import asyncio
             
-            # 스키마 정리 (Gemini 호환)
-            cleaned_schema = self._clean_schema_for_gemini(schema)
+            def _sync_call():
+                # OpenAI 형식 → Gemini 형식 변환
+                gemini_messages = self.converter.openai_to_gemini(messages)
+                
+                # 스키마 정리 (Gemini 호환)
+                cleaned_schema = self._clean_schema_for_gemini(schema)
+                
+                # Generation config with schema
+                generation_config = {
+                    "temperature": temperature,
+                    "response_mime_type": "application/json",
+                    "response_schema": cleaned_schema
+                }
+                
+                # 스키마 지원 모델로 재초기화
+                schema_model = genai.GenerativeModel(
+                    self.actual_model_name,
+                    generation_config=generation_config
+                )
+                
+                # Gemini API 호출
+                response = schema_model.generate_content(gemini_messages)
+                
+                # JSON 응답 추출
+                return response.text.strip()
             
-            # Generation config with schema
-            generation_config = {
-                "temperature": temperature,
-                "response_mime_type": "application/json",
-                "response_schema": cleaned_schema
-            }
-            
-            # 스키마 지원 모델로 재초기화
-            schema_model = genai.GenerativeModel(
-                self.actual_model_name,
-                generation_config=generation_config
-            )
-            
-            # Gemini API 호출
-            response = schema_model.generate_content(gemini_messages)
-            
-            # JSON 응답 추출
-            return response.text.strip()
+            # 비동기로 실행
+            return await asyncio.to_thread(_sync_call)
             
         except AttributeError as e:
             # response_schema 미지원 모델

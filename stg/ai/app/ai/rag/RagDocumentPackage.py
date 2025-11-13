@@ -54,7 +54,7 @@ class ContextBuilder:
         self._joiner = joiner
         self._debug = debug_fn or (lambda _: None)
 
-    def build(self, hits: Sequence[Any], chunk_ids: Sequence[Any]) -> RagDocumentPackage:
+    async def build(self, hits: Sequence[Any], chunk_ids: Sequence[Any]) -> RagDocumentPackage:
         # 디버그: 입력으로 받은 매치/청크ID 개수 로그
         self._debug(
             f"context_builder.build: 히트 수={len(hits)} 청크ID 수={len(chunk_ids)}"
@@ -64,7 +64,7 @@ class ContextBuilder:
             self._debug("context_builder.build: 청크ID 없음 -> 컨텍스트 없음(None)")
             return RagDocumentPackage(merged_documents_text=None, source="none")
 
-        retrieved_chunks = self._repository.fetch_chunks(chunk_ids)
+        retrieved_chunks = await self._repository.fetch_chunks(chunk_ids)
         if retrieved_chunks:
             extracted_texts = [chunk.get("text", "") for chunk in retrieved_chunks]
             merged_text = self._joiner.join(filter(None, extracted_texts))

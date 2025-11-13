@@ -86,7 +86,7 @@ class RagService:
         self._last_result = result
         return result
 
-    def retrieve_context(self, question: str) -> RagResult:
+    async def retrieve_context(self, question: str) -> RagResult:
         """
         질문을 받아 RAG 검색 및 컨텍스트 조회 전 과정을 수행합니다.
         
@@ -99,7 +99,7 @@ class RagService:
         """
         # 1단계: 규정 질문 여부 판정
         self._debug("rag_service.retrieve_context: 레그검사 시작")
-        decision: GateDecision = self._gate.decide(question)
+        decision: GateDecision = await self._gate.decide(question)
         
         if not decision.is_regulation:
             self._debug("rag_service.retrieve_context: 규정 질문 아님 → 검색 생략")
@@ -115,7 +115,7 @@ class RagService:
 
         # 2단계: 벡터 검색 수행
         self._debug("rag_service.retrieve_context: 레그 검사 통과 → 벡터검색 수행")
-        retrieval: RetrieverResult = self._retriever.search(question)
+        retrieval: RetrieverResult = await self._retriever.search(question)
         hits, chunk_ids = retrieval.hits, retrieval.chunk_ids
 
         if not hits:
@@ -145,7 +145,7 @@ class RagService:
 
         # 4단계: MongoDB 본문 조회 + 문서 패키지 조립
         self._debug("rag_service.retrieve_context: 문서 패키지 조립 시작")
-        doc_package: RagDocumentPackage = self._context_builder.build(hits, chunk_ids)
+        doc_package: RagDocumentPackage = await self._context_builder.build(hits, chunk_ids)
         
         if doc_package.source in {"preview", "none"}:
             print("[INFO] MongoDB에서 매칭된 문서 없음")

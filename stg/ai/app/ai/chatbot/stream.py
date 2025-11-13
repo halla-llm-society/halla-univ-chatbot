@@ -481,7 +481,8 @@ class ChatbotStream:
         try:
             # LLM Manager 사용 (교체 가능)
             provider = get_provider("condense")
-            condensed = provider.simple_completion(condense_prompt).strip()
+            condensed = await provider.simple_completion(condense_prompt)
+            condensed = condensed.strip()
             
             self._dbg(f"[CONDENSE] 1차 결과 - 길이: {len(condensed)}자, 줄 수: {condensed.count(chr(10))}줄")
             
@@ -507,7 +508,8 @@ class ChatbotStream:
                 try:
                     self._dbg("[CONDENSE] 2차 요약 시도 중...")
                     # LLM Manager 사용 (교체 가능)
-                    condensed2 = provider.simple_completion(broader_prompt).strip()
+                    condensed2 = await provider.simple_completion(broader_prompt)
+                    condensed2 = condensed2.strip()
                     
                     self._dbg(f"[CONDENSE] 2차 결과 - 길이: {len(condensed2)}자, 줄 수: {condensed2.count(chr(10))}줄")
                     
@@ -735,7 +737,7 @@ class ChatbotStream:
         func_results: List[FunctionCallMetadata] = []
         
         # 1) 함수 분석 (추론 + 함수 호출 목록)
-        analyze_result = self.func_calling.analyze(message, self.tools)
+        analyze_result = await self.func_calling.analyze(message, self.tools)
         reasoning = analyze_result.get("reasoning")
         analyzed = analyze_result.get("output", [])
         
@@ -1007,14 +1009,15 @@ class ChatbotStream:
 
         처리 흐름:
         1. 사용자 메시지 추가 및 메타데이터 초기화
-        2. RAG 컨텍스트 준비 및 요약
-        3. 함수 호출 분석/실행
-        4. 최종 컨텍스트 구성 (언어 지침 포함)
-        5. 스트리밍 응답 생성
-        5.5. 출처 정보 스트리밍
-        6. 메타데이터 전송
-        7. 완료 신호
-        8. 응답 저장
+        2. RAG 검색 + 함수 호출 병렬 실행 (asyncio.gather)
+        3. RAG 요약 (RAG 결과가 있을 경우만)
+        4. 함수 호출 메타데이터 설정
+        5. 최종 컨텍스트 구성 (언어 지침 포함)
+        6. 스트리밍 응답 생성
+        6.5. 출처 정보 스트리밍
+        7. 메타데이터 전송
+        8. 완료 신호
+        9. 응답 저장
 
         Args:
             message: 현재 사용자 입력 메시지
@@ -1035,9 +1038,19 @@ class ChatbotStream:
         self.token_counter.reset()  # 토큰 카운터 초기화
         self._dbg("[STREAM_CHAT] 1단계: 메시지 추가 완료")
 
-        # === 2단계: RAG 컨텍스트 준비 ===
-        self._dbg("[STREAM_CHAT] 2단계: RAG 검사 시작...")
-        rag_result = self.rag_service.retrieve_context(user_input)
+        # === 2단계: RAG 검색 + 함수 호출 병렬 실행 ===
+        self._dbg("[STREAM_CHAT] 2단계: RAG 검색과 함수 호출 병렬 시작...")
+        import asyncio
+        
+        # 병렬 실행: RAG 검색과 함수 호출을 동시에 실행
+        rag_result, (func_reasoning, func_results) = await asyncio.gather(
+            self.rag_service.retrieve_context(user_input),
+            self._analyze_and_execute_functions(user_input)
+        )
+        
+        self._dbg(f"[STREAM_CHAT] 병렬 실행 완료 - RAG: {len(rag_result.hits)}개, 함수: {len(func_results)}개")
+        
+        # === 3단계: RAG 요약 (RAG 결과가 있을 경우만) ===
         condensed_rag = None
         
         if rag_result.merged_documents_text:
@@ -1067,6 +1080,7 @@ class ChatbotStream:
             #self._dbg(f"  - 원본 컨텍스트 샘플:\n{context_sample}")
             #self._dbg("=" * 80)
             
+            self._dbg("[STREAM_CHAT] 3단계: RAG 요약 시작...")
             condensed_rag = await self._condense_rag_context(
                 user_input, rag_result.merged_documents_text
             )
@@ -1101,11 +1115,9 @@ class ChatbotStream:
                 condensed_context=None,
             )
         
-        # === 3단계: 함수 호출 분석/실행 ===
-        self._dbg("[STREAM_CHAT] 3단계: 함수 호출 분석/실행 시작...")
-        func_reasoning, func_results = await self._analyze_and_execute_functions(user_input)
+        # === 4단계: 함수 호출 메타데이터 설정 (이미 2단계에서 실행 완료) ===
         metadata.functions = func_results
-        self._dbg(f"[STREAM_CHAT] 함수 호출 완료 - {len(func_results)}개 함수 실행")
+        self._dbg(f"[STREAM_CHAT] 4단계: 함수 메타데이터 설정 완료 - {len(func_results)}개")
         
         # 함수 선택 추론 메타데이터 설정
         if func_reasoning and func_results:
@@ -1129,7 +1141,7 @@ class ChatbotStream:
         else:
             metadata.web_search_status = "not-run"
         
-        # === 4단계: 최종 컨텍스트 구성 (언어 지침 포함) ===
+        # === 5단계: 최종 컨텍스트 구성 (언어 지침 포함) ===
         final_context = self._build_final_context(
             message=user_input,
             condensed_rag=condensed_rag,
@@ -1140,7 +1152,7 @@ class ChatbotStream:
         # 입력 토큰 계산 (OpenAI API 형식 오버헤드 포함, 역할 추적 포함)
         self.token_counter.count_openai_streaming_tokens(final_context, role="streaming")
         
-        # === 5단계: 스트리밍 응답 생성 ===
+        # === 6단계: 스트리밍 응답 생성 ===
         completed_text = ""
         async for chunk in self._stream_openai_response(final_context):
             if chunk["type"] == "delta":
@@ -1151,8 +1163,8 @@ class ChatbotStream:
                 yield json.dumps(chunk, ensure_ascii=False) + "\n"
                 return
         
-        # === 5.5단계: 출처 정보 스트리밍 ===
-        self._dbg("[STREAM_CHAT] 5.5단계: 출처 정보 스트리밍")
+        # === 6.5단계: 출처 정보 스트리밍 ===
+        self._dbg("[STREAM_CHAT] 6.5단계: 출처 정보 스트리밍")
         
         # (1) 웹 검색 링크 표시
         web_links = self._extract_web_links(func_results)
@@ -1170,8 +1182,8 @@ class ChatbotStream:
                 yield json.dumps({"type": "delta", "content": "\n\n📚 참고 문서:\n"}, ensure_ascii=False) + "\n"
                 yield json.dumps({"type": "delta", "content": sources_text + "\n"}, ensure_ascii=False) + "\n"
         
-        # === 6단계: 메타데이터 전송 ===
-        self._dbg("[STREAM_CHAT] 6단계: 메타데이터 전송")
+        # === 7단계: 메타데이터 전송 ===
+        self._dbg("[STREAM_CHAT] 7단계: 메타데이터 전송")
         
         # 토큰 사용량 및 비용 계산
         token_usage = self.token_counter.get_total()
@@ -1205,14 +1217,14 @@ class ChatbotStream:
             "data": metadata.to_dict()
         }, ensure_ascii=False) + "\n"
         
-        # === 7단계: 완료 신호 ===
-        self._dbg("[STREAM_CHAT] 7단계: 완료 신호 전송")
+        # === 8단계: 완료 신호 ===
+        self._dbg("[STREAM_CHAT] 8단계: 완료 신호 전송")
         yield json.dumps({"type": "done"}, ensure_ascii=False) + "\n"
         
-        # === 8단계: 응답 저장 ===
+        # === 9단계: 응답 저장 ===
         # 프론트엔드가 히스토리를 관리하므로 내부 컨텍스트 누적은 중단합니다.
         # self.add_response_stream(completed_text)
-        self._dbg(f"[STREAM_CHAT] 8단계: 응답 저장 완료 - 길이: {len(completed_text)}자")
+        self._dbg(f"[STREAM_CHAT] 9단계: 응답 저장 완료 - 길이: {len(completed_text)}자")
 
 
         self._dbg("[STREAM_CHAT] 전체 처리 완료!")

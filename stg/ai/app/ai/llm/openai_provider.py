@@ -44,7 +44,7 @@ class OpenAIProvider(BaseLLMProvider):
             # 모델명이 tiktoken에 없으면 cl100k_base 사용
             self.encoding = tiktoken.get_encoding("cl100k_base")
     
-    def simple_completion(
+    async def simple_completion(
         self,
         messages: List[Dict[str, Any]],
         temperature: float = 1.0,
@@ -64,26 +64,30 @@ class OpenAIProvider(BaseLLMProvider):
             str: 생성된 텍스트
         """
         try:
-            # Responses API 호출
-            response = self.client.responses.create(
-                model=self.model_name,
-                input=messages,
-                text={"format": {"type": "text"}},
-                temperature=temperature,
-                max_output_tokens=max_tokens,
-                top_p=kwargs.get("top_p", 1),
-                **self._filter_kwargs(kwargs)
-            )
+            # Note: OpenAI 클라이언트는 동기 API이므로 asyncio.to_thread로 래핑
+            import asyncio
             
-            # 응답 텍스트 추출
-            output_text = getattr(response, "output_text", "").strip()
+            def _sync_call():
+                response = self.client.responses.create(
+                    model=self.model_name,
+                    input=messages,
+                    text={"format": {"type": "text"}},
+                    temperature=temperature,
+                    max_output_tokens=max_tokens,
+                    top_p=kwargs.get("top_p", 1),
+                    **self._filter_kwargs(kwargs)
+                )
+                return getattr(response, "output_text", "").strip()
+            
+            # 비동기로 실행
+            output_text = await asyncio.to_thread(_sync_call)
             return output_text
             
         except Exception as e:
             print(f"[OpenAIProvider] simple_completion failed: {e}")
             raise
     
-    def structured_completion(
+    async def structured_completion(
         self,
         messages: List[Dict[str, Any]],
         schema: Dict[str, Any],
@@ -109,39 +113,45 @@ class OpenAIProvider(BaseLLMProvider):
             print(f"  schema: {schema}")
             print(f"  strict: {kwargs.get('strict', True)}")
             
-            # Responses API 호출 (JSON 스키마 사용)
-            response = self.client.responses.create(
-                model=self.model_name,
-                input=messages,
-                text={
-                    "format": {
-                        "type": "json_schema",
-                        "name": kwargs.get("schema_name", "response_schema"),
-                        "schema": schema,
-                        "strict": kwargs.get("strict", True)
-                    }
-                },
-                temperature=temperature,
-                **self._filter_kwargs(kwargs)
-            )
-            
-            # JSON 응답 추출
-            output_text = getattr(response, "output_text", "").strip()
-            print(f"[OpenAIProvider] structured_completion output: {output_text[:100]}...")
-            
-            # 빈 응답 체크
-            if not output_text:
-                raise ValueError(f"Empty output from model {self.model_name}")
-            
-            # JSON 유효성 검사
+            # Note: OpenAI 클라이언트는 동기 API이므로 asyncio.to_thread로 래핑
+            import asyncio
             import json
-            try:
-                json.loads(output_text)
-            except json.JSONDecodeError as je:
-                raise ValueError(f"Invalid JSON output from model {self.model_name}: {je}")
             
-            print(f"[OpenAIProvider] structured_completion success!")
-            return output_text
+            def _sync_call():
+                response = self.client.responses.create(
+                    model=self.model_name,
+                    input=messages,
+                    text={
+                        "format": {
+                            "type": "json_schema",
+                            "name": kwargs.get("schema_name", "response_schema"),
+                            "schema": schema,
+                            "strict": kwargs.get("strict", True)
+                        }
+                    },
+                    temperature=temperature,
+                    **self._filter_kwargs(kwargs)
+                )
+                
+                # JSON 응답 추출
+                output_text = getattr(response, "output_text", "").strip()
+                print(f"[OpenAIProvider] structured_completion output: {output_text[:100]}...")
+                
+                # 빈 응답 체크
+                if not output_text:
+                    raise ValueError(f"Empty output from model {self.model_name}")
+                
+                # JSON 유효성 검사
+                try:
+                    json.loads(output_text)
+                except json.JSONDecodeError as je:
+                    raise ValueError(f"Invalid JSON output from model {self.model_name}: {je}")
+                
+                print(f"[OpenAIProvider] structured_completion success!")
+                return output_text
+            
+            # 비동기로 실행
+            return await asyncio.to_thread(_sync_call)
             
         except Exception as e:
             print(f"[OpenAIProvider] structured_completion failed: {e}")
