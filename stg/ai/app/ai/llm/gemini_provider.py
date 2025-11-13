@@ -79,29 +79,35 @@ class GeminiProvider(BaseLLMProvider):
         temperature: float = 1.0,
         max_tokens: Optional[int] = None,
         **kwargs
-    ) -> str:
+    ) -> tuple[str, Dict[str, int]]:
         """
         단순 텍스트 생성 (Gemini API)
-        
+
         OpenAI 형식 메시지를 Gemini 형식으로 변환하여 호출합니다.
-        
+
         Args:
             messages: OpenAI 형식 메시지
             temperature: 생성 온도
             max_tokens: 최대 출력 토큰
             **kwargs: 추가 파라미터
-        
+
         Returns:
-            str: 생성된 텍스트
+            tuple: (생성된 텍스트, usage 정보)
+                  usage = {
+                      "input_tokens": int,
+                      "output_tokens": int,
+                      "reasoning_tokens": int,  # Gemini는 항상 0
+                      "total_tokens": int
+                  }
         """
         try:
             # Note: Gemini 클라이언트는 동기 API이므로 asyncio.to_thread로 래핑
             import asyncio
-            
+
             def _sync_call():
                 # OpenAI 형식 → Gemini 형식 변환
                 gemini_messages = self.converter.openai_to_gemini(messages)
-                
+
                 # Generation config 설정
                 generation_config = {
                     "temperature": temperature,
@@ -110,19 +116,36 @@ class GeminiProvider(BaseLLMProvider):
                 }
                 if max_tokens:
                     generation_config["max_output_tokens"] = max_tokens
-                
+
                 # Gemini API 호출
                 response = self.model.generate_content(
                     gemini_messages,
                     generation_config=generation_config
                 )
-                
+
+                # Usage 정보 추출
+                usage = {}
+                if hasattr(response, "usage_metadata") and response.usage_metadata:
+                    metadata = response.usage_metadata
+                    usage = {
+                        "input_tokens": getattr(metadata, "prompt_token_count", 0),
+                        "output_tokens": getattr(metadata, "candidates_token_count", 0),
+                        "reasoning_tokens": 0,  # Gemini는 reasoning tokens 없음
+                        "total_tokens": getattr(metadata, "total_token_count", 0),
+                    }
+
                 # 응답 텍스트 추출
-                return response.text.strip()
-            
+                output_text = response.text.strip()
+                return output_text, usage
+
             # 비동기로 실행
-            return await asyncio.to_thread(_sync_call)
-            
+            output_text, usage = await asyncio.to_thread(_sync_call)
+
+            if usage:
+                print(f"[GeminiProvider] simple_completion usage: {usage}")
+
+            return output_text, usage
+
         except Exception as e:
             print(f"[GeminiProvider] simple_completion failed: {e}")
             raise
@@ -162,58 +185,81 @@ class GeminiProvider(BaseLLMProvider):
         schema: Dict[str, Any],
         temperature: float = 1.0,
         **kwargs
-    ) -> str:
+    ) -> tuple[str, Dict[str, int]]:
         """
         JSON 스키마 기반 구조화된 출력 생성
-        
+
         Gemini 1.5-pro는 response_schema를 지원합니다.
         gemini-1.5-flash는 지원 여부를 확인해야 합니다.
-        
+
         Args:
             messages: OpenAI 형식 메시지
             schema: JSON 스키마
             temperature: 생성 온도
             **kwargs: 추가 파라미터
-        
+
         Returns:
-            str: JSON 형식 문자열
-        
+            tuple: (JSON 형식 문자열, usage 정보)
+                  usage = {
+                      "input_tokens": int,
+                      "output_tokens": int,
+                      "reasoning_tokens": int,  # Gemini는 항상 0
+                      "total_tokens": int
+                  }
+
         Raises:
             NotImplementedError: 모델이 스키마 기반 출력을 지원하지 않을 때
         """
         try:
             # Note: Gemini 클라이언트는 동기 API이므로 asyncio.to_thread로 래핑
             import asyncio
-            
+
             def _sync_call():
                 # OpenAI 형식 → Gemini 형식 변환
                 gemini_messages = self.converter.openai_to_gemini(messages)
-                
+
                 # 스키마 정리 (Gemini 호환)
                 cleaned_schema = self._clean_schema_for_gemini(schema)
-                
+
                 # Generation config with schema
                 generation_config = {
                     "temperature": temperature,
                     "response_mime_type": "application/json",
                     "response_schema": cleaned_schema
                 }
-                
+
                 # 스키마 지원 모델로 재초기화
                 schema_model = genai.GenerativeModel(
                     self.actual_model_name,
                     generation_config=generation_config
                 )
-                
+
                 # Gemini API 호출
                 response = schema_model.generate_content(gemini_messages)
-                
+
+                # Usage 정보 추출
+                usage = {}
+                if hasattr(response, "usage_metadata") and response.usage_metadata:
+                    metadata = response.usage_metadata
+                    usage = {
+                        "input_tokens": getattr(metadata, "prompt_token_count", 0),
+                        "output_tokens": getattr(metadata, "candidates_token_count", 0),
+                        "reasoning_tokens": 0,  # Gemini는 reasoning tokens 없음
+                        "total_tokens": getattr(metadata, "total_token_count", 0),
+                    }
+
                 # JSON 응답 추출
-                return response.text.strip()
-            
+                output_text = response.text.strip()
+                return output_text, usage
+
             # 비동기로 실행
-            return await asyncio.to_thread(_sync_call)
-            
+            output_text, usage = await asyncio.to_thread(_sync_call)
+
+            if usage:
+                print(f"[GeminiProvider] structured_completion usage: {usage}")
+
+            return output_text, usage
+
         except AttributeError as e:
             # response_schema 미지원 모델
             raise NotImplementedError(
