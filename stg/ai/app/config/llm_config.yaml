@@ -183,3 +183,17 @@ provider_config:
     message_overhead: 0
     reply_priming_overhead: 0
     name_field_overhead: 0
+
+# 토큰 추적 설정
+token_tracking:
+  # 토큰 계산 모드
+  # - api_first: OpenAI API usage 우선 사용, 없으면 tiktoken 폴백 (권장, 가장 정확)
+  # - tiktoken_only: tiktoken 기반 예측만 사용 (기존 방식)
+  # - hybrid: API usage와 tiktoken 예측을 모두 추적하여 비교 (디버깅용)
+  mode: api_first
+
+  # tiktoken으로 폴백 여부 (api_first 모드에서만 유효)
+  fallback_to_tiktoken: true
+
+  # reasoning tokens 추적 여부 (o3-mini 등 추론 모델의 사고 토큰)
+  track_reasoning_tokens: true

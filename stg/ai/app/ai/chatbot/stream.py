@@ -481,11 +481,20 @@ class ChatbotStream:
         try:
             # LLM Manager 사용 (교체 가능)
             provider = get_provider("condense")
-            condensed = await provider.simple_completion(condense_prompt)
+            condensed, usage1 = await provider.simple_completion(condense_prompt)
             condensed = condensed.strip()
-            
+
+            # ✅ 1차 시도 API usage 반영
+            if usage1:
+                self.token_counter.update_from_api_usage(
+                    usage=usage1,
+                    role="condense",
+                    model=provider.get_model_name(),
+                    category="rag"
+                )
+
             self._dbg(f"[CONDENSE] 1차 결과 - 길이: {len(condensed)}자, 줄 수: {condensed.count(chr(10))}줄")
-            
+
             # 1차 결과가 너무 짧으면 2차 시도
             if (len(condensed) <200):
                 self._dbg("[CONDENSE] 1차 결과 너무 짧음 -> 2차 시도 (넓은 맥락)")
@@ -508,11 +517,20 @@ class ChatbotStream:
                 try:
                     self._dbg("[CONDENSE] 2차 요약 시도 중...")
                     # LLM Manager 사용 (교체 가능)
-                    condensed2 = await provider.simple_completion(broader_prompt)
+                    condensed2, usage2 = await provider.simple_completion(broader_prompt)
                     condensed2 = condensed2.strip()
-                    
+
+                    # ✅ 2차 시도 API usage 반영
+                    if usage2:
+                        self.token_counter.update_from_api_usage(
+                            usage=usage2,
+                            role="condense",
+                            model=provider.get_model_name(),
+                            category="rag"
+                        )
+
                     self._dbg(f"[CONDENSE] 2차 결과 - 길이: {len(condensed2)}자, 줄 수: {condensed2.count(chr(10))}줄")
-                    
+
                     # 더 길고 풍부하면 교체
                     if (condensed2.count("\n") >= condensed.count("\n")) and (len(condensed2) > len(condensed)):
                         self._dbg("[CONDENSE] 2차 결과가 더 풍부함 -> 교체")
@@ -521,18 +539,8 @@ class ChatbotStream:
                         self._dbg("[CONDENSE] 1차 결과 유지")
                 except Exception as e2:
                     self._dbg(f"[CONDENSE] 2차 시도 실패: {e2}")
-                    
+
             self._dbg(f"[CONDENSE] 최종 결과 - 길이: {len(condensed)}자")
-            
-            # Provider와 함께 토큰 계산 (새로운 count_with_provider 사용)
-            prompt_text = "\n".join([msg.get('content', '') for msg in condense_prompt])
-            self.token_counter.count_with_provider(
-                provider=provider,
-                input_text=prompt_text,
-                output_text=condensed,
-                role="condense",
-                category="rag"
-            )
             
             return condensed
             
@@ -930,33 +938,35 @@ class ChatbotStream:
         return reasoning, func_results
 
     async def _stream_openai_response(
-        self, 
+        self,
         context: List[Dict[str, str]]
     ):
         """OpenAI Responses API 스트리밍 호출
-        
+
         JSON Lines 형식으로 스트리밍 이벤트를 yield합니다.
-        
+
         Args:
             context: OpenAI API에 전달할 컨텍스트
-            
+
         Yields:
             Dict: 스트리밍 이벤트
                 - {"type": "delta", "content": "..."}: 텍스트 청크
                 - {"type": "completed", "text": "..."}: 완료된 전체 텍스트
         """
         completed_text = ""
-        
+
         try:
-            stream = client.responses.create(
+            # Note: Responses API는 stream_options를 지원하지 않음
+            # streaming output tokens는 tiktoken으로 계산
+            response_stream = client.responses.create(
                 model=self.model,
                 input=context,
                 top_p=1,
                 stream=True,
                 text={"format": {"type": "text"}}
             )
-            
-            for event in stream:
+
+            for event in response_stream:
                 if event.type == "response.output_text.delta":
                     # 델타 이벤트 - 실시간 텍스트 청크
                     yield {
@@ -964,10 +974,10 @@ class ChatbotStream:
                         "content": event.delta
                     }
                     completed_text += event.delta
-                    
-                    # 출력 토큰 계산 (배치 처리)
+
+                    # 출력 토큰 계산 (임시, response.done에서 API usage로 교체)
                     self.token_counter.count_output_delta(event.delta)
-                    
+
                 elif event.type == "response.output_item.done":
                     # 출력 아이템 완료 - 전체 텍스트 수집
                     item = event.item
@@ -975,7 +985,7 @@ class ChatbotStream:
                         for part in item.content:
                             if getattr(part, "type", None) == "output_text":
                                 completed_text = part.text
-                                
+
                 elif event.type == "response.failed":
                     # 실패 이벤트
                     yield {
@@ -983,13 +993,40 @@ class ChatbotStream:
                         "message": "응답 생성 실패"
                     }
                     return
-                    
+
+                elif event.type == "response.completed":
+                    # 완료 이벤트 - API usage 정보 추출
+                    if hasattr(event, 'usage') and event.usage:
+                        usage_data = {
+                            "input_tokens": getattr(event.usage, "input_tokens", 0),
+                            "output_tokens": getattr(event.usage, "output_tokens", 0),
+                            "total_tokens": getattr(event.usage, "total_tokens", 0),
+                            "reasoning_tokens": getattr(event.usage.output_tokens_details, 'reasoning_tokens', 0) if hasattr(event.usage, 'output_tokens_details') else 0,
+                        }
+
+                        # TokenCounter 업데이트 (tiktoken 추정값을 API 실제값으로 교체)
+                        self.token_counter.update_from_api_usage(
+                            usage=usage_data,
+                            role="streaming",
+                            model=self.model,
+                            category="input",
+                            replace=True
+                        )
+
+                        self._dbg(f"[STREAM] API usage 반영: input={usage_data['input_tokens']}, "
+                                  f"output={usage_data['output_tokens']}, "
+                                  f"reasoning={usage_data['reasoning_tokens']}")
+
+            # 스트리밍 완료 후 버퍼 플러시 (남은 델타 처리)
+            self._dbg(f"[STREAM] 스트리밍 완료, 델타 버퍼 플러시")
+            self.token_counter.flush_delta_buffer(role="streaming")
+
             # 완료 이벤트
             yield {
                 "type": "completed",
                 "text": completed_text
             }
-            
+
         except Exception as e:
             self._dbg(f"[STREAM] OpenAI 스트리밍 오류: {e}")
             yield {
@@ -1187,28 +1224,44 @@ class ChatbotStream:
         
         # 토큰 사용량 및 비용 계산
         token_usage = self.token_counter.get_total()
-        cost_data = self.cost_calculator.calculate(
-            token_usage=token_usage,
-            model=self.model
-        )
-        
+
+        # ✅ Role별 모델을 반영한 정확한 비용 계산
+        role_usage_list = self.token_counter.get_role_usage_for_cost_calc()
+        if role_usage_list:
+            # Role별 모델 사용 -> 배치 비용 계산
+            cost_data = self.cost_calculator.calculate_batch(role_usage_list)
+            input_cost_usd = sum(m["input_cost_usd"] for m in cost_data["by_model"].values())
+            output_cost_usd = sum(m["output_cost_usd"] for m in cost_data["by_model"].values())
+            total_cost_usd = cost_data["total_cost_usd"]
+        else:
+            # 폴백: 기존 방식 (streaming 모델로 통합 계산)
+            cost_data_fallback = self.cost_calculator.calculate(
+                token_usage=token_usage,
+                model=self.model
+            )
+            input_cost_usd = cost_data_fallback["input_cost_usd"]
+            output_cost_usd = cost_data_fallback["output_cost_usd"]
+            total_cost_usd = cost_data_fallback["total_cost_usd"]
+
         # TokenUsageMetadata 생성 및 메타데이터에 추가
         # 현재 활성 프리셋 가져오기
         llm_manager = get_llm_manager()
         active_preset = llm_manager.get_active_preset()
-        
+
         metadata.token_usage = TokenUsageMetadata(
             input_tokens=token_usage["input_tokens"],
             output_tokens=token_usage["output_tokens"],
             function_tokens=token_usage["function_tokens"],
             rag_tokens=token_usage["rag_tokens"],
+            reasoning_tokens=token_usage.get("reasoning_tokens", 0),
             total_tokens=token_usage["total_tokens"],
-            input_cost_usd=cost_data["input_cost_usd"],
-            output_cost_usd=cost_data["output_cost_usd"],
-            total_cost_usd=cost_data["total_cost_usd"],
+            input_cost_usd=input_cost_usd,
+            output_cost_usd=output_cost_usd,
+            total_cost_usd=total_cost_usd,
             currency="USD",
             model=self.model,
             preset=active_preset,  # 현재 프리셋 추가
+            tracking_mode=self.token_counter.get_tracking_mode(),  # 토큰 추적 모드
             role_breakdown=self.token_counter.get_role_breakdown()  # 역할별 토큰 상세 추가
         )
         

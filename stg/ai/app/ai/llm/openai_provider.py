@@ -50,23 +50,29 @@ class OpenAIProvider(BaseLLMProvider):
         temperature: float = 1.0,
         max_tokens: Optional[int] = None,
         **kwargs
-    ) -> str:
+    ) -> tuple[str, Dict[str, int]]:
         """
         단순 텍스트 생성 (OpenAI Responses API)
-        
+
         Args:
             messages: OpenAI 형식 메시지 (변환 불필요)
             temperature: 생성 온도
             max_tokens: 최대 출력 토큰
             **kwargs: 추가 파라미터
-        
+
         Returns:
-            str: 생성된 텍스트
+            tuple: (생성된 텍스트, usage 정보)
+                  usage = {
+                      "input_tokens": int,
+                      "output_tokens": int,
+                      "reasoning_tokens": int,
+                      "total_tokens": int
+                  }
         """
         try:
             # Note: OpenAI 클라이언트는 동기 API이므로 asyncio.to_thread로 래핑
             import asyncio
-            
+
             def _sync_call():
                 response = self.client.responses.create(
                     model=self.model_name,
@@ -77,12 +83,34 @@ class OpenAIProvider(BaseLLMProvider):
                     top_p=kwargs.get("top_p", 1),
                     **self._filter_kwargs(kwargs)
                 )
-                return getattr(response, "output_text", "").strip()
-            
+
+                # Usage 정보 추출
+                usage = {}
+                if hasattr(response, "usage") and response.usage:
+                    # output_tokens_details에서 reasoning_tokens 추출
+                    reasoning_tokens = 0
+                    if hasattr(response.usage, "output_tokens_details"):
+                        details = response.usage.output_tokens_details
+                        reasoning_tokens = getattr(details, "reasoning_tokens", 0)
+
+                    usage = {
+                        "input_tokens": getattr(response.usage, "input_tokens", 0),
+                        "output_tokens": getattr(response.usage, "output_tokens", 0),
+                        "reasoning_tokens": reasoning_tokens,
+                        "total_tokens": getattr(response.usage, "total_tokens", 0),
+                    }
+
+                output_text = getattr(response, "output_text", "").strip()
+                return output_text, usage
+
             # 비동기로 실행
-            output_text = await asyncio.to_thread(_sync_call)
-            return output_text
-            
+            output_text, usage = await asyncio.to_thread(_sync_call)
+
+            if usage:
+                print(f"[OpenAIProvider] simple_completion usage: {usage}")
+
+            return output_text, usage
+
         except Exception as e:
             print(f"[OpenAIProvider] simple_completion failed: {e}")
             raise
@@ -93,18 +121,24 @@ class OpenAIProvider(BaseLLMProvider):
         schema: Dict[str, Any],
         temperature: float = 1.0,
         **kwargs
-    ) -> str:
+    ) -> tuple[str, Dict[str, int]]:
         """
         JSON 스키마 기반 구조화된 출력 생성
-        
+
         Args:
             messages: OpenAI 형식 메시지
             schema: JSON 스키마
             temperature: 생성 온도
             **kwargs: 추가 파라미터
-        
+
         Returns:
-            str: JSON 형식 문자열
+            tuple: (JSON 형식 문자열, usage 정보)
+                  usage = {
+                      "input_tokens": int,
+                      "output_tokens": int,
+                      "reasoning_tokens": int,  # o3-mini에서 추출
+                      "total_tokens": int
+                  }
         """
         try:
             # 디버그 로깅
@@ -112,11 +146,11 @@ class OpenAIProvider(BaseLLMProvider):
             print(f"  model: {self.model_name}")
             print(f"  schema: {schema}")
             print(f"  strict: {kwargs.get('strict', True)}")
-            
+
             # Note: OpenAI 클라이언트는 동기 API이므로 asyncio.to_thread로 래핑
             import asyncio
             import json
-            
+
             def _sync_call():
                 response = self.client.responses.create(
                     model=self.model_name,
@@ -132,27 +166,48 @@ class OpenAIProvider(BaseLLMProvider):
                     temperature=temperature,
                     **self._filter_kwargs(kwargs)
                 )
-                
+
+                # Usage 정보 추출 (reasoning_tokens 포함)
+                usage = {}
+                if hasattr(response, "usage") and response.usage:
+                    # output_tokens_details에서 reasoning_tokens 추출
+                    reasoning_tokens = 0
+                    if hasattr(response.usage, "output_tokens_details"):
+                        details = response.usage.output_tokens_details
+                        reasoning_tokens = getattr(details, "reasoning_tokens", 0)
+
+                    usage = {
+                        "input_tokens": getattr(response.usage, "input_tokens", 0),
+                        "output_tokens": getattr(response.usage, "output_tokens", 0),
+                        "reasoning_tokens": reasoning_tokens,
+                        "total_tokens": getattr(response.usage, "total_tokens", 0),
+                    }
+
                 # JSON 응답 추출
                 output_text = getattr(response, "output_text", "").strip()
                 print(f"[OpenAIProvider] structured_completion output: {output_text[:100]}...")
-                
+
                 # 빈 응답 체크
                 if not output_text:
                     raise ValueError(f"Empty output from model {self.model_name}")
-                
+
                 # JSON 유효성 검사
                 try:
                     json.loads(output_text)
                 except json.JSONDecodeError as je:
                     raise ValueError(f"Invalid JSON output from model {self.model_name}: {je}")
-                
+
                 print(f"[OpenAIProvider] structured_completion success!")
-                return output_text
-            
+                return output_text, usage
+
             # 비동기로 실행
-            return await asyncio.to_thread(_sync_call)
-            
+            output_text, usage = await asyncio.to_thread(_sync_call)
+
+            if usage:
+                print(f"[OpenAIProvider] structured_completion usage: {usage}")
+
+            return output_text, usage
+
         except Exception as e:
             print(f"[OpenAIProvider] structured_completion failed: {e}")
             raise

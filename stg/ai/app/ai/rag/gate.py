@@ -59,17 +59,15 @@ class RegulationGate:
         try:
             # LLM Manager 사용 (교체 가능, JSON 스키마 지원 모델 필요)
             provider = get_provider("gate")
-            raw = await provider.structured_completion(prompt, schema)
+            raw, usage = await provider.structured_completion(prompt, schema)
             raw = raw.strip()
-            
-            # ✅ 토큰 계산 추가
-            if self.token_counter:
-                prompt_text = "\n".join([msg.get('content', '') for msg in prompt])
-                self.token_counter.count_with_provider(
-                    provider=provider,
-                    input_text=prompt_text,
-                    output_text=raw,
+
+            # ✅ API usage 기반 토큰 계산
+            if self.token_counter and usage:
+                self.token_counter.update_from_api_usage(
+                    usage=usage,
                     role="gate",
+                    model=provider.get_model_name(),
                     category="rag"
                 )
             
