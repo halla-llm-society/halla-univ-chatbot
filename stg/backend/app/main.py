@@ -1,12 +1,13 @@
-import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .api.routers import router as api_router 
-from .configure import ROOT_PATH
+from app.api.routes import router as api_router 
+from app.core.config import settings
+from app.core.lifespan import lifespan
 
 app = FastAPI(
-    title="Chatbot Prod Backend Service",
-    root_path=ROOT_PATH 
+    title="Chatbot Backend Service",
+    lifespan=lifespan,
+    root_path=settings.ROOT_PATH
 )
 
 origins = [
