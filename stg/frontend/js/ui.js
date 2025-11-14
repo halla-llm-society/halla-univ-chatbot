@@ -70,18 +70,6 @@ const setResetModal = () => {
 }
 
 
-// 챗봇 UI 제어
-const setChatbotExpanded = () => {
-    /*
-    toggleBtn.addEventListener("click", () => {   // 챗봇 열기
-        chatbotContainer.classList.add("expanded");
-    });
-    */
-
-    closeBtn.addEventListener("click", checkSurveyBeforeClose); // 챗봇 닫기
-}
-
-
 // 언어 드롭다운
 const setLangDropdown = () => {
     const toggleLangDropdown = (e) => {   // 드롭다운 토글 함수
