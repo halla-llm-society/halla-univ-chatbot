@@ -11,18 +11,14 @@ async def init_mongo_client(app: FastAPI):
     try:
         # MongoDB 클라이언트 생성
         app.state.mongo_client = AsyncIOMotorClient( 
-            settings.MONGODB_URI,
+            settings.STG_MONGODB_URI,
             serverSelectionTimeoutMS=5000,  
             maxPoolSize=10, 
             minPoolSize=5
         )
         
         # 연결 테스트
-        await app.state.mongo_client.admin.command('ping') 
-        
-        # DB 이름 동적 생성
-        db_name = "halla-chatbot" + settings.MONGODB_SUFFIX
-        app.state.mongo_db = app.state.mongo_client[db_name]
+        await app.state.mongo_client.admin.command('ping')
         
     except Exception as e:
         logger.error(f"Failed to connect MongoDB: {e}", exc_info=True)

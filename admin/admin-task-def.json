@@ -1,34 +1,44 @@
 {
-    "family": "chatbot-admin-task",
-    "executionRoleArn": "arn:aws:iam::855738538544:role/ecsTaskExecutionRole",
-    "networkMode": "awsvpc",
-    "requiresCompatibilities": [
-        "FARGATE"
-    ],
-    "cpu": "256",
-    "memory": "512",
-    "containerDefinitions": [
+  "family": "chatbot-admin-task",
+  "executionRoleArn": "arn:aws:iam::855738538544:role/ecsTaskExecutionRole",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": [
+    "FARGATE"
+  ],
+  "cpu": "256",
+  "memory": "512",
+  "containerDefinitions": [
+    {
+      "name": "chatbot-admin",
+      "image": "<IMAGE_URI>",
+      "essential": true,
+      "cpu": 0,
+      "portMappings": [
         {
-            "name": "chatbot-admin",
-            "image": "<IMAGE_URI>",
-            "essential": true,
-            "cpu": 0,
-            "portMappings": [
-                {
-                    "containerPort": 8000,
-                    "protocol": "tcp",
-                    "appProtocol": "http"
-                }
-            ],
-            "logConfiguration": {
-                "logDriver": "awslogs",
-                "options": {
-                    "awslogs-group": "/ecs/chatbot-admin-task",
-                    "awslogs-region": "ap-northeast-2",
-                    "awslogs-stream-prefix": "ecs",
-                    "awslogs-create-group": "true"
-                }
-            }
+          "containerPort": 8000,
+          "protocol": "tcp",
+          "appProtocol": "http"
         }
-    ]
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/chatbot-admin-task",
+          "awslogs-region": "ap-northeast-2",
+          "awslogs-stream-prefix": "ecs",
+          "awslogs-create-group": "true"
+        }
+      },
+      "secrets": [
+        {
+          "name": "STG_MONGODB_URI",
+          "valueFrom": "arn:aws:ssm:ap-northeast-2:855738538544:parameter/chatbot/admin/STG_MONGODB_URI"
+        },
+                {
+          "name": "PROD_MONGODB_URI",
+          "valueFrom": "arn:aws:ssm:ap-northeast-2:855738538544:parameter/chatbot/admin/PROD_MONGODB_URI"
+        }
+      ]
+    }
+  ]
 }
