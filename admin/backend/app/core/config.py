@@ -3,8 +3,8 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
 
     # MongoDB 설정
-    MONGODB_URI: str    
-    MONGODB_SUFFIX: str 
+    STG_MONGODB_URI: str    
+    PROD_MONGODB_URI: str
 
     class Config:
         env_file = ".env" 
