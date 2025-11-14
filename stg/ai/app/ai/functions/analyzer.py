@@ -254,6 +254,39 @@ async def search_internet(user_input: str, chat_context=None, token_counter=None
         )
         print(f"[WEB] openai.responses.create elapsed={time.time()-call_ts:.2f}s total={time.time()-start_ts:.2f}s")
 
+        # ✅ API usage 추적 (web_search 역할)
+        if token_counter:
+            if hasattr(response, 'usage') and response.usage:
+                # API usage 정보 추출
+                input_tok = getattr(response.usage, "input_tokens", 0)
+                output_tok = getattr(response.usage, "output_tokens", 0)
+
+                # reasoning_tokens 추출 (필요시)
+                reasoning_tok = 0
+                if hasattr(response.usage, 'output_tokens_details') and response.usage.output_tokens_details:
+                    reasoning_tok = getattr(response.usage.output_tokens_details, 'reasoning_tokens', 0)
+
+                # total_tokens 계산
+                total_tok = getattr(response.usage, "total_tokens", input_tok + output_tok)
+
+                usage_data = {
+                    "input_tokens": input_tok,
+                    "output_tokens": output_tok,
+                    "reasoning_tokens": reasoning_tok,
+                    "total_tokens": total_tok,
+                }
+
+                token_counter.update_from_api_usage(
+                    usage=usage_data,
+                    role="web_search",
+                    model=model.advanced,  # gpt-4.1
+                    category="function",
+                    replace=False
+                )
+                print(f"[TokenTrack][web_search] ✅ API usage tracked: input={input_tok}, output={output_tok}, reasoning={reasoning_tok}")
+            else:
+                print(f"[TokenTrack][web_search] ⚠️ No API usage available")
+
         did_call = any(getattr(item, "type", None) == "web_search_call" for item in getattr(response, "output", []))
         print(f"[WEB] search_call_performed={did_call}")
 
@@ -264,7 +297,6 @@ async def search_internet(user_input: str, chat_context=None, token_counter=None
         if not content_block:
             return "❌ GPT 응답 내 output_text 항목을 찾을 수 없습니다."
         output_text = getattr(content_block, "text", "").strip()
-        print(f"[WEB][DEBUG] LLM output_text:\n{output_text}")
         annotations = getattr(content_block, "annotations", [])
         citations = []
         for a in annotations:
@@ -454,11 +486,9 @@ def get_halla_cafeteria_menu(date: Optional[str] = None, meal: Optional[str] = N
         if not val:
             out = header + f"\n[{meal}] 정보 없음\n추가 사항: 원문: {url}"
             print(f"[CAF][END] elapsed={time.time()-t0:.2f}s meal-miss")
-            print(f"[CAF][DEBUG] LLM output_text:\n{out}")
             return out
         out = header + f"\n[{meal}] {val}\n추가 사항: 원문: {url}"
         print(f"[CAF][END] elapsed={time.time()-t0:.2f}s meal-hit")
-        print(f"[CAF][DEBUG] LLM output_text:\n{out}")
         return out
 
     # 3끼 모두 반환
@@ -468,7 +498,6 @@ def get_halla_cafeteria_menu(date: Optional[str] = None, meal: Optional[str] = N
         lines_out.append(f"[{k}] {v if v else '정보 없음'}")
     out = header + "\n" + "\n".join(lines_out) + f"\n추가 사항: 원문: {url}"
     print(f"[CAF][END] elapsed={time.time()-t0:.2f}s all-meals")
-    print(f"[CAF][DEBUG] LLM output_text:\n{out}")
     return out
 
 class FunctionCalling:
@@ -487,7 +516,7 @@ class FunctionCalling:
        
     async def analyze(self, user_message, tools):
         """사용자 메시지를 분석하여 필요한 함수와 판단 근거를 반환
-        
+
         Returns:
             dict: {
                 "reasoning": str (판단 근거),
@@ -541,14 +570,12 @@ class FunctionCalling:
                 payload = json.loads(raw)
                 reasoning = payload.get("reasoning", "").strip() or None
                 selected_tools = payload.get("selected_tools", [])
-                print(f"[DEBUG][analyze] reasoning={reasoning}")
-                print(f"[DEBUG][analyze] selected_tools={selected_tools}")
         except Exception as e:
-            print(f"[DEBUG][analyze] reasoning generation failed: {e}")
             reasoning = f"추론 생성 실패 ({e})"
             selected_tools = []  # exception 발생 시 기본값 설정
-        
+
         # 2단계: 기존 함수 호출 분석 (OpenAI API)
+
         structured_input = [
             {
                 "role": "user",
@@ -564,14 +591,28 @@ class FunctionCalling:
                 tools=tools,
                 tool_choice="auto",
             )
-            print("[DEBUG][analyze] raw_output_types:",[getattr(o,'type',None) for o in response.output])
+
+            if self.token_counter and hasattr(response, 'usage') and response.usage:
+                usage_data = {
+                    "input_tokens": getattr(response.usage, "input_tokens", 0),
+                    "output_tokens": getattr(response.usage, "output_tokens", 0),
+                    "total_tokens": getattr(response.usage, "total_tokens", 0),
+                    "reasoning_tokens": getattr(response.usage.output_tokens_details, 'reasoning_tokens', 0) if hasattr(response.usage, 'output_tokens_details') else 0,
+                }
+                self.token_counter.update_from_api_usage(
+                    usage=usage_data,
+                    role="function_calling",
+                    model=model.o3_mini,
+                    category="function",
+                    replace=False
+                )
+
             return {
                 "reasoning": reasoning,
                 "selected_tools": selected_tools,  # reasoning에서 선택된 도구 목록 추가
                 "output": response.output
             }
         except Exception as e:
-            print(f"[DEBUG][analyze] tool analyze failed: {e}")
             return {
                 "reasoning": reasoning,
                 "selected_tools": selected_tools,
@@ -611,7 +652,27 @@ class FunctionCalling:
             except Exception as e:
                 print("Error occurred(run):",e)
                 return makeup_response("[run 오류입니다]")
-        return client.responses.create(model=self.model,input=context).model_dump()
+
+        # 함수 실행 후 최종 응답 생성
+        response = client.responses.create(model=self.model, input=context)
+
+        # ✅ API usage 추적 (function_calling 역할 - 재호출)
+        if self.token_counter and hasattr(response, 'usage') and response.usage:
+            usage_data = {
+                "input_tokens": getattr(response.usage, "input_tokens", 0),
+                "output_tokens": getattr(response.usage, "output_tokens", 0),
+                "total_tokens": getattr(response.usage, "total_tokens", 0),
+                "reasoning_tokens": getattr(response.usage.output_tokens_details, 'reasoning_tokens', 0) if hasattr(response.usage, 'output_tokens_details') else 0,
+            }
+            self.token_counter.update_from_api_usage(
+                usage=usage_data,  # ✅ 수정: usage_info → usage
+                role="function_calling",
+                model=self.model,  # ✅ 추가: 필수 파라미터
+                category="function",
+                replace=False
+            )
+
+        return response.model_dump()
     
    
     def call_function(self, analyzed_dict):        

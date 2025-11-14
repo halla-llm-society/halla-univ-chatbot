@@ -98,10 +98,12 @@ class CostCalculator:
         
         input_tokens = Decimal(token_usage.get("input_tokens", 0))
         output_tokens = Decimal(token_usage.get("output_tokens", 0))
-        
+        reasoning_tokens = Decimal(token_usage.get("reasoning_tokens", 0))  # 선택적 필드, o3-mini 등만 사용
+
         # 비용 계산 (1M 토큰 기준)
+        # reasoning 토큰은 output 가격으로 계산됨 (OpenAI API 정책)
         input_cost = (input_tokens / Decimal("1000000")) * pricing["input"]
-        output_cost = (output_tokens / Decimal("1000000")) * pricing["output"]
+        output_cost = ((output_tokens + reasoning_tokens) / Decimal("1000000")) * pricing["output"]
         total_cost = input_cost + output_cost
         
         result = {
@@ -171,8 +173,9 @@ class CostCalculator:
             token_usage = {
                 "input_tokens": usage.get("input_tokens", 0),
                 "output_tokens": usage.get("output_tokens", 0),
+                "reasoning_tokens": usage.get("reasoning_tokens", 0),  # o3-mini 등의 추론 토큰 지원
             }
-            
+
             cost_data = self.calculate(token_usage, model)
             total_cost += cost_data["total_cost_usd"]
             by_model[model] = cost_data
