@@ -4,9 +4,13 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pathlib import Path
 from app.api import routers  
-from app.api import metrics  
+from app.api import metrics
+from app.core.lifespan import lifespan
 
-app = FastAPI(title="Chatbot Admin Service")
+app = FastAPI(
+    title="Chatbot Admin Service",
+    lifespan=lifespan
+)
 
 # origins = [
 #     ["*"]
