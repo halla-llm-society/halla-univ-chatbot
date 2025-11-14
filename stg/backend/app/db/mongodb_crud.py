@@ -28,4 +28,4 @@ async def save_chat_and_return_id(db: AsyncIOMotorDatabase, data: dict, collecti
     collection = db[collection_name]
     result = await collection.insert_one(data)
 
-    return str(result.inserted_id)
+    return result.inserted_id
