@@ -20,7 +20,6 @@ const resetModal = document.getElementById("reset-modal");
 const langBtn = document.getElementById("lang-btn");
 const infoBtn = document.getElementById("info-btn");
 const resetBtn = document.getElementById("reset-btn");
-const closeBtn = document.getElementById("close-btn");
 
 const langDropdown = document.getElementById('lang-dropdown');
 const langList = document.getElementById('lang-list');
@@ -36,7 +35,6 @@ window.addEventListener('DOMContentLoaded', () => {
     setModal();
     setUserInputPlaceHolder();
 
-    setChatbotExpanded();
     setLangDropdown();
     setInputAndSend();
 
