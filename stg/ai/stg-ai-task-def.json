@@ -32,10 +32,6 @@
                 {
                     "name": "PINECONE_API_KEY",
                     "valueFrom": "arn:aws:ssm:ap-northeast-2:855738538544:parameter/chatbot/stg/PINECONE_API_KEY"
-                },
-                                {
-                    "name": "GOOGLE_API_KEY",
-                    "valueFrom": "arn:aws:ssm:ap-northeast-2:855738538544:parameter/chatbot/stg/GOOGLE_API_KEY"
                 }
             ],
             "logConfiguration": {
