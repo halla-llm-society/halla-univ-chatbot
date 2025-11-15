@@ -5,7 +5,7 @@ from typing import List, Literal
 # 기존 메시지
 class MessageHistoryItem(BaseModel):
     role: Literal["user", "assistant"]
-    content: str = Field(..., max_length=300)
+    content: str
 
 
 # /api/chat 엔드포인트의 request body type
