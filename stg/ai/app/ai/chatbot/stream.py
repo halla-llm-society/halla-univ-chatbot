@@ -2,11 +2,12 @@ import math
 import os
 import json
 import uuid
+import asyncio
 from typing import Any, Dict, List, Optional, AsyncGenerator
 from datetime import datetime
 
 # 새로운 import 경로
-from app.ai.chatbot.config import model, client
+from app.ai.chatbot.config import model, client, currTime
 from app.ai.chatbot.metadata import FunctionCallMetadata, RagMetadata, ChatMetadata, TokenUsageMetadata, ToolReasoningMetadata
 from app.ai.functions import FunctionCalling, tools
 from app.ai.rag.service import RagService
@@ -55,6 +56,13 @@ class ChatbotStream:
         self.func_calling = FunctionCalling(model=model, token_counter=self.token_counter)
         self.tools = tools
         self.available_functions = self.func_calling.available_functions if hasattr(self.func_calling, 'available_functions') else {}
+        
+        # Phase 2.5: async 함수 타입 미리 체크하여 캐싱 (성능 최적화)
+        self._async_function_flags = {
+            name: asyncio.iscoroutinefunction(func)
+            for name, func in self.available_functions.items()
+        }
+        self._dbg(f"[INIT] Async functions cached: {[k for k, v in self._async_function_flags.items() if v]}")
 
 
     def _dbg(self, msg: str):
@@ -579,6 +587,14 @@ class ChatbotStream:
 
         sections: List[str] = []
 
+        # 0) 현재 날짜/시간
+        current_datetime = currTime()  # "2025.11.15 14:30:25" 형식
+        sections.append(
+            f"[현재 날짜/시간]\n{current_datetime}\n"
+            "이 날짜를 기준으로 '최신', '요즘', '최근' 등의 표현을 해석하세요.\n"
+            "**중요**: '공지사항'이라는 단어만 있어도 사용자는 현재 시점의 최신 공지사항을 원하는 것으로 이해하세요."
+        )
+
         # 1) 사용자 쿼리 지침
         query_guidance = (
             f"이것은 사용자 쿼리입니다: {message}\n"
@@ -795,10 +811,24 @@ class ChatbotStream:
                 elif func_name == "get_halla_cafeteria_menu":
                     func_args.setdefault("date", "오늘")
                     # meal은 지정하지 않으면 전체 끼니 반환
+                elif func_name == "get_shuttle_bus_info":
+                    func_args.setdefault("chat_context", self.context[:])
+                    func_args.setdefault("token_counter", self.token_counter)
 
                 sanitized_args = self._sanitize_function_arguments(func_args)
                 
-                output = func(**func_args)
+                # async 함수인 경우 await 사용 (캐시 조회)
+                try:
+                    if self._async_function_flags.get(func_name, False):
+                        output = await func(**func_args)
+                    else:
+                        output = func(**func_args)
+                except asyncio.CancelledError:
+                    self._dbg(f"[FUNCTION] {func_name} cancelled")
+                    raise
+                except Exception as e:
+                    self._dbg(f"[FUNCTION] {func_name} execution failed: {e}")
+                    output = f"❌ 함수 실행 오류: {str(e)}"
                 
                 # 함수 호출 토큰 계산
                 self.token_counter.count_function_call(func_name, sanitized_args, str(output))
@@ -853,7 +883,19 @@ class ChatbotStream:
                         func_args = {"date": "오늘", "meal": None}
                     
                     self._dbg(f"[FUNCTION] Reasoning 강제 실행 중: {tool_name}")
-                    output = func(**func_args)
+                    
+                    # async 함수인 경우 await 사용 (캐시 조회)
+                    try:
+                        if self._async_function_flags.get(tool_name, False):
+                            output = await func(**func_args)
+                        else:
+                            output = func(**func_args)
+                    except asyncio.CancelledError:
+                        self._dbg(f"[FUNCTION] {tool_name} cancelled during reasoning")
+                        raise
+                    except Exception as e:
+                        self._dbg(f"[FUNCTION] {tool_name} execution failed: {e}")
+                        output = f"❌ 함수 실행 오류: {str(e)}"
                     
                     # 함수 호출 토큰 계산
                     sanitized_args = self._sanitize_function_arguments(func_args)
