@@ -73,7 +73,7 @@
 /* ================================== */
 .statsSummaryContainer {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 1.5rem;
   margin-bottom: 2.5rem;
 }
@@ -101,7 +101,7 @@
 }
 
 .statBox p span {
-  font-size: 1rem;
+font-size: 1.2rem;
   font-weight: 500;
   color: #868e96;
   margin-left: 0.25rem;
@@ -111,6 +111,13 @@
 /* 4. Chart Components (재사용) */
 /* ================================== */
 .chartSection {
+  margin-bottom: 0;
+}
+
+.chartGridContainer {
+  display: grid;
+  grid-template-columns: 1fr; /* 모바일에선 1열 */
+  gap: 1.5rem;
   margin-bottom: 2.5rem;
 }
 

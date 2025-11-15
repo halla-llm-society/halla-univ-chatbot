@@ -27,7 +27,7 @@ const UserQueryDataAnalysis = () => {
   const [totalPages, setTotalPages] = useState(0); // 전체 페이지 수 (API로부터 받음)
   const [loading, setLoading] = useState(true); // 로딩 상태
   const [error, setError] = useState(null); // 에러 상태
-  const [sortOrder, setSortOrder] = useState('asc'); // 정렬 순서를 관리할 새로운 state ('asc': 오름차순, 'desc': 내림차순)
+  const [sortOrder, setSortOrder] = useState('desc'); // 정렬 순서를 관리할 새로운 state ('asc': 오름차순, 'desc': 내림차순)
   
   // 4. 한 페이지에 보여줄 항목 수
   const ITEMS_PER_PAGE = 20;
@@ -82,7 +82,7 @@ const UserQueryDataAnalysis = () => {
     };
 
     fetchData();
-  }, [currentPage, sortOrder, query]); // currentPage가 바뀔 때마다 API를 다시 호출
+  }, [currentPage, sortOrder, query, startDate, endDate]); // currentPage가 바뀔 때마다 API를 다시 호출
 
   // 4-1. 페이지네이션 헨들러
   const handlePageChange = (pageNumber) => {

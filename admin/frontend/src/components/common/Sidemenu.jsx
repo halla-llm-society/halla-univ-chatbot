@@ -71,12 +71,12 @@ const Sidemenu = ({ isExpanded, onToggle }) => {
           {/* 아래 그룹 */}
           <li>
             <NavLink to="/" className={({isActive}) => isActive ? styles.active : ''}>
-              <span className={styles.text}>사용자 질의 데이터 분석</span>
+              <span className={styles.text}>사용자 질의 데이터 테이블</span>
             </NavLink>
           </li>
           <li>
             <NavLink to="/statistics" className={({isActive}) => isActive ? styles.active : ''}>
-              <span className={styles.text}>사용자 통계 확인</span>
+              <span className={styles.text}>사용자 설문조사 통계 확인</span>
             </NavLink>
           </li>
           <li>
