@@ -19,8 +19,7 @@ async def init_redis_client(app: FastAPI):
             decode_responses=True,
             socket_timeout=10,
             socket_connect_timeout=10,
-            max_connections=10,
-            ssl=True
+            max_connections=10
         )
 
         # 연결 테스트
