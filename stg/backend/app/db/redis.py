@@ -12,13 +12,14 @@ logger = logging.getLogger(__name__)
 async def init_redis_client(app: FastAPI):
     try:
         # redis 클라이언트 생성
-        client = redis.Redis(
-            host=settings.REDIS_HOST,
-            port=settings.REDIS_PORT,
+        redis_url = f"redis://{settings.REDIS_HOST}:{settings.REDIS_PORT}"
+
+        client = redis.from_url(
+            redis_url,
             decode_responses=True,
             socket_timeout=10,
             socket_connect_timeout=10,
-            max_connections=10,
+            max_connections=10
         )
 
         # 연결 테스트
