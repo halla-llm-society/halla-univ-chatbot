@@ -71,7 +71,7 @@ const UserQueryDataAnalysis = () => {
         
         console.log("🚀 API 요청 데이터:", params);
         const response = await getUserQueryData(params);
-        setTableData(response.data);
+        setTableData(response.data || []);
         setTotalPages(response.totalPages);
         
       } catch (err) {
