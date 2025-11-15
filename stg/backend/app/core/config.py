@@ -10,6 +10,11 @@ class Settings(BaseSettings):
     MONGODB_URI: str    
     MONGODB_SUFFIX: str 
 
+    # Redis(AWS ElastiCache) 설정
+    REDIS_HOST: str = "local-redis"
+    REDIS_PORT: int = 6379
+    MONTHLY_COST_LIMIT: float = 1000.
+
     class Config:
         env_file = ".env" 
         env_file_encoding = "utf-8"

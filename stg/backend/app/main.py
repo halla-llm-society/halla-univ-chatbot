@@ -1,8 +1,11 @@
+import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes import router as api_router 
 from app.core.config import settings
 from app.core.lifespan import lifespan
+
+logging.basicConfig(level=logging.INFO)
 
 app = FastAPI(
     title="Chatbot Backend Service",

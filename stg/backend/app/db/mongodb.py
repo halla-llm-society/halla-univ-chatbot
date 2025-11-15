@@ -1,6 +1,7 @@
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 from fastapi import HTTPException, status, Request, FastAPI
 import logging
+
 from app.core.config import settings
 
 
@@ -12,7 +13,7 @@ async def init_mongo_client(app: FastAPI):
         # MongoDB 클라이언트 생성
         app.state.mongo_client = AsyncIOMotorClient( 
             settings.MONGODB_URI,
-            serverSelectionTimeoutMS=5000,  
+            serverSelectionTimeoutMS=10000,  
             maxPoolSize=10, 
             minPoolSize=5
         )
