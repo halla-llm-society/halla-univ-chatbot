@@ -1,10 +1,8 @@
-// 2. 사용자 통계 확인 페이지
-
 // src/pages/UserStatistics.jsx
 
 import { useState, useEffect } from 'react';
-import styles from './styles/UserStatistics.module.css'; // 새로 생성할 CSS 파일
-import { getSurveyStatistics } from '../services/survey'; // 새로 생성할 API 서비스 파일
+import styles from './styles/UserStatistics.module.css'; //
+import { getSurveyStatistics } from '../services/survey'; //
 
 import {
   Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend,
@@ -15,15 +13,30 @@ ChartJS.register(
   CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend
 );
 
-// --- 차트 컴포넌트 ---
-const RatingChart = ({ data, loading }) => {
+// --- 차트 컴포넌트 (재사용) ---
+// 범용성을 위한 Chart컴포넌트
+const StatBarChart = ({ data, loading }) => {
+
+  const baseColor = 'rgba(0, 112, 243, 0.8)'; // 진한 파란색
+  const borderColor = 'rgba(0, 112, 243, 1)'; // 테두리 색상 (더 진하게)
+
+  const generateShades = (base, count) => {
+    const colors = [];
+    for (let i = 0; i < count; i++) {
+      // 투명도를 조절하여 명암 차이 (예: 0.5 ~ 0.9)
+      const alpha = 0.5 + (0.4 / (count > 1 ? count - 1 : 1)) * i;
+      colors.push(base.replace(/0\.8\)/, `${alpha})`)); // baseColor의 투명도를 조절
+    }
+    return colors;
+  };
+  
   const chartData = {
-    labels: data?.labels || [], // 예: ["1점", "2점", "3점", "4점", "5점"]
+    labels: data?.labels || [],
     datasets: [{
       label: '응답 수',
       data: data?.counts || [],
-      backgroundColor: 'rgba(0, 112, 243, 0.6)',
-      borderColor: 'rgba(0, 112, 243, 1)',
+      backgroundColor: generateShades(baseColor, data?.counts.length),
+      borderColor: borderColor,
       borderWidth: 1,
     }],
   };
@@ -47,7 +60,9 @@ const RatingChart = ({ data, loading }) => {
       y: {
         beginAtZero: true,
         ticks: {
-          stepSize: 1,
+          // 데이터가 0, 1, 2 처럼 작은 단위일 경우 stepSize: 1 적용
+          // (데이터 값에 따라 유동적으로 변경하거나 옵션에서 제거 가능)
+          stepSize: data?.counts.every(val => val < 10) ? 1 : undefined,
         }
       },
     },
@@ -73,7 +88,7 @@ const UserStatistics = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // 요구사항에 명시된 필터 목록
+  // 필터
   const filterButtons = [
     { label: '전체', value: 'all' },
     { label: '1학년', value: 'grade1' },
@@ -85,13 +100,11 @@ const UserStatistics = () => {
     { label: '외부인', value: 'external' },
   ];
 
-  // 필터가 변경될 때마다 데이터를 다시 불러옴
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       setError(null);
       try {
-        // API 호출 시 현재 활성화된 필터 값을 파라미터로 넘김
         const response = await getSurveyStatistics({ userGroup: activeFilter });
         setStatsData(response);
       } catch (err) {
@@ -129,32 +142,60 @@ const UserStatistics = () => {
           <div className={styles.statsSummaryContainer}>
             <div className={styles.statBox}>
               <h2>평균 만족도</h2>
-              <p>{loading ? '-' : statsData?.averageRating.toFixed(1) || 'N/A'} <span> / 5</span></p>
+              <p>{loading ? '-' : statsData?.averageRating?.toFixed(1) || 'N/A'} <span> / 5</span></p>
             </div>
+            
+            {/* 응답속도 요약 */}
+            <div className={styles.statBox}>
+              <h2>응답 속도 (High)</h2>
+              <p>{loading ? '-' : statsData?.responseSpeedHighPercent?.toFixed(1) || 'N/A'} <span>%</span></p>
+            </div>
+
+            {/* 응답 품질 요약 */}
+            <div className={styles.statBox}>
+              <h2>응답 품질 (High)</h2>
+              <p>{loading ? '-' : statsData?.responseQualityHighPercent?.toFixed(1) || 'N/A'} <span>%</span></p>
+            </div>
+
             <div className={styles.statBox}>
               <h2>총 참여 인원</h2>
-              <p>{loading ? '-' : statsData?.totalParticipants.toLocaleString() || 'N/A'} <span> 명</span></p>
+              <p>{loading ? '-' : statsData?.totalParticipants?.toLocaleString() || 'N/A'} <span> 명</span></p>
             </div>
           </div>
 
-          {/* --- 만족도 분포 차트 --- */}
-          <div className={styles.chartSection}>
-            <h2 className={styles.sectionTitle}>만족도 점수 분포</h2>
-            <RatingChart data={statsData?.ratingDistribution} loading={loading} />
+          {/* --- 차트 섹션 (Grid로 묶음) --- */}
+          <div className={styles.chartGridContainer}>
+            {/* 1. 만족도 분포 차트 */}
+            <div className={styles.chartSection}>
+              <h2 className={styles.sectionTitle}>만족도 점수 분포</h2>
+              <StatBarChart data={statsData?.ratingDistribution} loading={loading} />
+            </div>
+
+            {/* 2. 응답 속도 분포 차트 */}
+            <div className={styles.chartSection}>
+              <h2 className={styles.sectionTitle}>응답 속도 분포</h2>
+              <StatBarChart data={statsData?.responseSpeedDistribution} loading={loading} />
+            </div>
+
+            {/* 3. 응답 품질 분포 차트  */}
+            <div className={styles.chartSection}>
+              <h2 className={styles.sectionTitle}>응답 품질 분포</h2>
+              <StatBarChart data={statsData?.responseQualityDistribution} loading={loading} />
+            </div>
           </div>
 
-          {/* --- 주관식 답변 테이블 (선택 사항) --- */}
-          {/* 백엔드에서 feedbackEntries가 있고, 0개 이상일 때만 테이블을 표시 */}
+
+          {/* --- 주관식 답변 테이블 (기존과 동일) --- */}
           {!loading && statsData?.feedbackEntries && statsData.feedbackEntries.length > 0 && (
             <div className={styles.tableSection}>
-              <h2 className={styles.sectionTitle}>질문에 대한 답변</h2>
+              <h2 className={styles.sectionTitle}>코멘트</h2>
               <div className={styles.tableWrapper}>
                 <table className={styles.dataTable}>
                   <thead>
                     <tr>
                       <th>순서</th>
                       <th>별점</th>
-                      <th>질문에 대한 답변</th>
+                      <th>코멘트</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -162,7 +203,8 @@ const UserStatistics = () => {
                       <tr key={item.id}>
                         <td>{index + 1}</td>
                         <td>{item.rating}점</td>
-                        <td>{item.feedback}</td>
+                        {/* feedback -> comment (백엔드 응답 스키마에 맞춰야 함) */}
+                        <td>{item.feedback || item.comment}</td>
                       </tr>
                     ))}
                   </tbody>
