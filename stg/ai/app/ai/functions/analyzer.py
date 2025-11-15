@@ -19,6 +19,12 @@ except ImportError:
     # 상대 경로로 시도
     from ..llm import get_provider
 
+# ShuttleBus Service import
+try:
+    from app.ai.functions.shuttle_bus_service import ShuttleBusService
+except ImportError:
+    from .shuttle_bus_service import ShuttleBusService
+
 # 순환 참조 방지: config 대신 직접 생성
 _BASE_DIR = Path(__file__).resolve().parent.parent.parent  # app/
 _DOTENV_PATH = _BASE_DIR / "apikey.env"
@@ -58,7 +64,19 @@ tools = [
             {
             "type": "function",
             "name": "search_internet",
-            "description": "Searches the internet based on user input and retrieves relevant information",
+            "description": """인터넷에서 최신 정보를 검색하는 함수입니다.
+
+            ⚠️ 이 함수를 사용해야 하는 경우:
+            - 최신 공지사항, 뉴스, 이벤트 정보
+            - 한라대학교 웹사이트의 최신 정보
+            - 일반적인 웹 검색이 필요한 경우
+
+            ❌ 이 함수를 사용하지 말아야 하는 경우:
+            - 통학버스, 셔틀버스 관련 질문 → get_shuttle_bus_info 사용
+            - 학식, 식단 관련 질문 → get_halla_cafeteria_menu 사용
+            - 학사규정 관련 질문 → RAG 시스템 사용 (자동 처리)
+
+            통학버스 시간표, 탑승 위치, 예약 방법 등은 반드시 get_shuttle_bus_info 함수를 사용하세요.""",
             "parameters": {
                 "type": "object",
                 "required": [
@@ -94,9 +112,39 @@ tools = [
                 "additionalProperties": False
             }
             },
-      
-       
-      
+            {
+            "type": "function",
+            "name": "get_shuttle_bus_info",
+            "description": """한라대학교 통학버스(셔틀버스) 정보를 제공하는 전용 함수입니다.
+
+            ⚠️ 이 함수를 반드시 사용해야 하는 경우:
+            - '통학버스', '셔틀버스', '스쿨버스' 관련 질문
+            - '등교', '하교' 시간 문의
+            - '원주역', '만종역', '청솔', '시외버스터미널' 등 원주 시내 출발지
+            - '서울', '수원', '여주', '잠실', '강변', '노원' 등 시외 출발지
+            - 버스 탑승 위치, 시간표, 노선, 예약 방법, 요금 질문
+
+            ⚠️ 통학버스 관련 질문은 인터넷 검색이 아닌 이 함수만 사용하세요.
+
+            지원 정보:
+            - 시내버스: 만종역, 대명원, 시외버스터미널, 무실동, 원주역, 청솔아파트, 한국가스공사, 오성마을, 오페라웨딩홀
+            - 시외버스: 서울(잠실,강변,상봉,천호,노원), 수원/여주(라마다호텔,아주대,영통,기흥,여주역)
+            - 이용안내: 예약방법, 취소방법, 요금, 적립금""",
+            "parameters": {
+                "type": "object",
+                "required": ["user_query"],
+                "properties": {
+                    "user_query": {
+                        "type": "string",
+                        "description": "사용자의 통학버스 관련 질문 원문. 예: '수원 하교시간', '원주역 등교 버스', '서울 통학버스 예약'"
+                    }
+                },
+                "additionalProperties": False
+            }
+            },
+
+
+
     ]
 
 # --- 공지 카테고리 LLM 분류기 ---
@@ -205,15 +253,39 @@ async def search_internet(user_input: str, chat_context=None, token_counter=None
 
         preferred = await _prefer_halla_site_query(user_input, context_info if context_info else None, token_counter)
         
+        # 현재 날짜 정보 추가
+        current_date = datetime.now()
+        date_str = current_date.strftime("%Y년 %m월 %d일")
+        year_str = current_date.strftime("%Y")
+        
+        # 공지사항 관련 검색인지 판단
+        is_notice_query = any(keyword in user_input.lower() for keyword in ["공지", "notice", "알림", "announcement"])
+        
         # LLM 에이전트로 검색어 재작성 (context_info 포함)
         rewrite_prompt = (
-            f"{user_input}\n\n[대화 문맥]: {context_info} 를 참고해 (이전 문맥과 연결된 후속 질문이면 연관된 핵심 키워드 포함) "
-            "간결한 검색어 조합을 새로 만들어라. 가능하면 site:halla.ac.kr 또는 관련 공식 URL 포함."
+            f"[현재 날짜] {date_str} ({year_str}년)\n"
+            f"[사용자 요청] {user_input}\n"
+            f"[대화 문맥] {context_info or '없음'}\n\n"
+            "검색어 작성 규칙:\n"
+            "1. site:halla.ac.kr 필수 포함\n"
         )
+        
+        # 공지사항 검색이면 항상 현재 연도 포함
+        if is_notice_query:
+            rewrite_prompt += (
+                f"2. **중요**: 공지사항 검색이므로 반드시 현재 연도({year_str}년)를 검색어에 포함하세요\n"
+                "3. 공지사항 검색 시 반드시 'halla.ac.kr > 커뮤니티 > 공지사항' 경로 명시\n"
+                "4. 간결하고 핵심적인 검색어로 구성\n"
+            )
+        else:
+            rewrite_prompt += (
+                f"2. '최신', '최근', '요즘' 키워드 발견 시 반드시 현재 연도({year_str}년)를 검색어에 포함하세요\n"
+                "3. 간결하고 핵심적인 검색어로 구성\n"
+            )
         
         # preferred가 있으면 추가 정보로 활용
         if preferred:
-            rewrite_prompt += f"\n\n[추천 사이트]: {preferred}"
+            rewrite_prompt += f"\n[추천 URL] {preferred}\n이 URL에서 최신 정보를 우선 검색하세요.\n"
         
         provider = get_provider("search_rewrite")
         messages = [{"role": "user", "content": [{"type": "input_text", "text": rewrite_prompt}]}]
@@ -500,6 +572,85 @@ def get_halla_cafeteria_menu(date: Optional[str] = None, meal: Optional[str] = N
     print(f"[CAF][END] elapsed={time.time()-t0:.2f}s all-meals")
     return out
 
+
+# 통학버스 서비스 싱글톤 인스턴스
+_shuttle_bus_service = None
+
+def _get_shuttle_bus_service():
+    """ShuttleBusService 싱글톤 인스턴스 반환"""
+    global _shuttle_bus_service
+    if _shuttle_bus_service is None:
+        _shuttle_bus_service = ShuttleBusService()
+    return _shuttle_bus_service
+
+
+async def get_shuttle_bus_info(user_query: str, chat_context=None, token_counter=None) -> str:
+    """한라대학교 통학버스 정보 제공
+
+    Args:
+        user_query: 사용자의 통학버스 관련 질문
+        chat_context: 대화 문맥 (최근 메시지 리스트)
+        token_counter: 토큰 카운터
+
+    Returns:
+        통학버스 정보 응답 문자열
+    """
+    start_ts = time.time()
+    print(f"[SHUTTLE][START] query='{user_query}' chat_ctx={'Y' if chat_context else 'N'}")
+
+    try:
+        # 대화 문맥 추출
+        if chat_context:
+            recent_messages = chat_context[-4:]
+            context_info = "\n".join([
+                f"{m.get('role','unknown')}: {m.get('content','')}"
+                for m in recent_messages if m.get('role') != 'system'
+            ])
+        else:
+            context_info = ""
+
+        # ShuttleBusService 인스턴스 가져오기
+        service = _get_shuttle_bus_service()
+
+        # 1단계: 카테고리 분류
+        category = await service.classify_category(
+            user_input=user_query,
+            context_info=context_info,
+            token_counter=token_counter
+        )
+
+        print(f"[SHUTTLE] category={category}")
+
+        # 통학버스 관련 질문이 아닌 경우
+        if category == "not_shuttle_bus":
+            elapsed = time.time() - start_ts
+            print(f"[SHUTTLE][END] elapsed={elapsed:.2f}s result=not_shuttle_bus")
+            return "통학버스와 관련 없는 질문입니다. 시내버스, 시외버스 시간표, 예약 방법 등에 대해 질문해주세요."
+
+        # 2단계: 카테고리별 정보 추출
+        shuttle_info = service.get_info_by_category(category, user_query)
+        print(f"[SHUTTLE] info extracted len={len(shuttle_info)}")
+
+        # 3단계: 응답 생성
+        response = await service.generate_response(
+            user_input=user_query,
+            shuttle_info=shuttle_info,
+            token_counter=token_counter
+        )
+
+        elapsed = time.time() - start_ts
+        print(f"[SHUTTLE][END] elapsed={elapsed:.2f}s response_len={len(response)}")
+
+        return response
+
+    except Exception as e:
+        elapsed = time.time() - start_ts
+        print(f"[SHUTTLE][ERROR] elapsed={elapsed:.2f}s error={e}")
+        import traceback
+        traceback.print_exc()
+        return f"❌ 통학버스 정보 조회 중 오류가 발생했습니다: {str(e)}"
+
+
 class FunctionCalling:
     def __init__(self, model, available_functions=None, token_counter=None):
         self.model = model
@@ -507,6 +658,7 @@ class FunctionCalling:
         default_functions = {
             "search_internet": search_internet,
             "get_halla_cafeteria_menu": get_halla_cafeteria_menu,
+            "get_shuttle_bus_info": get_shuttle_bus_info,
         }
 
         if available_functions:
@@ -620,7 +772,7 @@ class FunctionCalling:
             }
     
 
-    def run(self, analyzed,context):
+###    def run(self, analyzed,context):
         ''' analyzed_dict: 함수 호출 정보, context: 현재 문맥'''
         context.append(analyzed)
         for tool_call in analyzed:
@@ -673,7 +825,7 @@ class FunctionCalling:
             )
 
         return response.model_dump()
-    
+    ###
    
     def call_function(self, analyzed_dict):        
         func_name = analyzed_dict["function_call"]["name"]
