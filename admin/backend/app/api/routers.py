@@ -1,5 +1,7 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from . import conversations, surveys, metrics
+from app.core.security import get_current_admin
+
 from . import user_query
 from . import surveys
 from . import stats
@@ -10,29 +12,34 @@ router = APIRouter()
 router.include_router(
     conversations.router,
     prefix="/api",
-    tags=["Conversations"]
+    tags=["Conversations"],
+    dependencies=[Depends(get_current_admin)] # <--- 인증 추가
 )
 
 router.include_router(
     user_query.router,
-    prefix="/api",  # /api/user-query-data 경로로 API가 노출됩니다.
-    tags=["UserQuery"]
+    prefix="/api",
+    tags=["UserQuery"],
+    dependencies=[Depends(get_current_admin)] # <--- 인증 추가
 )
 
 router.include_router(
     surveys.router,
-    prefix="/api",  # /api/survey-statistics 경로로 API가 노출됩니다.
-    tags=["Surveys"]
+    prefix="/api",
+    tags=["Surveys"],
+    dependencies=[Depends(get_current_admin)] # <--- 인증 추가
 )
 
 router.include_router(
     stats.router,
-    prefix="/api",  # /api/traffic/queries, /api/traffic/tokens
-    tags=["Stats"]
+    prefix="/api",
+    tags=["Stats"],
+    dependencies=[Depends(get_current_admin)] # <--- 인증 추가
 )
 
 router.include_router(
     metrics.router,
-    prefix="/api",  # /api/costs
-    tags=["Metrics"]
+    prefix="/api",
+    tags=["Metrics"],
+    dependencies=[Depends(get_current_admin)] # <--- 인증 추가
 )

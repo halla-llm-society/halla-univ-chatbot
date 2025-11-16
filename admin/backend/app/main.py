@@ -3,7 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pathlib import Path
-from app.api import routers  
+from app.api import routers
+from app.api import auth  
 from app.api import metrics
 from app.core.lifespan import lifespan
 
@@ -23,6 +24,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(auth.router, prefix="/admin")
 
 app.include_router(routers.router, prefix="/admin")
 
