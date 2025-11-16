@@ -86,7 +86,7 @@ const ChartComponent = ({ title, total, points = [], color, loading }) => {
           <p className={styles.loadingText}>데이터 로딩 중...</p>
         ) : (
           <>
-            <p className={styles.graphValue}>{total.toLocaleString()}</p>
+            <p className={styles.graphValue}>{total?.toLocaleString()}</p>
             <div className={styles.chartArea}>
               <Line options={options} data={data} />
             </div>

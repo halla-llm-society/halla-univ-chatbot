@@ -12,7 +12,7 @@ const router = createBrowserRouter([
     path: '/',
     element: <MainLayout />, // 레이어 걸어두기
     children: [
-      { path: '/', element: <UserQueryDataAnalysis /> }, // 기본 페이지
+      { path: '', element: <UserQueryDataAnalysis /> }, // 기본 페이지
       { path: '/statistics', element: <UserStatistics /> }, // /statistics 주소로 오면 이 페이지
       { path: '/traffic', element: <TrafficInquiry /> }, // /traffic 주소로 오면 이 페이지
       { path: '/cost', element: <UsageCostInquiry /> }, // /cost 주소로 오면 이 페이지
