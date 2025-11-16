@@ -29,8 +29,12 @@ class ChatbotStream:
           - 사용할 모델명 저장
           - 사용자 이름
         """
-        self.system_role = system_role
-        self.context = [{"role": "system","content": system_role}]
+        # 현재 날짜를 system_role에 추가
+        current_date = datetime.now().strftime("%Y년 %m월 %d일")
+        system_role_with_date = f"{system_role}\n\n현재 날짜: {current_date}"
+
+        self.system_role = system_role_with_date
+        self.context = [{"role": "system","content": system_role_with_date}]
                
         self.current_field = "main"
         
