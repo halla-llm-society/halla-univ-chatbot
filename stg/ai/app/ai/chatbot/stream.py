@@ -884,7 +884,21 @@ class ChatbotStream:
                             "token_counter": self.token_counter
                         }
                     elif tool_name == "get_halla_cafeteria_menu":
-                        func_args = {"date": "오늘", "meal": None}
+                        # 메시지에서 날짜 추출
+                        lowered_msg = message.lower()
+                        date_pref = "오늘"
+                        if "모레" in lowered_msg:
+                            date_pref = "모레"
+                        elif "내일" in lowered_msg:
+                            date_pref = "내일"
+                        elif "어제" in lowered_msg:
+                            date_pref = "어제"
+                        else:
+                            import re
+                            m = re.search(r"(\d{4}[./-]\d{1,2}[./-]\d{1,2})", message)
+                            if m:
+                                date_pref = m.group(1)
+                        func_args = {"date": date_pref, "meal": None}
                     
                     self._dbg(f"[FUNCTION] Reasoning 강제 실행 중: {tool_name}")
                     
@@ -948,8 +962,12 @@ class ChatbotStream:
                 
                 # 날짜 추출
                 date_pref = "오늘"
-                if "내일" in lowered:
+                if "모레" in lowered:
+                    date_pref = "모레"
+                elif "내일" in lowered:
                     date_pref = "내일"
+                elif "어제" in lowered:
+                    date_pref = "어제"
                 else:
                     import re
                     m = re.search(r"(\d{4}[./-]\d{1,2}[./-]\d{1,2})", message)
