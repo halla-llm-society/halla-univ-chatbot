@@ -63,7 +63,7 @@ jobs:
           IMAGE_TAG: ${{ github.sha }}
           SOURCE_PATH: ./admin
         run: |
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $SOURCE_PATH
+          docker build --build-arg VITE_GOOGLE_CLIENT_ID=${{ secrets.VITE_GOOGLE_CLIENT_ID }} -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $SOURCE_PATH
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           echo "image_uri=$ECR_REGISTRY/$ECR_REPOSITORY@$(docker inspect --format='{{index .RepoDigests 0}}' $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG | cut -d'@' -f2)" >> $GITHUB_OUTPUT
 
