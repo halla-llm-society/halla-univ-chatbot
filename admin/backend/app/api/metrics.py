@@ -1,195 +1,191 @@
-# backend/app/api/metrics.py
-from fastapi import APIRouter, Query
-from datetime import datetime, timedelta
-from pathlib import Path
-from typing import Dict, Any, List
-import json, yaml, os, boto3
+from fastapi import APIRouter, Depends, Query, HTTPException, status
+from motor.motor_asyncio import AsyncIOMotorDatabase
+from app.db.mongodb import get_mongo_db
+from pydantic import BaseModel
+from typing import List, Dict, Any
+import logging
+from datetime import datetime, timedelta, time
+from enum import Enum
+import asyncio # 3개의 DB 집계를 동시에 실행하기 위함
 
-router = APIRouter(prefix="/metrics", tags=["metrics"])
+router = APIRouter()
+logger = logging.getLogger(__name__)
 
-# =========================
-# ✅ 파일 경로 설정
-# =========================
-DATA_FILE = Path(__file__).resolve().parent.parent / "data" / "data.jsonl"   # LLM 사용 로그
-PRICING_FILE = Path(__file__).resolve().parent.parent / "config" / "pricing.yaml"  # 모델 단가 설정
+# --- 1. 기간(Period) 필터 Enum ---
+class Period(str, Enum):
+    DAY = "day"
+    WEEK = "week"
+    MONTH = "month"
 
-# =========================
-# ✅ YAML 가격 파일 로드
-# =========================
-def load_pricing():
-    """pricing.yaml 파일에서 모델별 단가를 읽어옵니다."""
-    if not PRICING_FILE.exists():
-        return []
-    try:
-        with open(PRICING_FILE, "r", encoding="utf-8") as f:
-            config = yaml.safe_load(f)
-            return config.get("models", [])
-    except Exception as e:
-        print(f"Error loading pricing.yaml: {e}")
-        return []
+# --- 2. Pydantic 응답 모델 정의 ---
 
-# =========================
-# ✅ 대화 로그 로드
-# =========================
-def get_conversations():
-    """LLM 호출 로그(JSONL)를 불러와 파싱합니다."""
-    if not DATA_FILE.exists():
-        return []
-    convs = []
-    try:
-        with open(DATA_FILE, "r", encoding="utf-8") as f:
-            for line in f:
-                if line.strip():
-                    convs.append(json.loads(line))
-    except Exception as e:
-        print(f"Error loading sample.jsonl: {e}")
-    return convs
+# 차트 데이터 포인트 (time: 라벨, value: 값)
+# UsageCostInquiry.jsx의 ChartComponent는 'value'를 props로 받음
+class CostPoint(BaseModel):
+    time: str
+    value: float # 프론트엔드에서 'value'를 사용
 
-# =========================
-# ✅ 토큰 사용량 데이터 추출
-# =========================
-def extract_token_usage(conv: Dict[str, Any]) -> Dict[str, Any]:
-    """대화 데이터에서 토큰 사용량과 비용을 추출합니다."""
-    token_usage = conv.get("token_usage", {})
+# LLM, Server, DB 각각의 데이터
+class PeriodCostData(BaseModel):
+    total: float
+    points: List[CostPoint]
 
-    return {
-        "input_tokens": token_usage.get("input_tokens", 0),
-        "output_tokens": token_usage.get("output_tokens", 0),
-        "total_cost_usd": token_usage.get("total_cost_usd", 0)
-    }
+# 기간별 비용 묶음
+class PeriodCosts(BaseModel):
+    llm: PeriodCostData
+    server: PeriodCostData
+    db: PeriodCostData
 
-# =========================
-# ✅ AWS 비용 계산 (Cost Explorer API)
-# =========================
-def get_aws_costs(days: int = 7):
+# 월 예상 비용
+class EstimatedMonthlyCost(BaseModel):
+    total: float
+    points: List[CostPoint]
+
+# cost.js의 getCosts가 기대하는 최종 응답 형태
+class CostsResponse(BaseModel):
+    grandTotal: float
+    periodCosts: PeriodCosts
+    estimatedMonthlyCost: EstimatedMonthlyCost
+
+
+# --- 3. 날짜 처리 헬퍼 함수 (year 제외) ---
+def get_date_range_and_group(period: Period) -> (datetime, datetime, str, str):
     """
-    AWS Cost Explorer API로 최근 n일간의 EC2, S3, DynamoDB 등 비용을 가져옵니다.
-    API 오류가 발생하면 기본값(0원)을 반환합니다.
+    기간(period)에 따라 MongoDB 집계에 필요한
+    시작/종료 날짜, 그룹 포맷, 라벨 포맷을 반환합니다.
+    """
+    now = datetime.now() 
+    
+    if period == Period.DAY:
+        start_date = now - timedelta(days=1)
+        group_format = "%Y-%m-%dT%H:00" 
+        label_format = "%H시"
+    elif period == Period.WEEK:
+        start_date = now - timedelta(days=7)
+        start_date = datetime.combine(start_date.date(), time.min)
+        group_format = "%Y-%m-%d"
+        label_format = "%m-%d"
+    elif period == Period.MONTH:
+        start_date = now - timedelta(days=30)
+        start_date = datetime.combine(start_date.date(), time.min)
+        group_format = "%Y-%m-%d"
+        label_format = "%m-%d"
+
+    return start_date, now, group_format, label_format
+
+
+# --- 4. API 엔드포인트: /api/costs ---
+@router.get(
+    "/costs", # cost.js가 호출하는 엔드포인트
+    response_model=CostsResponse,
+    summary="[비용] 기간별 모든 비용 데이터 (UsageCostInquiry용)"
+)
+async def get_costs_endpoint(
+    db: AsyncIOMotorDatabase = Depends(get_mongo_db),
+    period: Period = Query(..., description="조회 기간 (day, week, month)")
+):
+    """
+    프론트의 '사용비용 조회' 페이지가 요청하는 모든 데이터를 반환합니다.
+    - DB 컬렉션: `meta-stg`
+    - 집계: `metadata.token_usage.total_cost_usd` (LLM 비용)
+    - 참고: 서버/DB 비용은 meta-stg에 없으므로 0으로 반환합니다.
     """
     try:
-        client = boto3.client("ce", region_name="us-east-1")
+        start_date, end_date, group_format, label_format = get_date_range_and_group(period)
+        
+        # *** 사용할 컬렉션 ***
+        collection = db["metadata-stg"] 
+        # *** 집계할 필드 경로 ***
+        COST_FIELD = "metadata.token_usage.total_cost_usd"
 
-        end = datetime.utcnow().date()
-        start = end - timedelta(days=days)
+        # 1. 기간별(Period) 데이터 집계 (LLM 비용)
+        pipeline_period = [
+            {"$match": {"date": {"$gte": start_date, "$lte": end_date}}},
+            {
+                "$group": {
+                    "_id": {"$dateToString": {
+                        "format": group_format, 
+                        "date": "$date", 
+                        "timezone": "Asia/Seoul"
+                    }},
+                    "cost": {"$sum": f"${COST_FIELD}"}
+                }
+            },
+            {"$sort": {"_id": 1}}
+        ]
 
-        response = client.get_cost_and_usage(
-            TimePeriod={"Start": start.strftime("%Y-%m-%d"), "End": end.strftime("%Y-%m-%d")},
-            Granularity="DAILY",
-            Metrics=["UnblendedCost"],
-            GroupBy=[{"Type": "DIMENSION", "Key": "SERVICE"}],
+        # 2. 전체(Grand Total) 비용 집계
+        year_ago = datetime.now() - timedelta(days=365)
+        pipeline_grand_total = [
+            {"$match": {"date": {"$gte": year_ago}}},
+            {"$group": {"_id": None, "totalCost": {"$sum": f"${COST_FIELD}"}}}
+        ]
+        
+        # 3. 주간(Weekly) 비용 집계 (월 예상 비용 계산용)
+        week_ago = datetime.now() - timedelta(days=7)
+        pipeline_weekly = [
+            {"$match": {"date": {"$gte": week_ago}}},
+            {"$group": {"_id": None, "weeklyCost": {"$sum": f"${COST_FIELD}"}}}
+        ]
+
+        # 4. 3개 집계 동시 실행
+        (period_result, grand_total_result, weekly_result) = await asyncio.gather(
+            collection.aggregate(pipeline_period).to_list(length=None),
+            collection.aggregate(pipeline_grand_total).to_list(length=1),
+            collection.aggregate(pipeline_weekly).to_list(length=1)
         )
 
-        service_costs = {}
-        daily_points = {}
+        # 5-1. grandTotal 계산
+        grand_total = grand_total_result[0].get("totalCost", 0) if grand_total_result else 0
 
-        for result in response.get("ResultsByTime", []):
-            date = result["TimePeriod"]["Start"]
-            for group in result.get("Groups", []):
-                service = group["Keys"][0]
-                amount = float(group["Metrics"]["UnblendedCost"]["Amount"])
-                service_costs[service] = service_costs.get(service, 0) + amount
-                if service not in daily_points:
-                    daily_points[service] = []
-                daily_points[service].append({"time": date, "value": round(amount, 4)})
+        # 5-2. periodCosts (LLM) 계산
+        llm_points = []
+        llm_total = 0
+        for item in period_result:
+            if not item.get("_id"): continue
+            try:
+                if period == Period.DAY:
+                    time_obj = datetime.strptime(item["_id"], "%Y-%m-%dT%H:00")
+                else: # week, month
+                    time_obj = datetime.strptime(item["_id"], "%Y-%m-%d")
+                time_label = time_obj.strftime(label_format)
+            except ValueError:
+                time_label = item["_id"]
+            
+            cost = item.get("cost", 0)
+            llm_total += cost
+            llm_points.append(CostPoint(time=time_label, value=cost)) # 'value' 사용
 
-        total_cost = round(sum(service_costs.values()), 4)
+        # 5-3. Server, DB 비용 (데이터 없으므로 0)
+        empty_period_data = PeriodCostData(total=0, points=[])
 
-        return {
-            "total_cost_usd": total_cost,
-            "by_service": service_costs,
-            "daily_points": daily_points,  
-            }
+        # 5-4. estimatedMonthlyCost (월 예상 비용) 계산
+        # cost.js의 로직(주간*4)
+        weekly_total = weekly_result[0].get("weeklyCost", 0) if weekly_result else 0
+        estimated_total = weekly_total * 4
+        
+        # 4주치 포인트 생성
+        estimated_points = [
+            CostPoint(time='1주차', value=estimated_total * 0.25),
+            CostPoint(time='2주차', value=estimated_total * 0.5),
+            CostPoint(time='3주차', value=estimated_total * 0.75),
+            CostPoint(time='4주차', value=estimated_total * 1.0),
+        ]
+
+        # 6. 최종 응답 조립
+        return CostsResponse(
+            grandTotal=grand_total,
+            periodCosts=PeriodCosts(
+                llm=PeriodCostData(total=llm_total, points=llm_points),
+                server=empty_period_data,
+                db=empty_period_data
+            ),
+            estimatedMonthlyCost=EstimatedMonthlyCost(
+                total=estimated_total,
+                points=estimated_points
+            )
+        )
 
     except Exception as e:
-        print(f"[AWS ERROR] {e}")
-        # 실패해도 구조는 유지해야 함
-        return {
-            "total_cost_usd": 0,
-            "by_service": {},
-            "daily_points": {},  
-        }
-# =========================
-# ✅ LLM (토큰 기반) 비용 계산
-# =========================
-def get_llm_costs(days: int = 7):
-    """
-    sample.jsonl 로그를 기반으로 LLM API 호출 비용을 계산합니다.
-    기간(days) 동안의 총합 및 일별 데이터 포인트를 반환합니다.
-    """
-    now = datetime.now()
-    convs = get_conversations()
-    total_cost = 0.0
-    points = {}
-
-    for c in convs:
-        if not c.get("created_at"):
-            continue
-        try:
-            t = datetime.strptime(c["created_at"], "%Y-%m-%d %H:%M:%S")
-        except:
-            continue
-        # N일 이상 지난 데이터는 제외
-        if (now - t).days >= days:
-            continue
-        usage = extract_token_usage(c)
-        total_cost += usage["total_cost_usd"]
-        date_key = t.strftime("%Y-%m-%d")
-        points[date_key] = points.get(date_key, 0) + usage["total_cost_usd"]
-
-    # 날짜순 정렬 후 그래프용 포맷으로 변환
-    data_points = [{"time": k, "value": round(v, 4)} for k, v in sorted(points.items())]
-    return {"total": round(total_cost, 4), "points": data_points}
-
-# =========================
-# ✅ FastAPI 엔드포인트
-# =========================
-@router.get("/costs")
-def get_combined_costs(period: str = Query("week", enum=["day", "week", "month"])):
-    """
-    LLM + AWS 서버 + DB 사용 비용을 통합 계산합니다.
-    프론트엔드의 UsageCostInquiry.jsx에서 이 엔드포인트를 사용합니다.
-    """
-    # 기간 → 일수 변환
-    days = {"day": 1, "week": 7, "month": 30}.get(period, 7)
-
-    # LLM 및 AWS 비용 조회
-    llm = get_llm_costs(days)
-    aws = get_aws_costs(days)
-
-    # AWS 서비스별 비용 분리
-    server_cost = aws["by_service"].get("AmazonEC2", 0)  # 서버 (EC2)
-    # DB: S3 + RDS 모두 포함
-    db_cost = aws["by_service"].get("AmazonS3", 0) + aws["by_service"].get("AmazonRDS", 0)
-    llm_cost = llm["total"]
-
-    # 총합 계산
-    total = round(llm_cost + server_cost + db_cost, 4)
-
-    # 월 예상비용 (30일 기준 환산)
-    estimated_monthly = round(total * (30 / days), 4)
-
-    # =====================
-    # ✅ 프론트엔드 구조에 맞는 응답
-    # =====================
-    return {
-        "period": period,
-        "grandTotal": total,
-        "periodCosts": {
-            "llm": llm,  # LLM 토큰 비용
-            "server": {
-                "total": round(server_cost, 4),
-                "points": aws["daily_points"].get("AmazonEC2", [])
-            },
-            "db": {
-                "total": round(db_cost, 4),
-                "points": (
-                    aws["daily_points"].get("AmazonS3", [])
-                    + aws["daily_points"].get("AmazonRDS", [])
-                )
-            }
-        },
-        "estimatedMonthlyCost": {
-            "total": estimated_monthly,
-            "points": []
-        }
-    }
+        logger.error(f"Error fetching cost data: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
