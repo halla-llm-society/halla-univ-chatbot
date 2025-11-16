@@ -24,7 +24,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(routers.router)
+app.include_router(routers.router, prefix="/admin")
 
 #------------------------------------------------
 # 프론트엔드 파일 서빙(Docker, Local 구분)                  
