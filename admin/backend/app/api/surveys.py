@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, Query, HTTPException, status
-from motor.motor_asyncio import AsyncIOMotorDatabase
-from app.db.mongodb import get_mongo_db
+from motor.motor_asyncio import AsyncIOMotorDatabase, AsyncIOMotorCollection
+from app.db.mongodb import get_mongo_db, get_collection
 from pydantic import BaseModel
 from typing import List, Dict, Any
 import logging
@@ -65,6 +65,7 @@ def _process_category_distribution(
     dist_model = CategoryDistribution(labels=labels, counts=counts_list)
     return dist_model, high_percent
 
+get_survey_collection = get_collection("survey")
 
 # --- API 엔드포인트 ---
 @router.get(
@@ -73,12 +74,9 @@ def _process_category_distribution(
     summary="사용자 설문조사 통계"
 )
 async def get_survey_statistics(
-    db: AsyncIOMotorDatabase = Depends(get_mongo_db),
+    collection: AsyncIOMotorCollection = Depends(get_survey_collection),
     userGroup: str = Query('all', description="필터링할 사용자 그룹") 
 ):
-    
-    # 1. DB 컬렉션 선택
-    collection = db["survey-stg"] 
 
     # 2. 기본 필터링 단계($match) 구축
     match_stage = {}

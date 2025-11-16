@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, Query, HTTPException, status
-from motor.motor_asyncio import AsyncIOMotorDatabase
-from app.db.mongodb import get_mongo_db
+from motor.motor_asyncio import AsyncIOMotorDatabase, AsyncIOMotorCollection
+from app.db.mongodb import get_mongo_db, get_collection
 from pydantic import BaseModel
 from typing import List, Dict, Any
 import logging
@@ -75,13 +75,16 @@ def get_date_range_and_group(period: Period) -> (datetime, datetime, str, str):
 
 
 # --- 4. API 엔드포인트: /api/costs ---
+
+get_metadata_collection = get_collection("metadata")
+
 @router.get(
     "/costs", # cost.js가 호출하는 엔드포인트
     response_model=CostsResponse,
     summary="[비용] 기간별 모든 비용 데이터 (UsageCostInquiry용)"
 )
 async def get_costs_endpoint(
-    db: AsyncIOMotorDatabase = Depends(get_mongo_db),
+    collection: AsyncIOMotorCollection = Depends(get_metadata_collection),
     period: Period = Query(..., description="조회 기간 (day, week, month)")
 ):
     """
@@ -93,8 +96,6 @@ async def get_costs_endpoint(
     try:
         start_date, end_date, group_format, label_format = get_date_range_and_group(period)
         
-        # *** 사용할 컬렉션 ***
-        collection = db["metadata-stg"] 
         # *** 집계할 필드 경로 ***
         COST_FIELD = "metadata.token_usage.total_cost_usd"
 

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, Request, HTTPException, Query
-from motor.motor_asyncio import AsyncIOMotorDatabase
-from app.db.mongodb import get_mongo_db
+from motor.motor_asyncio import AsyncIOMotorDatabase, AsyncIOMotorCollection
+from app.db.mongodb import get_mongo_db, get_collection
 from pydantic import BaseModel
 from typing import List, Any, Dict
 import math
@@ -15,9 +15,12 @@ class UserQueryResponse(BaseModel):
     data: List[Dict[str, Any]] # 프론트엔드가 받을 데이터 리스트
     totalPages: int
 
+get_chat_collection = get_collection("chat")
+
 @router.get("/user-query-data", response_model=UserQueryResponse)
 async def get_user_query_data(
-    db: AsyncIOMotorDatabase = Depends(get_mongo_db),
+    
+    collection: AsyncIOMotorCollection = Depends(get_chat_collection),
     # 프론트엔드에서 보내는 파라미터를 받음
     page: int = Query(1, ge=1),
     cnt: int = Query(20, ge=1),
@@ -31,8 +34,6 @@ async def get_user_query_data(
     사용자 질의 데이터를 필터링, 정렬, 페이지네이션하여 반환합니다.
     """
     
-    # 1. DB 컬렉션 선택
-    collection = db["chat-stg"] 
 
     # 2. 검색 필터 구축 (MongoDB 쿼리)
     query: Dict[str, Any] = {}
