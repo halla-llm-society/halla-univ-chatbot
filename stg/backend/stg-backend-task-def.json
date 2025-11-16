@@ -40,6 +40,18 @@
         {
           "name": "REDIS_URL",
           "valueFrom": "arn:aws:ssm:ap-northeast-2:855738538544:parameter/chatbot/stg/REDIS_URL"
+        },
+        {
+          "name": "MONTHLY_COST_LIMIT",
+          "valueFrom": "arn:aws:ssm:ap-northeast-2:855738538544:parameter/chatbot/stg/MONTHLY_COST_LIMIT"
+        },
+        {
+          "name": "MONTHLY_WARNING_THRESHOLD",
+          "valueFrom": "arn:aws:ssm:ap-northeast-2:855738538544:parameter/chatbot/stg/MONTHLY_WARNING_THRESHOLD"
+        },
+        {
+          "name": "DISCORD_WEBHOOK_URL",
+          "valueFrom": "arn:aws:ssm:ap-northeast-2:855738538544:parameter/chatbot/stg/DISCORD_WEBHOOK_URL"
         }
       ],
       "logConfiguration": {
