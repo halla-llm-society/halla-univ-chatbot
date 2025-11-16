@@ -60,7 +60,7 @@ const Sidemenu = ({ isExpanded, onToggle }) => {
         <ul>
           {/* 윗쪽 그룹 */}
           <li>
-            <NavLink to="/chatbot"> {/* 경로는 예시입니다 */}
+            <NavLink to="https://halla-chatbot.com/stg/"> {/* 경로는 예시입니다 */}
               <PiRobotBold className={styles.icon} /> <span className={styles.text}>챗봇으로 가기 </span>
             </NavLink>
           </li>
