@@ -47,7 +47,7 @@ async def send_cost_warning(redis_client: redis.Redis, monthly_total_cost: float
         logger.error(f"Failed to send cost warning to Discord: {e}", exc_info=True)
         return
 
-    await redis_client.set(COST_WARNING_SENT_KEY, "true")
+    # await redis_client.set(COST_WARNING_SENT_KEY, "true")
 
 
 # 비용 한도 확인
