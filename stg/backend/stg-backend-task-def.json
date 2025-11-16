@@ -46,12 +46,20 @@
           "valueFrom": "arn:aws:ssm:ap-northeast-2:855738538544:parameter/chatbot/stg/MONTHLY_COST_LIMIT"
         },
         {
-          "name": "MONTHLY_WARNING_THRESHOLD",
-          "valueFrom": "arn:aws:ssm:ap-northeast-2:855738538544:parameter/chatbot/stg/MONTHLY_WARNING_THRESHOLD"
-        },
-        {
           "name": "DISCORD_WEBHOOK_URL",
           "valueFrom": "arn:aws:ssm:ap-northeast-2:855738538544:parameter/chatbot/stg/DISCORD_WEBHOOK_URL"
+        },
+        {
+          "name": "OPENAI_ADMIN_KEY",
+          "valueFrom": "arn:aws:ssm:ap-northeast-2:855738538544:parameter/chatbot/stg/OPENAI_ADMIN_KEY"
+        },
+        {
+          "name": "OPENAI_PROJECT_ID",
+          "valueFrom": "arn:aws:ssm:ap-northeast-2:855738538544:parameter/chatbot/stg/OPENAI_PROJECT_ID"
+        },
+        {
+          "name": "COSTS_API_URL",
+          "valueFrom": "arn:aws:ssm:ap-northeast-2:855738538544:parameter/chatbot/stg/COSTS_API_URL"
         }
       ],
       "logConfiguration": {
