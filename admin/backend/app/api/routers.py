@@ -3,6 +3,7 @@ from . import conversations, surveys, metrics
 from . import user_query
 from . import surveys
 from . import stats
+from . import metrics
 
 router = APIRouter()
 
@@ -28,4 +29,10 @@ router.include_router(
     stats.router,
     prefix="/api",  # /api/traffic/queries, /api/traffic/tokens
     tags=["Stats"]
+)
+
+router.include_router(
+    metrics.router,
+    prefix="/api",  # /api/costs
+    tags=["Metrics"]
 )
