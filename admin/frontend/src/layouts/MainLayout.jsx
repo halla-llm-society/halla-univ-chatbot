@@ -58,6 +58,10 @@ const MainLayout = () => {
     fetchEnv();
   }, []);
 
+  if (isLoading) {
+    return <div>Loading...</div>; // 로딩 중 표시
+  }
+
   return (
     <div className={styles.layoutContainer}>
       {/* 4. 상태와 상태 변경 함수를 Sidemenu에 props로 전달합니다. */}
