@@ -101,7 +101,13 @@ tools = [
                 "properties": {
                     "date": {
                         "type": "string",
-                        "description": "조회할 날짜. 형식 YYYY-MM-DD 또는 YYYY.MM.DD. '오늘', '내일' 허용. 기본값은 '오늘'입니다.",
+                        "description": """조회할 날짜를 정규화하여 전달합니다.
+허용 형식:
+- 상대 날짜: "오늘", "내일", "모레", "어제"
+- 절대 날짜: YYYY-MM-DD 형식 (예: "2025-11-18")
+- 오타 처리: "야모레" → "모레"로 자동 변환
+- 자연어: "이틀 후" → "모레", "다음주 월요일" → 날짜 계산
+기본값: "오늘" """,
                     },
                     "meal": {
                         "type": "string",
@@ -401,6 +407,8 @@ def _parse_date_input(date_text: Optional[str]) -> datetime.date:
         return today - timedelta(days=1)
     if s in ("모레", "day after tomorrow"):
         return today + timedelta(days=2)
+    if s in ("글피", "3 days later"):
+        return today + timedelta(days=3)
     # Normalize separators and parse flexibly (YYYY.M.D or YYYY.MM.DD)
     s_norm = s.replace("/", ".").replace("-", ".")
     parts = s_norm.split(".")
@@ -728,7 +736,32 @@ class FunctionCalling:
 
         # 2단계: 기존 함수 호출 분석 (OpenAI API)
 
+        # 현재 날짜 정보 생성
+        current_date = datetime.now()
+        date_info = current_date.strftime("%Y년 %m월 %d일 (%A)")
+        weekday_map = {
+            "Monday": "월요일", "Tuesday": "화요일", "Wednesday": "수요일",
+            "Thursday": "목요일", "Friday": "금요일", "Saturday": "토요일", "Sunday": "일요일"
+        }
+        weekday_kr = weekday_map.get(current_date.strftime("%A"), "")
+        date_info = current_date.strftime(f"%Y년 %m월 %d일 ({weekday_kr})")
+
         structured_input = [
+            {
+                "role": "system",
+                "content": f"""현재 날짜: {date_info}
+
+한국어 날짜 표현 감각: 오늘(today) → 내일(tomorrow) → 모레(day after tomorrow) → 글피(3 days later) 순서로 진행됩니다.
+
+함수 파라미터로 날짜를 전달할 때, 한국어 날짜 맥락을 정확히 이해하고 사용자 의도에 맞게 변환해주세요.사용자는 오타를 적을 수 있으니 당신이 수정 해야합니다 
+아래 예시는 참고사항일 뿐이며, 실제 사용자 입력의 맥락을 우선하여 유연하게 해석하세요:
+- 오타 포함: "야모레" → "모레"
+- 상대적 표현: "이틀 후" → "모레", "3일 후" → "글피"
+- 자연어 날짜: "다음주 월요일" → YYYY-MM-DD로 계산
+- 날짜 미언급 시: "오늘"
+
+출력 예시: "오늘", "내일", "모레", "글피", "2025-11-18" """
+            },
             {
                 "role": "user",
                 "content": [
@@ -772,7 +805,7 @@ class FunctionCalling:
             }
     
 
-###    def run(self, analyzed,context):
+###   레거시 def run(self, analyzed,context):
         ''' analyzed_dict: 함수 호출 정보, context: 현재 문맥'''
         context.append(analyzed)
         for tool_call in analyzed:

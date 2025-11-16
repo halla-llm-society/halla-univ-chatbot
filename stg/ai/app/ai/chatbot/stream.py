@@ -959,22 +959,9 @@ class ChatbotStream:
                     meal_pref = "석식"
                 elif "점심" in lowered or "중식" in lowered:
                     meal_pref = "중식"
-                
-                # 날짜 추출
-                date_pref = "오늘"
-                if "모레" in lowered:
-                    date_pref = "모레"
-                elif "내일" in lowered:
-                    date_pref = "내일"
-                elif "어제" in lowered:
-                    date_pref = "어제"
-                else:
-                    import re
-                    m = re.search(r"(\d{4}[./-]\d{1,2}[./-]\d{1,2})", message)
-                    if m:
-                        date_pref = m.group(1)
-                
-                caf_args = {"date": date_pref, "meal": meal_pref}
+
+                # 날짜는 기본값 사용 (Function calling에서 이미 정규화되어 넘어옴)
+                caf_args = {"date": "오늘", "meal": meal_pref}
                 get_cafeteria_fn = self.available_functions.get("get_halla_cafeteria_menu")
                 
                 if not get_cafeteria_fn:
