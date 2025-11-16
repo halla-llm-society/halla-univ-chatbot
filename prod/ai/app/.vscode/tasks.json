@@ -1,0 +1,13 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Run API (uvicorn)",
+      "type": "shell",
+      "command": "${workspaceFolder}/.venv/bin/python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000",
+      "options": {
+        "cwd": "${workspaceFolder}/.."
+      }
+    }
+  ]
+}
