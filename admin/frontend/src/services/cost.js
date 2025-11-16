@@ -58,7 +58,7 @@ export const getCosts = async (params) => {
   }
 
   try {
-    const response = await apiClient.get('/costs', { params });
+    const response = await apiClient.get('/api/costs', { params });
     return response.data;
   } catch (error) {
     console.error("Error fetching all costs:", error);

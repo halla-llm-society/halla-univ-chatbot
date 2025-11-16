@@ -28,7 +28,7 @@ export const getSurveyStatistics = async (params) => {
   // ----------------------------------------------------
   try {
     // 예시: GET /api/statistics/survey?userGroup=all
-    const response = await apiClient.get('/statistics-survey', { params });
+    const response = await apiClient.get('/api/statistics-survey', { params });
     return response.data;
   } catch (error) {
     console.error("Error fetching survey statistics:", error);

@@ -21,7 +21,7 @@ export const getUserQueryData = async (params) => {
   try {
     // 예시: /user-query-data?page=1&cnt=20&sort=asc&search=날씨
     // 예시: GET /user-query-data?page=1&sort=desc&startDate=2025-10-10&endDate=2025-10-13
-    const response = await apiClient.get('/user-query-data', { params });
+    const response = await apiClient.get('/api/user-query-data', { params });
     return response.data;
   } catch (error) {
     console.error("Error fetching user query data:", error);
