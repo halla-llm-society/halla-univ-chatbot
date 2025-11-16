@@ -1,12 +1,16 @@
-import os
+import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .api import routers
+from app.api.routes import router as api_router 
+from app.core.config import settings
+from app.core.lifespan import lifespan
 
-ROOT_PATH = os.getenv("ROOT_PATH", "") # stg용 root path
+logging.basicConfig(level=logging.INFO)
+
 app = FastAPI(
-    title="Chatbot Prod Backend Service",
-    root_path=ROOT_PATH 
+    title="Chatbot Backend Service",
+    lifespan=lifespan,
+    root_path=settings.ROOT_PATH
 )
 
 origins = [
@@ -22,13 +26,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(routers.router)
+app.include_router(api_router, prefix="/api")
 
 # 접속 테스트
 @app.get("/")
 async def root():
     return {
-        "server": "prod",
+        "server": "staging",
         "service": "backend",
         "status": "ok"
     }

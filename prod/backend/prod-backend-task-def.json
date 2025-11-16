@@ -1,40 +1,68 @@
 {
-    "family": "chatbot-prod-backend-task",
-    "executionRoleArn": "arn:aws:iam::855738538544:role/ecsTaskExecutionRole",
-    "networkMode": "awsvpc",
-    "requiresCompatibilities": [
-        "FARGATE"
-    ],
-    "cpu": "256",
-    "memory": "512",
-    "containerDefinitions": [
+  "family": "chatbot-prod-backend-task",
+  "executionRoleArn": "arn:aws:iam::855738538544:role/ecsTaskExecutionRole",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": [
+    "FARGATE"
+  ],
+  "cpu": "256",
+  "memory": "512",
+  "containerDefinitions": [
+    {
+      "name": "chatbot-prod-backend",
+      "image": "<IMAGE_URI>",
+      "essential": true,
+      "cpu": 0,
+      "portMappings": [
         {
-            "name": "chatbot-prod-backend",
-            "image": "<IMAGE_URI>",
-            "essential": true,
-            "cpu": 0,
-            "portMappings": [
-                {
-                    "containerPort": 8000,
-                    "protocol": "tcp",
-                    "appProtocol": "http"
-                }
-            ],
-            "secrets": [
-                {
-                    "name": "AI_SERVICE_URL",
-                    "valueFrom": "arn:aws:ssm:ap-northeast-2:855738538544:parameter/chatbot/AI_SERVICE_URL"
-                }
-            ],
-            "logConfiguration": {
-                "logDriver": "awslogs",
-                "options": {
-                    "awslogs-group": "/ecs/chatbot-prod-backend-task",
-                    "awslogs-region": "ap-northeast-2",
-                    "awslogs-stream-prefix": "ecs",
-                    "awslogs-create-group": "true"
-                }
-            }
+          "containerPort": 8000,
+          "protocol": "tcp",
+          "appProtocol": "http"
         }
-    ]
+      ],
+      "secrets": [
+        {
+          "name": "AI_SERVICE_URL",
+          "valueFrom": "arn:aws:ssm:ap-northeast-2:855738538544:parameter/chatbot/AI_SERVICE_URL"
+        },
+        {
+          "name": "MONGODB_SUFFIX",
+          "valueFrom": "arn:aws:ssm:ap-northeast-2:855738538544:parameter/chatbot/MONGODB_SUFFIX"
+        },
+        {
+          "name": "MONGODB_URI",
+          "valueFrom": "arn:aws:ssm:ap-northeast-2:855738538544:parameter/chatbot/MONGODB_URI"
+        },
+        {
+          "name": "MONTHLY_COST_LIMIT",
+          "valueFrom": "arn:aws:ssm:ap-northeast-2:855738538544:parameter/chatbot/MONTHLY_COST_LIMIT"
+        },
+        {
+          "name": "DISCORD_WEBHOOK_URL",
+          "valueFrom": "arn:aws:ssm:ap-northeast-2:855738538544:parameter/chatbot/DISCORD_WEBHOOK_URL"
+        },
+        {
+          "name": "OPENAI_ADMIN_KEY",
+          "valueFrom": "arn:aws:ssm:ap-northeast-2:855738538544:parameter/chatbot/OPENAI_ADMIN_KEY"
+        },
+        {
+          "name": "OPENAI_PROJECT_ID",
+          "valueFrom": "arn:aws:ssm:ap-northeast-2:855738538544:parameter/chatbot/OPENAI_PROJECT_ID"
+        },
+        {
+          "name": "COSTS_API_URL",
+          "valueFrom": "arn:aws:ssm:ap-northeast-2:855738538544:parameter/chatbot/COSTS_API_URL"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/chatbot-prod-backend-task",
+          "awslogs-region": "ap-northeast-2",
+          "awslogs-stream-prefix": "ecs",
+          "awslogs-create-group": "true"
+        }
+      }
+    }
+  ]
 }

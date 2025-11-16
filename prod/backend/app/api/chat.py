@@ -1,28 +1,28 @@
-import os  
-import httpx
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
-from .schemas import ChatRequest
+from motor.motor_asyncio import AsyncIOMotorDatabase
+import logging
+
+from app.schemas.chat_schema import ChatRequest
+from app.db.mongodb import get_mongo_db
+from app.services.chat_service import stream_chat_response
+from app.services.cost_limit import check_cost_limit
 
 
 router = APIRouter()
-AI_SERVICE_URL = os.getenv("AI_SERVICE_URL", "http://chatbot-ai-container:8000")
-
-@router.post("/chat")
-async def proxy_chat_to_ai(request: ChatRequest):
-    return StreamingResponse(stream_ai_response(request), media_type="text/event-stream")
+logger = logging.getLogger(__name__)
 
 
-async def stream_ai_response(request: ChatRequest):
-    ai_endpoint = f"{AI_SERVICE_URL}/api/chat"
-    
+@router.post("")
+async def chat(request: ChatRequest, mongo_client: AsyncIOMotorDatabase = Depends(get_mongo_db)):
     try:
-        async with httpx.AsyncClient() as client:
-            async with client.stream("POST", ai_endpoint, json=request.dict(), timeout=120.0) as response:
-                response.raise_for_status()
-                async for chunk in response.aiter_bytes():
-                    yield chunk
-    except httpx.RequestError as exc:
-        error_message = f"Error calling AI service: {exc}"
-        print(error_message)
-        yield error_message.encode('utf-8')
+        await check_cost_limit()
+        return StreamingResponse(stream_chat_response(request, mongo_client), media_type="text/event-stream")
+    
+    except HTTPException as e:
+        if e.status_code == status.HTTP_429_TOO_MANY_REQUESTS:
+            error_message = "월 사용량 한도 초과로 인해 챗봇 운영이 일시 중지되었습니다."
+            return StreamingResponse([error_message.encode("utf-8")], media_type="text/event-stream")
+    
+    except Exception as e:
+        logger.error(f"Error in chat endpoint: {e}", exc_info=True)
