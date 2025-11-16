@@ -1,0 +1,41 @@
+.loginContainer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  background-color: #f4f7f6;
+}
+
+.loginBox {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  text-align: center;
+}
+
+.logo {
+  width: 150px;
+  margin-bottom: 20px;
+}
+
+.loginBox h2 {
+  font-size: 1.5rem;
+  margin-bottom: 10px;
+}
+
+.loginBox p {
+  font-size: 1rem;
+  color: #555;
+  margin-bottom: 30px;
+}
+
+.googleButtonWrapper {
+  /* GoogleLogin 컴포넌트가 내부적으로 iframe을 사용할 수 있어 
+     가끔 스타일이 깨지므로 래퍼로 감쌉니다. */
+  display: flex;
+  justify-content: center;
+}

@@ -20,7 +20,7 @@ export const getTrafficQueries = async (params) => {
   }
 
   try {
-    const response = await apiClient.get('/traffic/queries', { params });
+    const response = await apiClient.get('/api/traffic/queries', { params });
     return response.data;
   } catch (error) {
     console.error("Error fetching traffic queries:", error);
@@ -47,7 +47,7 @@ export const getTrafficTokens = async (params) => {
   }
 
   try {
-    const response = await apiClient.get('/traffic/tokens', { params });
+    const response = await apiClient.get('/api/traffic/tokens', { params });
     return response.data;
   } catch (error) {
     console.error("Error fetching traffic tokens:", error);

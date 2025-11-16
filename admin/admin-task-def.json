@@ -34,9 +34,29 @@
           "name": "STG_MONGODB_URI",
           "valueFrom": "arn:aws:ssm:ap-northeast-2:855738538544:parameter/chatbot/admin/STG_MONGODB_URI"
         },
-                {
+        {
           "name": "PROD_MONGODB_URI",
           "valueFrom": "arn:aws:ssm:ap-northeast-2:855738538544:parameter/chatbot/admin/PROD_MONGODB_URI"
+        },
+        {
+          "name": "GOOGLE_CLIENT_ID",
+          "valueFrom": "arn:aws:ssm:ap-northeast-2:855738538544:parameter/chatbot/admin/GOOGLE_CLIENT_ID"
+        },
+        {
+          "name": "ALLOWED_ADMIN_EMAIL",
+          "valueFrom": "arn:aws:ssm:ap-northeast-2:855738538544:parameter/chatbot/admin/ALLOWED_ADMIN_EMAIL"
+        },
+        {
+          "name": "JWT_SECRET_KEY",
+          "valueFrom": "arn:aws:ssm:ap-northeast-2:855738538544:parameter/chatbot/admin/JWT_SECRET_KEY"
+        },
+        {
+          "name": "JWT_ALGORITHM",
+          "valueFrom": "arn:aws:ssm:ap-northeast-2:855738538544:parameter/chatbot/admin/JWT_ALGORITHM"
+        },
+        {
+          "name": "VITE_GOOGLE_CLIENT_ID",
+          "valueFrom": "arn:aws:ssm:ap-northeast-2:855738538544:parameter/chatbot/admin/VITE_GOOGLE_CLIENT_ID"
         }
       ]
     }
