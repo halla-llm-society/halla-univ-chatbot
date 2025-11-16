@@ -13,6 +13,10 @@ class Settings(BaseSettings):
     # Redis(AWS ElastiCache) 설정
     REDIS_URL: str = "redis://local-redis:6379"
     MONTHLY_COST_LIMIT: float = 1000.
+    MONTHLY_WARNING_THRESHOLD: float = 900.
+
+    # Discord 설정
+    DISCORD_WEBHOOK_URL: str
 
     class Config:
         env_file = ".env" 
