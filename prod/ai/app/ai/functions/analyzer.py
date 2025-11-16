@@ -1,4 +1,3 @@
-from chatbotDirectory.common import client, model, makeup_response
 import json
 import requests
 from pprint import pprint
@@ -7,15 +6,77 @@ import time
 from datetime import datetime, timedelta
 from typing import Optional
 from bs4 import BeautifulSoup
-
 import os
+from pathlib import Path
+from openai import OpenAI
+from dotenv import load_dotenv
+from dataclasses import dataclass
+
+# LLM Manager import
+try:
+    from app.ai.llm import get_provider
+except ImportError:
+    # 상대 경로로 시도
+    from ..llm import get_provider
+
+# ShuttleBus Service import
+try:
+    from app.ai.functions.shuttle_bus_service import ShuttleBusService
+except ImportError:
+    from .shuttle_bus_service import ShuttleBusService
+
+# 순환 참조 방지: config 대신 직접 생성
+_BASE_DIR = Path(__file__).resolve().parent.parent.parent  # app/
+_DOTENV_PATH = _BASE_DIR / "apikey.env"
+load_dotenv(_DOTENV_PATH)
+
+@dataclass(frozen=True)
+class Model: 
+    basic: str = "gpt-3.5-turbo-1106"
+    advanced: str = "gpt-4.1"
+    o3_mini: str = "o3-mini"
+    o1: str = "o1"
+
+model = Model()
+api_key = os.getenv("OPENAI_API_KEY")
+client = OpenAI(api_key=api_key, max_retries=1)
+
+def makeup_response(message, finish_reason="ERROR"):
+    '''api 응답형식으로 반환해서
+       개발자가 임의로 생성한 메세지를
+       기존 출력 함수로 출력하는 용도인 함수'''
+    return {
+        "choices": [
+            {
+                "finish_reason": finish_reason,
+                "index": 0,
+                "message": {
+                    "role": "assistant",
+                    "content": message
+                }                   
+            }
+        ],
+        "usage": {"total_tokens": 0},
+    }
+    
 tools = [
         
             {
             "type": "function",
             "name": "search_internet",
-            "description": "Searches the internet based on user input and retrieves relevant information",
-            "strict": True,
+            "description": """인터넷에서 최신 정보를 검색하는 함수입니다.
+
+            ⚠️ 이 함수를 사용해야 하는 경우:
+            - 최신 공지사항, 뉴스, 이벤트 정보
+            - 한라대학교 웹사이트의 최신 정보
+            - 일반적인 웹 검색이 필요한 경우
+
+            ❌ 이 함수를 사용하지 말아야 하는 경우:
+            - 통학버스, 셔틀버스 관련 질문 → get_shuttle_bus_info 사용
+            - 학식, 식단 관련 질문 → get_halla_cafeteria_menu 사용
+            - 학사규정 관련 질문 → RAG 시스템 사용 (자동 처리)
+
+            통학버스 시간표, 탑승 위치, 예약 방법 등은 반드시 get_shuttle_bus_info 함수를 사용하세요.""",
             "parameters": {
                 "type": "object",
                 "required": [
@@ -34,14 +95,19 @@ tools = [
             "type": "function",
             "name": "get_halla_cafeteria_menu",
             "description": "원주 한라대학교 학생식당의 메뉴를 궁금해 하면 이 함수를 호출하세요. 주간 식단 페이지에서 특정 날짜/끼니의 메뉴를 추출합니다.",
-            "strict": True,
             "parameters": {
                 "type": "object",
                 "required": ["date"],
                 "properties": {
                     "date": {
                         "type": "string",
-                        "description": "조회할 날짜. 형식 YYYY-MM-DD 또는 YYYY.MM.DD. '오늘', '내일' 허용. 기본값은 '오늘'입니다.",
+                        "description": """조회할 날짜를 정규화하여 전달합니다.
+허용 형식:
+- 상대 날짜: "오늘", "내일", "모레", "어제"
+- 절대 날짜: YYYY-MM-DD 형식 (예: "2025-11-18")
+- 오타 처리: "야모레" → "모레"로 자동 변환
+- 자연어: "이틀 후" → "모레", "다음주 월요일" → 날짜 계산
+기본값: "오늘" """,
                     },
                     "meal": {
                         "type": "string",
@@ -52,13 +118,43 @@ tools = [
                 "additionalProperties": False
             }
             },
-      
-       
-      
+            {
+            "type": "function",
+            "name": "get_shuttle_bus_info",
+            "description": """한라대학교 통학버스(셔틀버스) 정보를 제공하는 전용 함수입니다.
+
+            ⚠️ 이 함수를 반드시 사용해야 하는 경우:
+            - '통학버스', '셔틀버스', '스쿨버스' 관련 질문
+            - '등교', '하교' 시간 문의
+            - '원주역', '만종역', '청솔', '시외버스터미널' 등 원주 시내 출발지
+            - '서울', '수원', '여주', '잠실', '강변', '노원' 등 시외 출발지
+            - 버스 탑승 위치, 시간표, 노선, 예약 방법, 요금 질문
+
+            ⚠️ 통학버스 관련 질문은 인터넷 검색이 아닌 이 함수만 사용하세요.
+
+            지원 정보:
+            - 시내버스: 만종역, 대명원, 시외버스터미널, 무실동, 원주역, 청솔아파트, 한국가스공사, 오성마을, 오페라웨딩홀
+            - 시외버스: 서울(잠실,강변,상봉,천호,노원), 수원/여주(라마다호텔,아주대,영통,기흥,여주역)
+            - 이용안내: 예약방법, 취소방법, 요금, 적립금""",
+            "parameters": {
+                "type": "object",
+                "required": ["user_query"],
+                "properties": {
+                    "user_query": {
+                        "type": "string",
+                        "description": "사용자의 통학버스 관련 질문 원문. 예: '수원 하교시간', '원주역 등교 버스', '서울 통학버스 예약'"
+                    }
+                },
+                "additionalProperties": False
+            }
+            },
+
+
+
     ]
 
 # --- 공지 카테고리 LLM 분류기 ---
-def _classify_notice_category_llm(user_input: str, context_info: str | None = None) -> str | None:
+async def _classify_notice_category_llm(user_input: str, context_info: str | None = None, token_counter=None) -> str | None:
     """사용자 입력이 어떤 공지사항 카테고리인지 LLM으로 분류하여 카테고리 문자열을 반환.
     반환 가능 값: "학사공지", "비교과공지", "장학공지", "일반공지", "해당없음". 인식 실패 시 None.
     """
@@ -74,14 +170,24 @@ def _classify_notice_category_llm(user_input: str, context_info: str | None = No
             "정답:"
         )
 
-        resp = client.responses.create(
-            model=model.o3_mini,
-            input=[{
-                "role": "user",
-                "content": [{"type": "input_text", "text": prompt}],
-            }],
-        )
-        raw = (getattr(resp, "output_text", None) or "").strip()
+        # LLM Manager를 통해 Provider 선택 (교체 가능)
+        provider = get_provider("category")
+        messages = [{
+            "role": "user",
+            "content": [{"type": "input_text", "text": prompt}],
+        }]
+        raw, usage = await provider.simple_completion(messages)
+        raw = raw.strip()
+
+        # ✅ API usage 기반 토큰 계산
+        if token_counter and usage:
+            token_counter.update_from_api_usage(
+                usage=usage,
+                role="category",
+                model=provider.get_model_name(),
+                category="function"
+            )
+        
         print("공지 카테고리 분류기 원문:", raw)
         # 정규화 및 선택
         text_norm = raw.replace(" ", "").replace("\n", "")
@@ -89,11 +195,12 @@ def _classify_notice_category_llm(user_input: str, context_info: str | None = No
             if a in text_norm:
                 return a
         return None
-    except Exception:
+    except Exception as e:
+        print(f"[_classify_notice_category_llm] Error: {e}")
         return None
 
 # --- 규칙 기반 사이트 선호 라우팅 ---
-def _prefer_halla_site_query(user_input: str, context_info: str | None = None) -> str | None:
+async def _prefer_halla_site_query(user_input: str, context_info: str | None = None, token_counter=None) -> str | None:
     """특정 요구사항일 때 한라대 특정 페이지를 우선 탐색하도록 검색어를 구성.
     매칭되면 URL과 site 필터를 포함한 쿼리를 반환, 없으면 None.
     """
@@ -107,7 +214,7 @@ def _prefer_halla_site_query(user_input: str, context_info: str | None = None) -
         return f"site:halla.ac.kr {url} {user_input}"
 
     # 공지 라우팅: LLM 분류 기반 → 실패 시 키워드 기반 폴백
-    category = _classify_notice_category_llm(user_input, context_info)
+    category = await _classify_notice_category_llm(user_input, context_info, token_counter)
     category_to_url = {
         "학사공지": "https://www.halla.ac.kr/kr/242/subview.do",
         "비교과공지": "https://www.halla.ac.kr/kr/243/subview.do",
@@ -136,7 +243,7 @@ def _prefer_halla_site_query(user_input: str, context_info: str | None = None) -
     # 미매칭 시 라우팅 없음
     return None
 
-def search_internet(user_input: str, chat_context=None) -> str:
+async def search_internet(user_input: str, chat_context=None, token_counter=None) -> str:
     start_ts = time.time()
     print(f"[WEB][START] query='{user_input}' chat_ctx={'Y' if chat_context else 'N'}")
     try:
@@ -150,21 +257,55 @@ def search_internet(user_input: str, chat_context=None) -> str:
             recent_messages = []
             context_info = ""
 
-        preferred = _prefer_halla_site_query(user_input, context_info if context_info else None)
-        if preferred:
-            search_text = preferred
+        preferred = await _prefer_halla_site_query(user_input, context_info if context_info else None, token_counter)
+        
+        # 현재 날짜 정보 추가
+        current_date = datetime.now()
+        date_str = current_date.strftime("%Y년 %m월 %d일")
+        year_str = current_date.strftime("%Y")
+        
+        # 공지사항 관련 검색인지 판단
+        is_notice_query = any(keyword in user_input.lower() for keyword in ["공지", "notice", "알림", "announcement"])
+        
+        # LLM 에이전트로 검색어 재작성 (context_info 포함)
+        rewrite_prompt = (
+            f"[현재 날짜] {date_str} ({year_str}년)\n"
+            f"[사용자 요청] {user_input}\n"
+            f"[대화 문맥] {context_info or '없음'}\n\n"
+            "검색어 작성 규칙:\n"
+            "1. site:halla.ac.kr 필수 포함\n"
+        )
+        
+        # 공지사항 검색이면 항상 현재 연도 포함
+        if is_notice_query:
+            rewrite_prompt += (
+                f"2. **중요**: 공지사항 검색이므로 반드시 현재 연도({year_str}년)를 검색어에 포함하세요\n"
+                "3. 공지사항 검색 시 반드시 'halla.ac.kr > 커뮤니티 > 공지사항' 경로 명시\n"
+                "4. 간결하고 핵심적인 검색어로 구성\n"
+            )
         else:
-            # 재작성 요청
-            rewrite_prompt = (
-                f"{user_input}\n\n[대화 문맥]: {context_info} 를 참고해 (이전 문맥과 연결된 후속 질문이면 연관된 핵심 키워드 포함) "
-                "간결한 검색어 조합을 새로 만들어라. 가능하면 site:halla.ac.kr 또는 관련 공식 URL 포함."
+            rewrite_prompt += (
+                f"2. '최신', '최근', '요즘' 키워드 발견 시 반드시 현재 연도({year_str}년)를 검색어에 포함하세요\n"
+                "3. 간결하고 핵심적인 검색어로 구성\n"
             )
-            rewrite_resp = client.responses.create(
-                model="gpt-4o",
-                input=[{"role": "user", "content": [{"type": "input_text", "text": rewrite_prompt}]}],
-                text={"format": {"type": "text"}},
+        
+        # preferred가 있으면 추가 정보로 활용
+        if preferred:
+            rewrite_prompt += f"\n[추천 URL] {preferred}\n이 URL에서 최신 정보를 우선 검색하세요.\n"
+        
+        provider = get_provider("search_rewrite")
+        messages = [{"role": "user", "content": [{"type": "input_text", "text": rewrite_prompt}]}]
+        search_text, usage = await provider.simple_completion(messages)
+        search_text = search_text.strip()
+
+        # ✅ API usage 기반 토큰 계산
+        if token_counter and usage:
+            token_counter.update_from_api_usage(
+                usage=usage,
+                role="search_rewrite",
+                model=provider.get_model_name(),
+                category="function"
             )
-            search_text = rewrite_resp.output_text.strip()
         print(f"[WEB] final_search_text='{search_text}'")
 
         context_input = [{
@@ -191,6 +332,39 @@ def search_internet(user_input: str, chat_context=None) -> str:
         )
         print(f"[WEB] openai.responses.create elapsed={time.time()-call_ts:.2f}s total={time.time()-start_ts:.2f}s")
 
+        # ✅ API usage 추적 (web_search 역할)
+        if token_counter:
+            if hasattr(response, 'usage') and response.usage:
+                # API usage 정보 추출
+                input_tok = getattr(response.usage, "input_tokens", 0)
+                output_tok = getattr(response.usage, "output_tokens", 0)
+
+                # reasoning_tokens 추출 (필요시)
+                reasoning_tok = 0
+                if hasattr(response.usage, 'output_tokens_details') and response.usage.output_tokens_details:
+                    reasoning_tok = getattr(response.usage.output_tokens_details, 'reasoning_tokens', 0)
+
+                # total_tokens 계산
+                total_tok = getattr(response.usage, "total_tokens", input_tok + output_tok)
+
+                usage_data = {
+                    "input_tokens": input_tok,
+                    "output_tokens": output_tok,
+                    "reasoning_tokens": reasoning_tok,
+                    "total_tokens": total_tok,
+                }
+
+                token_counter.update_from_api_usage(
+                    usage=usage_data,
+                    role="web_search",
+                    model=model.advanced,  # gpt-4.1
+                    category="function",
+                    replace=False
+                )
+                print(f"[TokenTrack][web_search] ✅ API usage tracked: input={input_tok}, output={output_tok}, reasoning={reasoning_tok}")
+            else:
+                print(f"[TokenTrack][web_search] ⚠️ No API usage available")
+
         did_call = any(getattr(item, "type", None) == "web_search_call" for item in getattr(response, "output", []))
         print(f"[WEB] search_call_performed={did_call}")
 
@@ -201,7 +375,6 @@ def search_internet(user_input: str, chat_context=None) -> str:
         if not content_block:
             return "❌ GPT 응답 내 output_text 항목을 찾을 수 없습니다."
         output_text = getattr(content_block, "text", "").strip()
-        print(f"[WEB][DEBUG] LLM output_text:\n{output_text}")
         annotations = getattr(content_block, "annotations", [])
         citations = []
         for a in annotations:
@@ -234,6 +407,8 @@ def _parse_date_input(date_text: Optional[str]) -> datetime.date:
         return today - timedelta(days=1)
     if s in ("모레", "day after tomorrow"):
         return today + timedelta(days=2)
+    if s in ("글피", "3 days later"):
+        return today + timedelta(days=3)
     # Normalize separators and parse flexibly (YYYY.M.D or YYYY.MM.DD)
     s_norm = s.replace("/", ".").replace("-", ".")
     parts = s_norm.split(".")
@@ -391,11 +566,9 @@ def get_halla_cafeteria_menu(date: Optional[str] = None, meal: Optional[str] = N
         if not val:
             out = header + f"\n[{meal}] 정보 없음\n추가 사항: 원문: {url}"
             print(f"[CAF][END] elapsed={time.time()-t0:.2f}s meal-miss")
-            print(f"[CAF][DEBUG] LLM output_text:\n{out}")
             return out
         out = header + f"\n[{meal}] {val}\n추가 사항: 원문: {url}"
         print(f"[CAF][END] elapsed={time.time()-t0:.2f}s meal-hit")
-        print(f"[CAF][DEBUG] LLM output_text:\n{out}")
         return out
 
     # 3끼 모두 반환
@@ -405,15 +578,95 @@ def get_halla_cafeteria_menu(date: Optional[str] = None, meal: Optional[str] = N
         lines_out.append(f"[{k}] {v if v else '정보 없음'}")
     out = header + "\n" + "\n".join(lines_out) + f"\n추가 사항: 원문: {url}"
     print(f"[CAF][END] elapsed={time.time()-t0:.2f}s all-meals")
-    print(f"[CAF][DEBUG] LLM output_text:\n{out}")
     return out
 
+
+# 통학버스 서비스 싱글톤 인스턴스
+_shuttle_bus_service = None
+
+def _get_shuttle_bus_service():
+    """ShuttleBusService 싱글톤 인스턴스 반환"""
+    global _shuttle_bus_service
+    if _shuttle_bus_service is None:
+        _shuttle_bus_service = ShuttleBusService()
+    return _shuttle_bus_service
+
+
+async def get_shuttle_bus_info(user_query: str, chat_context=None, token_counter=None) -> str:
+    """한라대학교 통학버스 정보 제공
+
+    Args:
+        user_query: 사용자의 통학버스 관련 질문
+        chat_context: 대화 문맥 (최근 메시지 리스트)
+        token_counter: 토큰 카운터
+
+    Returns:
+        통학버스 정보 응답 문자열
+    """
+    start_ts = time.time()
+    print(f"[SHUTTLE][START] query='{user_query}' chat_ctx={'Y' if chat_context else 'N'}")
+
+    try:
+        # 대화 문맥 추출
+        if chat_context:
+            recent_messages = chat_context[-4:]
+            context_info = "\n".join([
+                f"{m.get('role','unknown')}: {m.get('content','')}"
+                for m in recent_messages if m.get('role') != 'system'
+            ])
+        else:
+            context_info = ""
+
+        # ShuttleBusService 인스턴스 가져오기
+        service = _get_shuttle_bus_service()
+
+        # 1단계: 카테고리 분류
+        category = await service.classify_category(
+            user_input=user_query,
+            context_info=context_info,
+            token_counter=token_counter
+        )
+
+        print(f"[SHUTTLE] category={category}")
+
+        # 통학버스 관련 질문이 아닌 경우
+        if category == "not_shuttle_bus":
+            elapsed = time.time() - start_ts
+            print(f"[SHUTTLE][END] elapsed={elapsed:.2f}s result=not_shuttle_bus")
+            return "통학버스와 관련 없는 질문입니다. 시내버스, 시외버스 시간표, 예약 방법 등에 대해 질문해주세요."
+
+        # 2단계: 카테고리별 정보 추출
+        shuttle_info = service.get_info_by_category(category, user_query)
+        print(f"[SHUTTLE] info extracted len={len(shuttle_info)}")
+
+        # 3단계: 응답 생성
+        response = await service.generate_response(
+            user_input=user_query,
+            shuttle_info=shuttle_info,
+            token_counter=token_counter
+        )
+
+        elapsed = time.time() - start_ts
+        print(f"[SHUTTLE][END] elapsed={elapsed:.2f}s response_len={len(response)}")
+
+        return response
+
+    except Exception as e:
+        elapsed = time.time() - start_ts
+        print(f"[SHUTTLE][ERROR] elapsed={elapsed:.2f}s error={e}")
+        import traceback
+        traceback.print_exc()
+        return f"❌ 통학버스 정보 조회 중 오류가 발생했습니다: {str(e)}"
+
+
 class FunctionCalling:
-    def __init__(self, model, available_functions=None):
+    def __init__(self, model, available_functions=None, token_counter=None):
         self.model = model
+        self.token_counter = token_counter
         default_functions = {
             "search_internet": search_internet,
             "get_halla_cafeteria_menu": get_halla_cafeteria_menu,
+            "get_shuttle_bus_info": get_shuttle_bus_info,
         }
 
         if available_functions:
@@ -421,11 +674,98 @@ class FunctionCalling:
 
         self.available_functions = default_functions
        
-    def analyze(self, user_message, tools):
+    async def analyze(self, user_message, tools):
+        """사용자 메시지를 분석하여 필요한 함수와 판단 근거를 반환
+
+        Returns:
+            dict: {
+                "reasoning": str (판단 근거),
+                "output": list (함수 호출 목록, 기존 response.output 형식)
+            }
+        """
         if not user_message or user_message.strip() == "":
-            return {"type": "error", "message": "입력이 비어있습니다. 질문을 입력해주세요."}
-        # 구조화된 input 사용 (tool 선택 정확도 향상)
+            return {
+                "reasoning": "입력이 비어있어 함수를 선택할 수 없습니다.",
+                "output": []
+            }
+        
+        # 1단계: LLM으로 함수 선택 이유 생성 (structured output)
+        reasoning = None
+        try:
+            from app.ai.chatbot import character
+            from app.ai.llm import get_provider
+            
+            prompt = [
+                {"role": "system", "content": character.decide_function},
+                {"role": "user", "content": user_message},
+            ]
+            
+            schema = {
+                "type": "object",
+                "properties": {
+                    "reasoning": {"type": "string"},
+                    "selected_tools": {
+                        "type": "array",
+                        "items": {"type": "string"}
+                    }
+                },
+                "required": ["reasoning", "selected_tools"],
+                "additionalProperties": False,
+            }
+            
+            provider = get_provider("function_analyze")
+            raw, usage = await provider.structured_completion(prompt, schema)
+            raw = raw.strip()
+
+            # ✅ API usage 기반 토큰 계산
+            if self.token_counter and usage:
+                self.token_counter.update_from_api_usage(
+                    usage=usage,
+                    role="function_analyze",
+                    model=provider.get_model_name(),
+                    category="function"
+                )
+            
+            if raw:
+                payload = json.loads(raw)
+                reasoning = payload.get("reasoning", "").strip() or None
+                selected_tools = payload.get("selected_tools", [])
+        except Exception as e:
+            reasoning = f"추론 생성 실패 ({e})"
+            selected_tools = []  # exception 발생 시 기본값 설정
+
+        # 2단계: 기존 함수 호출 분석 (OpenAI API)
+
+        # 현재 날짜 정보 생성
+        current_date = datetime.now()
+        date_info = current_date.strftime("%Y년 %m월 %d일 (%A)")
+        weekday_map = {
+            "Monday": "월요일", "Tuesday": "화요일", "Wednesday": "수요일",
+            "Thursday": "목요일", "Friday": "금요일", "Saturday": "토요일", "Sunday": "일요일"
+        }
+        weekday_kr = weekday_map.get(current_date.strftime("%A"), "")
+        date_info = current_date.strftime(f"%Y년 %m월 %d일 ({weekday_kr})")
+
         structured_input = [
+            {
+                "role": "system",
+                "content": f"""현재 날짜: {date_info}
+
+[필수 규칙]
+한국어 날짜 순서: 오늘(0일) → 내일(1일) → 모레(2일) → 글피(3일)
+출력 형식: "오늘", "내일", "모레", "글피", "YYYY-MM-DD" 중 하나
+- 상대 표현: "N일 후" → 정확히 N일 더하기
+- 자연어 날짜: "다음주 월요일" → YYYY-MM-DD로 계산
+- 날짜 미언급: "오늘"
+
+[주의사항]
+사용자가 오타나 애매한 날짜 표현을 사용할 수 있습니다. 다음은 예시이며, 이와 유사한 패턴에 유연하게 대응하세요:
+- 오타 예시: "야모레"→"모레", "글을피"→"글피", "그을피"→"글피"
+- 띄어쓰기 오류, 자모 분리 등 다양한 형태 가능
+- 명확하지 않은 경우 문맥과 상식으로 판단하되, 사용자 의도에 가장 가까운 해석 선택
+
+위 예시는 참고용입니다. 실제 입력의 맥락을 우선하여 자연스럽게 해석하세요."""
+            },
             {
                 "role": "user",
                 "content": [
@@ -440,14 +780,36 @@ class FunctionCalling:
                 tools=tools,
                 tool_choice="auto",
             )
-            print("[DEBUG][analyze] raw_output_types:",[getattr(o,'type',None) for o in response.output])
-            return response.output
+
+            if self.token_counter and hasattr(response, 'usage') and response.usage:
+                usage_data = {
+                    "input_tokens": getattr(response.usage, "input_tokens", 0),
+                    "output_tokens": getattr(response.usage, "output_tokens", 0),
+                    "total_tokens": getattr(response.usage, "total_tokens", 0),
+                    "reasoning_tokens": getattr(response.usage.output_tokens_details, 'reasoning_tokens', 0) if hasattr(response.usage, 'output_tokens_details') else 0,
+                }
+                self.token_counter.update_from_api_usage(
+                    usage=usage_data,
+                    role="function_calling",
+                    model=model.o3_mini,
+                    category="function",
+                    replace=False
+                )
+
+            return {
+                "reasoning": reasoning,
+                "selected_tools": selected_tools,  # reasoning에서 선택된 도구 목록 추가
+                "output": response.output
+            }
         except Exception as e:
-            print(f"[DEBUG][analyze] tool analyze failed: {e}")
-            return []
+            return {
+                "reasoning": reasoning,
+                "selected_tools": selected_tools,
+                "output": []
+            }
     
 
-    def run(self, analyzed,context):
+###   레거시 def run(self, analyzed,context):
         ''' analyzed_dict: 함수 호출 정보, context: 현재 문맥'''
         context.append(analyzed)
         for tool_call in analyzed:
@@ -479,8 +841,28 @@ class FunctionCalling:
             except Exception as e:
                 print("Error occurred(run):",e)
                 return makeup_response("[run 오류입니다]")
-        return client.responses.create(model=self.model,input=context).model_dump()
-    
+
+        # 함수 실행 후 최종 응답 생성
+        response = client.responses.create(model=self.model, input=context)
+
+        # ✅ API usage 추적 (function_calling 역할 - 재호출)
+        if self.token_counter and hasattr(response, 'usage') and response.usage:
+            usage_data = {
+                "input_tokens": getattr(response.usage, "input_tokens", 0),
+                "output_tokens": getattr(response.usage, "output_tokens", 0),
+                "total_tokens": getattr(response.usage, "total_tokens", 0),
+                "reasoning_tokens": getattr(response.usage.output_tokens_details, 'reasoning_tokens', 0) if hasattr(response.usage, 'output_tokens_details') else 0,
+            }
+            self.token_counter.update_from_api_usage(
+                usage=usage_data,  # ✅ 수정: usage_info → usage
+                role="function_calling",
+                model=self.model,  # ✅ 추가: 필수 파라미터
+                category="function",
+                replace=False
+            )
+
+        return response.model_dump()
+    ###
    
     def call_function(self, analyzed_dict):        
         func_name = analyzed_dict["function_call"]["name"]
