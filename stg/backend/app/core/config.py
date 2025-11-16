@@ -11,8 +11,7 @@ class Settings(BaseSettings):
     MONGODB_SUFFIX: str 
 
     # Redis(AWS ElastiCache) 설정
-    REDIS_HOST: str = "local-redis"
-    REDIS_PORT: int = 6379
+    REDIS_URL: str = "redis://local-redis:6379"
     MONTHLY_COST_LIMIT: float = 1000.
 
     class Config:
