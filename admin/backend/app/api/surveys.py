@@ -8,8 +8,6 @@ import logging
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-# --- 프론트엔드(UserStatistics.jsx)가 기대하는 응답 형태 정의 ---
-
 # "만족도 점수 분포"용 (1점~5점)
 class RatingDistribution(BaseModel):
     labels: List[str] = ["1점", "2점", "3점", "4점", "5점"]
@@ -26,21 +24,18 @@ class FeedbackEntry(BaseModel):
     rating: int
     feedback: str # 프론트에서 item.feedback을 사용하므로 필드명 일치
 
-# --- 최종 응답 Pydantic 모델 ---
-# (프론트가 요청하는 모든 필드 포함)
+# 최종 응답 Pydantic 모델
+# 프론트가 요청하는 모든 필드 포함
 class SurveyStatsResponse(BaseModel):
     averageRating: float
     totalParticipants: int
     ratingDistribution: RatingDistribution
     feedbackEntries: List[FeedbackEntry]
-    
-    # === 새로 추가된 필드 ===
     responseSpeedHighPercent: float
     responseQualityHighPercent: float
     responseSpeedDistribution: CategoryDistribution
     responseQualityDistribution: CategoryDistribution
-    # =======================
-
+    
 # --- 프론트엔드 필터 값과 DB 필드 값 매핑 ---
 USER_GROUP_MAP = {
     "grade1": "1학년",
@@ -72,7 +67,6 @@ def _process_category_distribution(
 
 
 # --- API 엔드포인트 ---
-
 @router.get(
     "/statistics-survey", 
     response_model=SurveyStatsResponse,
@@ -83,7 +77,7 @@ async def get_survey_statistics(
     userGroup: str = Query('all', description="필터링할 사용자 그룹") 
 ):
     
-    # 1. DB 컬렉션 선택 (*** 실제 컬렉션 이름으로 변경하세요 ***)
+    # 1. DB 컬렉션 선택
     collection = db["survey-stg"] 
 
     # 2. 기본 필터링 단계($match) 구축
@@ -120,12 +114,11 @@ async def get_survey_statistics(
                         "$project": {
                             "_id": 1,
                             "rating": 1,
-                            "feedback": "$comment" # 프론트가 기대하는 'feedback'으로 이름 변경
+                            "feedback": "$comment"
                         }
                     }
                 ],
                 
-                # === 3-4. 새로 추가된 집계 ===
                 # 응답 속도 분포
                 "responseSpeedDistribution": [
                     {"$group": {"_id": "$responseSpeed", "count": {"$sum": 1}}}
@@ -134,7 +127,6 @@ async def get_survey_statistics(
                 "responseQualityDistribution": [
                     {"$group": {"_id": "$responseQuality", "count": {"$sum": 1}}}
                 ]
-                # ==========================
             }
         }
     ]
@@ -182,8 +174,6 @@ async def get_survey_statistics(
             )
             for item in feedback_result
         ]
-
-        # === 5-4. 새로 추가된 데이터 처리 ===
         
         # 응답 속도 처리
         speed_labels = ["low", "medium", "high"]
@@ -208,8 +198,6 @@ async def get_survey_statistics(
             totalParticipants=total_participants,
             ratingDistribution=rating_distribution,
             feedbackEntries=feedback_entries,
-            
-            # 새로 추가된 필드 반환
             responseSpeedHighPercent=speed_high_percent,
             responseQualityHighPercent=quality_high_percent,
             responseSpeedDistribution=speed_dist,

@@ -125,9 +125,16 @@ mainContent 부터는 페이지별 다른 CSS 문법입니다.
   text-overflow: ellipsis;  /* 3. 숨겨진 텍스트를 말 줄임표(...)로 표시 */
 }
 
-.dataTable td:nth-child(2),
-.dataTable td:nth-child(3) {
+.dataTable td:nth-child(2) {
   max-width: 300px; /* 이 너비를 넘어가면 말 줄임표가 나타나도록 */
+}
+
+.dataTable td:nth-child(3) {
+  max-width: 450px; /* 이 너비를 넘어가면 말 줄임표가 나타나도록 */
+}
+
+.dataTable td:nth-child(4) {
+  max-width: 200px; /* 이 너비를 넘어가면 말 줄임표가 나타나도록 */
 }
 
 /* 짝수 번째 행에 배경색을 주어 가독성을 높임 (Zebra-striping) */
