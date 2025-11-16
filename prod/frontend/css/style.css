@@ -109,7 +109,6 @@ body {
 .bot-avatar {
   user-select: none;
 }
-
 /********** 1. 기타  **********/
 
 
@@ -133,7 +132,6 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(85, 85, 85, 0.5);
 }
-
 /********** 2. 스크롤 바(공통)  **********/
 
 
@@ -185,7 +183,6 @@ body {
 #chatbot-toggle-btn:hover {
   transform: scale(1.1);
 }
-
 /********** 4. 챗봇 토글 버튼  **********/
 
 
@@ -226,7 +223,6 @@ body {
   transform: translateY(-20px);
   transition: opacity 0.3s ease, visibility 0.3s ease, transform 0.3s ease;
 }
-
 /*********** 5. expanded 상태 관리 **********/
 
 
@@ -305,7 +301,6 @@ body {
     font-size: 12px;
   }
 }
-
 /********** 6. 챗봇 헤더 **********/
 
 
@@ -327,7 +322,6 @@ body {
   font-weight: 400;
   overflow-wrap: break-word;
 }
-
 /********** 7. 메시지(공통) **********/
 
 
@@ -338,7 +332,6 @@ body {
   color: white;
   background-color: #302b6c;
 }
-
 /********** 8. 유저 메시지 **********/
 
 
@@ -364,7 +357,6 @@ body {
   flex-shrink: 0;
   image-rendering: -webkit-optimize-contrast;
 }
-
 /********** 9. 챗봇 메시지 **********/
 
 
@@ -403,7 +395,6 @@ body {
   outline: none;
   border: 2px solid #302b6c;
 }
-
 /********** 10. 메시지 입력 **********/
 
 
@@ -434,7 +425,6 @@ body {
   cursor: not-allowed;
   opacity: 0.8;
 }
-
 /********** 11. 메시지 전송 **********/
 
 
@@ -466,7 +456,6 @@ body {
     transform: rotate(360deg);
   }
 }
-
 /********** 12. 메시지 응답 대기 **********/
 
 
@@ -552,7 +541,6 @@ body {
     transform: translateY(20px);
   }
 }
-
 /********** 13. 모달(공통) **********/
 
 
@@ -579,7 +567,6 @@ body {
   box-shadow: 0 0 8px rgba(227, 0, 0, 0.7);
   transition: background-color 0.2s ease, box-shadow 0.2s ease;
 }
-
 /********** 14. 초기화 모달 **********/
 
 
@@ -623,7 +610,6 @@ body {
   background: #4d3fa5;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
-
 /********** 15. 정보 모달 **********/
 
 
@@ -696,7 +682,6 @@ body {
     transform: translateY(10px);
   }
 }
-
 /********** 16. 언어 선택 드롭다운 **********/
 
 
@@ -717,5 +702,358 @@ body {
     transform: translateY(0);
   }
 }
-
 /********** 17. 메시지 애니메이션 **********/
+
+
+/********** 18. 설문조사 레이아웃 **********/
+.survey-container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 250px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.survey-question {
+  width: 100%;
+  margin: 0;
+  font-weight: 600;
+  font-size: 1rem;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+}
+/********** 18. 설문조사 레이아웃 **********/
+
+
+/********** 19. 설문조사 진행도 **********/
+.survey-progress {
+  width: 100%;
+  height: 12px;
+  background-color: rgba(0, 0, 0, 0.15);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 5px;
+}
+
+.progress-bar {
+  width: 25%;
+  height: 100%;
+  background: linear-gradient(90deg, #ffffff, #c0eaff);
+  transition: width 0.4s ease-out;
+  border-radius: 4px;
+}
+/********** 19. 설문조사 진행도 **********/
+
+
+/********** 20. 설문조사 페이지 **********/
+.survey-page {
+  display: none;
+  animation: popIn 0.4s ease-out forwards;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.survey-page.active {
+  display: flex;
+}
+/********** 20. 설문조사 페이지 **********/
+
+
+/********** 21. 설문조사 애니메이션 **********/
+@keyframes popIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.95);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+/********** 21. 설문조사 애니메이션 **********/
+
+
+/********** 22. 설문조사 시작 **********/
+.survey-intro {
+  font-weight: 600;
+  font-size: 16px;
+  text-align: center;
+  animation: popIn 0.4s ease-out;
+}
+/********** 22. 설문조사 시작 **********/
+
+
+/********** 23. 카테고리 설문조사 **********/
+.survey-categories {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 10px;
+  width: 100%;
+  margin-top: 10px;
+}
+
+.category-card {
+  position: relative;
+  background: rgba(255, 255, 255, 0.08);
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  border-radius: 12px;
+  padding: 12px 0;
+  text-align: center;
+  color: white;
+  font-weight: 500;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  user-select: none;
+  overflow: hidden;
+}
+
+.category-card:hover {
+  background: rgba(255, 255, 255, 0.15);
+  transform: scale(1.03);
+}
+
+.category-card input[type="radio"] {
+  display: none;
+}
+
+.category-card input[type="radio"]:checked+span {
+  background: none;
+}
+
+.category-card:has(input[type="radio"]:checked) {
+  background: linear-gradient(45deg, #ffffff, #d8f3ff);
+  color: #0077b6;
+  font-weight: 600;
+  border: 2px solid #d8f3ff;
+  transform: scale(1.05);
+}
+
+.category-card span {
+  display: inline-block;
+  width: 100%;
+  pointer-events: none;
+}
+/********** 23. 카테고리 설문조사 **********/
+
+
+/********** 24. 별점 설문조사 **********/
+.star-rating {
+  display: flex;
+  flex-direction: row-reverse;
+  justify-content: flex-end;
+  gap: 8px;
+
+  /* 드래그 방지 */
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-user-drag: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.star-rating input[type="radio"] {
+  display: none;
+}
+
+.star-rating label {
+  font-size: 30px;
+  color: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  transition: color 0.2s ease-out;
+  transform-origin: center;
+}
+
+.star-rating label:hover,
+.star-rating label:hover~label,
+.star-rating input[type="radio"]:checked~label {
+  color: #FFD700;
+}
+
+.star-rating label:hover {
+  transform: scale(1.2);
+}
+/********** 24. 별점 설문조사 **********/
+
+
+/********** 25. [답변 속도, 정확도] 설문조사 **********/
+.survey-options {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  align-items: center;
+  width: 100%;
+  max-width: 400px;
+  margin-top: 5px;
+}
+
+.feedback-metric {
+  width: 85%;
+  padding: 8px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-radius: 10px;
+
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(2px);
+  color: #fff;
+  transition: all 0.15s ease-in-out;
+  margin-bottom: 6px;
+}
+
+.metric-label {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #ffffff;
+}
+
+.feedback-metric .metric-label {
+  flex: 0 0 100px;
+  text-align: left;
+}
+
+.feedback-metric .metric-buttons {
+  display: flex;
+  justify-content: space-evenly;
+  flex: 1;
+}
+
+.feedback-button {
+  font-size: 1.4rem;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: transform 0.15s ease, filter 0.2s ease, opacity 0.2s;
+  user-select: none;
+  opacity: 0.6;
+}
+
+.feedback-button.active {
+  opacity: 1;
+  transform: scale(1.25);
+}
+
+.feedback-button:hover {
+  opacity: 1;
+  transform: scale(1.25);
+}
+/********** 25. [답변 속도, 정확도] 설문조사 **********/
+
+
+/********** 26. 의견 입력 설문조사 **********/
+.survey-textarea {
+  width: 100%;
+  min-height: 80px;
+  max-height: 120px;
+
+  color: white;
+  background-color: rgba(255, 255, 255, 0.15);
+
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 12px;
+
+  padding: 12px;
+  margin-top: 5px;
+
+  font-size: 13px;
+  font-family: 'Pretendard Variable', sans-serif;
+  
+  display: flex;
+  overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
+  align-items: center;
+  line-height: 1.5;
+  transition: border-color 0.3s ease;
+
+  resize: none;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.survey-textarea::placeholder {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.survey-textarea:focus {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.7);
+}
+/********** 26. 의견 입력 설문조사 **********/
+
+
+/********** 27. 설문조사 버튼 **********/
+.survey-button-container {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  margin-top: 10px;
+}
+
+.survey-button {
+  background: linear-gradient(45deg, #ffffff, #f0f8ff);
+  color: #0083B0;
+  border: none;
+  padding: 10px 22px;
+  border-radius: 30px;
+  font-weight: bold;
+  font-size: 15px;
+  cursor: pointer;
+  transition: all 0.1s ease-in-out;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+.survey-button:hover {
+  transform: translateY(-2px) scale(1.03);
+  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15);
+}
+
+.survey-button:disabled {
+  background: #c0c0c0;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+/********** 27. 설문조사 버튼 **********/
+
+
+/********** 28. 설문조사 종료 **********/
+.survey-end {
+  font-weight: 600;
+  font-size: 16px;
+  text-align: center;
+  animation: popIn 0.4s ease-out;
+  line-height: 1.6;
+  color: white;
+  padding: 15px;
+}
+
+.survey-end p {
+  margin: 6px 0;
+}
+
+.survey-link {
+  display: inline-block;
+  margin-top: 5px;
+  background: linear-gradient(45deg, #ffffff, #dff6ff);
+  color: #0077b6;
+  padding: 10px 22px;
+  border-radius: 25px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.1s ease-in-out;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+}
+
+.survey-link:hover {
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 5px 12px rgba(0, 0, 0, 0.25);
+}
+/********** 28. 설문조사 종료 **********/

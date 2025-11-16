@@ -5,13 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/remixicon/4.6.0/remixicon.css" />
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="css/style.css" />
 </head>
 
 <body>
-  <div id="chatbot-container">
-    <img id="chatbot-toggle-btn" src="assets/chatbot-btn.png">
-
+  <div id="chatbot-container" class="expanded">
     <div id="chatbot">
       <div id="chatbot-header">
         <div id="header-title">
@@ -40,7 +38,6 @@
 
             <button id="info-btn"><i class="ri-question-line"></i></button>
             <button id="reset-btn"><i class="ri-loop-left-line"></i></button>
-            <button id="close-btn"><i class="ri-close-line"></i></i></button>
           </div>
         </div>
 
@@ -53,13 +50,18 @@
       </div>
 
       <div id="input-container">
-        <textarea id="user-input" placeholder="무엇이든 물어보세요!"></textarea>
+        <textarea id="user-input" placeholder="무엇이든 물어보세요!" maxlength="300"></textarea>
         <button id="send-btn"><i class="ri-send-plane-fill"></i></button>
       </div>
     </div>
   </div>
 
-  <script src="messages.js"></script>
-  <script src="script.js"></script>
+  <script src="js/i18n.js"></script>
+  <script src="js/util.js"></script>
+  <script src="js/user.js"></script>
+  <script src="js/survey.js"></script>
+  <script src="js/messages.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/script.js"></script>
 </body>
 </html>

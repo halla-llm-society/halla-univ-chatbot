@@ -3,11 +3,11 @@
 # 베이스 이미지
 FROM nginx:stable-alpine
 
-# 작업 디렉토리 설정
-WORKDIR /usr/share/nginx/html
+# nginx.conf 파일을 이미지의 설정 폴더로 복사
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# 애플리케이션 코드 복사
-COPY . .
+# 애플리케이션 코드를 nginx의 기본 서빙 폴더로 복사
+COPY . /usr/share/nginx/html
 
 # 포트 
 EXPOSE 80
