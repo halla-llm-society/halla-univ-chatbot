@@ -17,16 +17,6 @@ async def switch_database(request: Request, payload: DbSwitchRequest):
     env = payload.environment.lower()
     if env not in ("stg", "prod"):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid environment. Must be 'stg' or 'prod'.")
-    
-    stg_db_ok = hasattr(request.app.state, 'stg_db') and request.app.state.stg_db is not None
-    prod_db_ok = hasattr(request.app.state, 'prod_db') and request.app.state.prod_db is not None
-
-    if not stg_db_ok or not prod_db_ok:
-        logger.error("Databases are not initialized in app.state (found None). Cannot switch.")
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, 
-            detail=f"Databases not initialized. STG_OK: {stg_db_ok}, PROD_OK: {prod_db_ok}"
-        )
 
     # DB 인스턴스가 app.state에 초기화되었는지 확인
     if not hasattr(request.app.state, 'stg_db') or not hasattr(request.app.state, 'prod_db'):
