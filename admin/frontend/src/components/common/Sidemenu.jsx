@@ -1,5 +1,3 @@
-// src/components/common/Sidemenu.jsx
-
 import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { PiRobotBold } from "react-icons/pi"; // 로봇 아이콘
@@ -14,7 +12,7 @@ import styles from '../styles/Sidemenu.module.css';
 
 
 // isExpanded와 onToggle 함수를 props로 받음
-const Sidemenu = ({ isExpanded, onToggle }) => {
+const Sidemenu = ({ isExpanded, onToggle, curEnv }) => {
 
     // 마우스 호버 상태를 관리하는 새로운 state
     const [isHovered, setIsHovered] = useState(false);
@@ -34,6 +32,11 @@ const Sidemenu = ({ isExpanded, onToggle }) => {
     // 최종적으로 메뉴를 펼칠지 결정함
     // '고정' 상태이거나 '호버' 상태이면 true
     const shouldExpand = isExpanded || isHovered;
+
+    // curEnv 값에 따라 챗봇 URL 동적 결정
+    const chatbotUrl = curEnv === 'prod' 
+      ? 'https://halla-chatbot.com' 
+      : 'https://halla-chatbot.com/stg/';
 
   return (
 
@@ -60,9 +63,14 @@ const Sidemenu = ({ isExpanded, onToggle }) => {
         <ul>
           {/* 윗쪽 그룹 */}
           <li>
-            <NavLink to="https://halla-chatbot.com/stg/"> {/* 경로는 예시입니다 */}
-              <PiRobotBold className={styles.icon} /> <span className={styles.text}>챗봇으로 가기 </span>
-            </NavLink>
+            <a 
+              href={chatbotUrl} 
+              target="_blank"           // 새 탭에서 열기
+              rel="noopener noreferrer" // 보안 설정
+            >
+              <PiRobotBold className={styles.icon} />
+              <span className={styles.text}>챗봇으로 가기</span>
+            </a>
           </li>
 
           {/* 구분선 */}

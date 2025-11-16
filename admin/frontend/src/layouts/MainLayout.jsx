@@ -61,7 +61,7 @@ const MainLayout = () => {
   return (
     <div className={styles.layoutContainer}>
       {/* 4. 상태와 상태 변경 함수를 Sidemenu에 props로 전달합니다. */}
-      <Sidemenu isExpanded={isSidebarExpanded} onToggle={handleSidebarToggle} />
+      <Sidemenu isExpanded={isSidebarExpanded} onToggle={handleSidebarToggle} curEnv={curEnv} />
       
       {/* 5. 메인 콘텐츠 영역을 감싸는 div를 추가합니다. */}
       <div className={styles.mainContentWrapper}>
