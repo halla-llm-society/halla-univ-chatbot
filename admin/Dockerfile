@@ -3,6 +3,11 @@
 #------------------------
 FROM node:18-alpine AS frontend-builder
 WORKDIR /app
+
+# 환경 변수 등록
+ARG VITE_GOOGLE_CLIENT_ID
+ENV VITE_GOOGLE_CLIENT_ID=${VITE_GOOGLE_CLIENT_ID}
+
 COPY frontend/package.json frontend/package-lock.json* ./
 RUN npm install
 COPY frontend/ ./
