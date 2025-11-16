@@ -15,3 +15,10 @@ bind = "0.0.0.0:8000"
 
 # Docker 안에서는 포그라운드
 daemon = False   
+
+# 로그
+accesslog = "-"            
+errorlog = "-"             
+capture_output = True     
+loglevel = "info"         
+enable_stdio_inheritance = True 
