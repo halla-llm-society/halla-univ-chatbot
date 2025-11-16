@@ -6,6 +6,9 @@ class Settings(BaseSettings):
     STG_MONGODB_URI: str    
     PROD_MONGODB_URI: str
     
+    STG_DB_NAME: str = "halla-chatbot-stg"
+    PROD_DB_NAME: str = "halla-chatbot-prod"
+    
     # 인증 관련 설정 추가
     GOOGLE_CLIENT_ID: str
     ALLOWED_ADMIN_EMAIL: str
