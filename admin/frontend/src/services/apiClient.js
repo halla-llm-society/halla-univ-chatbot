@@ -4,7 +4,7 @@ import axios from 'axios';
 
 // 백엔드 API의 기본 주소
 // .env 파일로 관리하는 것이 가장 좋습니다.
-const BASE_URL = '/api'; // 예시 URL
+const BASE_URL = '/admin/api'; // 예시 URL
 
 const apiClient = axios.create({
   baseURL: BASE_URL,
