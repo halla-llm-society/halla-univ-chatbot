@@ -1,5 +1,6 @@
 import redis.asyncio as redis
 from fastapi import HTTPException, status, Request, FastAPI
+from datetime import datetime, timezone
 import logging
 
 from app.core.config import settings
@@ -12,7 +13,7 @@ logger = logging.getLogger(__name__)
 async def init_redis_client(app: FastAPI):
     try:
         # redis 클라이언트 생성
-        redis_url = f"rediss://{settings.REDIS_HOST}:{settings.REDIS_PORT}"
+        redis_url = settings.REDIS_URL
 
         client = redis.from_url(
             redis_url,
@@ -29,8 +30,9 @@ async def init_redis_client(app: FastAPI):
         app.state.redis_client = client
 
         # 키 초기화
-        await client.setnx("global:monthly_cost_total", 0)
-        await client.setnx("global:cost_tracking_month", 11)
+        current_month = datetime.now(timezone.utc).strftime("%Y-%m")
+        await client.setnx("global:cost_tracking_month", current_month)
+        await client.setnx("global:monthly_total_cost", 0)
 
     except Exception as e:
         logger.error(f"Failed to connect Redis: {e}", exc_info=True)
