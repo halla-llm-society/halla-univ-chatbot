@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, Query, HTTPException, status
-from motor.motor_asyncio import AsyncIOMotorDatabase
-from app.db.mongodb import get_mongo_db
+from motor.motor_asyncio import AsyncIOMotorDatabase, AsyncIOMotorCollection
+from app.db.mongodb import get_mongo_db, get_collection
 from pydantic import BaseModel
 from typing import List, Dict, Any
 import logging
@@ -28,7 +28,6 @@ class TrafficPoint(BaseModel):
 class TrafficResponse(BaseModel):
     total: int
     points: List[TrafficPoint]
-
 
 # --- 3. 날짜 처리 헬퍼 함수 ---
 def get_date_range_and_group(period: Period) -> (datetime, datetime, str, str):
@@ -75,8 +74,7 @@ def get_date_range_and_group(period: Period) -> (datetime, datetime, str, str):
 
 # --- 4. 범용 집계 함수 ---
 async def _get_traffic_data(
-    db: AsyncIOMotorDatabase,
-    collection_name: str,
+    collection: AsyncIOMotorCollection,
     period: Period,
     field_to_sum: str | None = None # None이면 개수(count), 필드명이면 합계(sum)
 ) -> TrafficResponse:
@@ -118,7 +116,6 @@ async def _get_traffic_data(
             }
         ]
         
-        collection = db[collection_name]
         cursor = collection.aggregate(pipeline)
         result = await cursor.to_list(length=1)
 
@@ -164,7 +161,7 @@ async def _get_traffic_data(
         return TrafficResponse(total=total, points=points)
 
     except Exception as e:
-        logger.error(f"Error fetching traffic data ({collection_name}): {e}", exc_info=True)
+        logger.error(f"Error fetching traffic data: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Internal server error: {e}"
@@ -172,13 +169,16 @@ async def _get_traffic_data(
 
 # --- 5. API 엔드포인트 정의 ---
 
+get_chat_collection = get_collection("chat")
+get_metadata_collection = get_collection("metadata")
+
 @router.get(
     "/traffic/queries", 
     response_model=TrafficResponse,
     summary="[트래픽] 기간별 질문 수"
 )
 async def get_traffic_queries_endpoint(
-    db: AsyncIOMotorDatabase = Depends(get_mongo_db),
+    collection: AsyncIOMotorCollection = Depends(get_chat_collection),
     period: Period = Query(..., description="조회 기간 (day, week, month, year)")
 ):
     """
@@ -187,8 +187,7 @@ async def get_traffic_queries_endpoint(
     - 집계: 문서 개수 (count)
     """
     return await _get_traffic_data(
-        db=db,
-        collection_name="chat-stg", # 1. *** 질문 수(chat-stg) 컬렉션 ***
+        collection=collection, # 1. *** 질문 수(chat-stg) 컬렉션 ***
         period=period,
         field_to_sum=None # None은 문서 개수(count)를 의미
     )
@@ -200,7 +199,7 @@ async def get_traffic_queries_endpoint(
     summary="[트래픽] 기간별 토큰 사용량"
 )
 async def get_traffic_tokens_endpoint(
-    db: AsyncIOMotorDatabase = Depends(get_mongo_db),
+    collection: AsyncIOMotorCollection = Depends(get_metadata_collection),
     period: Period = Query(..., description="조회 기간 (day, week, month, year)")
 ):
     """
@@ -209,8 +208,7 @@ async def get_traffic_tokens_endpoint(
     - 집계: `metadata.token_usage.total_tokens` 필드의 합계
     """
     return await _get_traffic_data(
-        db=db,
-        collection_name="metadata-stg", # 2. *** 토큰(metadata-stg) 컬렉션 ***
+        collection=collection, # 2. *** 토큰(metadata-stg) 컬렉션 ***
         period=period,
         field_to_sum="metadata.token_usage.total_tokens" # 3. *** 토큰 필드 경로 ***
     )
