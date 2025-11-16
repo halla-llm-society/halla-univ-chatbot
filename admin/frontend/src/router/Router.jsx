@@ -1,5 +1,3 @@
-// src/router/Router.jsx
-
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import MainLayout from '../layouts/MainLayout';
 import UserQueryDataAnalysis from '../pages/UserQueryDataAnalysis';
@@ -7,15 +5,28 @@ import UserStatistics from '../pages/UserStatistics';
 import TrafficInquiry from '../pages/TrafficInquiry';
 import UsageCostInquiry from '../pages/UsageCostInquiry';
 
+// --- 새로 추가 ---
+import LoginPage from '../pages/Login';
+import ProtectedRoute from './ProtectedRoute';
+// --- ---
+
 const router = createBrowserRouter([
   {
-    path: '/',
-    element: <MainLayout />, // 레이어 걸어두기
+    path: 'login', // '/admin/login' 경로
+    element: <LoginPage />,
+  },
+  {
+    path: '/', // '/admin/' 이하 모든 경로
+    element: (
+      <ProtectedRoute> {/* <--- 보호막 적용 */}
+        <MainLayout />
+      </ProtectedRoute>
+    ),
     children: [
-      { path: '', element: <UserQueryDataAnalysis /> }, // 기본 페이지
-      { path: 'statistics', element: <UserStatistics /> }, // /statistics 주소로 오면 이 페이지
-      { path: 'traffic', element: <TrafficInquiry /> }, // /traffic 주소로 오면 이 페이지
-      { path: 'cost', element: <UsageCostInquiry /> }, // /cost 주소로 오면 이 페이지
+      { path: '', element: <UserQueryDataAnalysis /> },
+      { path: 'statistics', element: <UserStatistics /> },
+      { path: 'traffic', element: <TrafficInquiry /> },
+      { path: 'cost', element: <UsageCostInquiry /> },
     ],
   },
 ], 
