@@ -10,10 +10,11 @@ class Settings(BaseSettings):
     MONGODB_URI: str    
     MONGODB_SUFFIX: str 
 
-    # Redis(AWS ElastiCache) 설정
-    REDIS_URL: str = "redis://local-redis:6379"
+    # 사용량 확인
     MONTHLY_COST_LIMIT: float = 1000.
-    MONTHLY_WARNING_THRESHOLD: float = 900.
+    OPENAI_ADMIN_KEY: str
+    OPENAI_PROJECT_ID: str
+    COSTS_API_URL: str
 
     # Discord 설정
     DISCORD_WEBHOOK_URL: str

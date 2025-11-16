@@ -1,23 +1,17 @@
 import httpx
 import json
 import logging
-import redis.asyncio as redis
-from fastapi import Depends
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.schemas.chat_schema import ChatRequest
 from app.db.mongodb_crud import save_to_mongodb, save_chat_and_return_id
-from app.db.redis import get_redis_client
-from app.services.cost_limit import increment_monthly_total_cost
 from app.core.config import settings
 
 
 logger = logging.getLogger(__name__)
 
 
-async def stream_chat_response(request: ChatRequest, 
-                               mongo_client: AsyncIOMotorDatabase,
-                               redis_client: redis.Redis = Depends(get_redis_client)):
+async def stream_chat_response(request: ChatRequest, mongo_client: AsyncIOMotorDatabase):
     ai_endpoint = f"{settings.AI_SERVICE_URL }/api/chat"
 
     question = request.user_input
@@ -101,8 +95,6 @@ async def stream_chat_response(request: ChatRequest,
                 {"chatId": chatId, "metadata": metadata},
                 "metadata"
             )
-
-            await increment_monthly_total_cost(redis_client, totalCostUsd)
             
     except Exception as e:
         logger.error(f"DB 저장 실패: {e}", exc_info=True)
