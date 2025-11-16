@@ -33,7 +33,7 @@ async def init_redis_client(app: FastAPI):
         current_month = datetime.now(timezone.utc).strftime("%Y-%m")
         await client.setnx("global:cost_tracking_month", current_month)
         await client.setnx("global:monthly_total_cost", 0)
-        await client.setnx("global:monthly_cost_warning_sentt", "false")
+        # await client.setnx("global:monthly_cost_warning_sentt", "false")
 
     except Exception as e:
         logger.error(f"Failed to connect Redis: {e}", exc_info=True)
