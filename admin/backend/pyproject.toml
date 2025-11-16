@@ -18,4 +18,6 @@ dependencies = [
     "certifi>=2024.7.4",
     "pymongo == 4.7.2",
     "google-auth>=2.22.0",
+    "pyjwt[cryptography]>=2.8.0",
+    "requests>=2.31.0",
 ]
