@@ -38,12 +38,8 @@
           "valueFrom": "arn:aws:ssm:ap-northeast-2:855738538544:parameter/chatbot/stg/MONGODB_URI"
         },
         {
-          "name": "REDIS_PORT",
-          "valueFrom": "arn:aws:ssm:ap-northeast-2:855738538544:parameter/chatbot/stg/REDIS_PORT"
-        },
-                {
-          "name": "REDIS_HOST",
-          "valueFrom": "arn:aws:ssm:ap-northeast-2:855738538544:parameter/chatbot/stg/REDIS_HOST"
+          "name": "REDIS_URL",
+          "valueFrom": "arn:aws:ssm:ap-northeast-2:855738538544:parameter/chatbot/stg/REDIS_URL"
         }
       ],
       "logConfiguration": {
