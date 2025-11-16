@@ -29,8 +29,12 @@ class ChatbotStream:
           - 사용할 모델명 저장
           - 사용자 이름
         """
-        self.system_role = system_role
-        self.context = [{"role": "system","content": system_role}]
+        # 현재 날짜를 system_role에 추가
+        current_date = datetime.now().strftime("%Y년 %m월 %d일")
+        system_role_with_date = f"{system_role}\n\n현재 날짜: {current_date}"
+
+        self.system_role = system_role_with_date
+        self.context = [{"role": "system","content": system_role_with_date}]
                
         self.current_field = "main"
         
@@ -880,7 +884,21 @@ class ChatbotStream:
                             "token_counter": self.token_counter
                         }
                     elif tool_name == "get_halla_cafeteria_menu":
-                        func_args = {"date": "오늘", "meal": None}
+                        # 메시지에서 날짜 추출
+                        lowered_msg = message.lower()
+                        date_pref = "오늘"
+                        if "모레" in lowered_msg:
+                            date_pref = "모레"
+                        elif "내일" in lowered_msg:
+                            date_pref = "내일"
+                        elif "어제" in lowered_msg:
+                            date_pref = "어제"
+                        else:
+                            import re
+                            m = re.search(r"(\d{4}[./-]\d{1,2}[./-]\d{1,2})", message)
+                            if m:
+                                date_pref = m.group(1)
+                        func_args = {"date": date_pref, "meal": None}
                     
                     self._dbg(f"[FUNCTION] Reasoning 강제 실행 중: {tool_name}")
                     
@@ -944,8 +962,12 @@ class ChatbotStream:
                 
                 # 날짜 추출
                 date_pref = "오늘"
-                if "내일" in lowered:
+                if "모레" in lowered:
+                    date_pref = "모레"
+                elif "내일" in lowered:
                     date_pref = "내일"
+                elif "어제" in lowered:
+                    date_pref = "어제"
                 else:
                     import re
                     m = re.search(r"(\d{4}[./-]\d{1,2}[./-]\d{1,2})", message)
