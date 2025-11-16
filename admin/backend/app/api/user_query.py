@@ -1,5 +1,3 @@
-# admin/backend/app/api/user_query.py
-
 from fastapi import APIRouter, Depends, Request, HTTPException, Query
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from app.db.mongodb import get_mongo_db
@@ -7,7 +5,7 @@ from pydantic import BaseModel
 from typing import List, Any, Dict
 import math
 import logging
-from datetime import datetime, time  # <-- 날짜/시간 처리를 위해 import
+from datetime import datetime, time
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -20,7 +18,7 @@ class UserQueryResponse(BaseModel):
 @router.get("/user-query-data", response_model=UserQueryResponse)
 async def get_user_query_data(
     db: AsyncIOMotorDatabase = Depends(get_mongo_db),
-    # 프론트엔드에서 보내는 파라미터를 받습니다.
+    # 프론트엔드에서 보내는 파라미터를 받음
     page: int = Query(1, ge=1),
     cnt: int = Query(20, ge=1),
     sort: str = Query('asc', enum=['asc', 'desc']),
@@ -33,14 +31,14 @@ async def get_user_query_data(
     사용자 질의 데이터를 필터링, 정렬, 페이지네이션하여 반환합니다.
     """
     
-    # 1. DB 컬렉션 선택 (사용자가 알려준 'chat-stg'로 변경)
+    # 1. DB 컬렉션 선택
     collection = db["chat-stg"] 
 
     # 2. 검색 필터 구축 (MongoDB 쿼리)
     query: Dict[str, Any] = {}
     
     # 3. 날짜 범위 검색 (필드명 'date'로 변경 및 datetime 객체로 변환)
-    date_field = "date" # <-- 예시를 바탕으로 'date'로 수정
+    date_field = "date"
     if startDate and endDate:
         try:
             # 프론트에서 받은 'YYYY-MM-DD' 문자열을 datetime 객체로 변환
@@ -67,9 +65,9 @@ async def get_user_query_data(
         if search_fields:
             query["$or"] = search_fields
             
-    # 5. 정렬 순서 (필드명 'date'로 변경)
+    # 5. 정렬 순서
     sort_order = 1 if sort == 'asc' else -1
-    sort_field = "date" # <-- 예시를 바탕으로 'date'로 수정
+    sort_field = "date"
 
     try:
         # 6. 총 문서 수 계산
