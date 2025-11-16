@@ -1,6 +1,8 @@
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 from fastapi import HTTPException, status, Request, FastAPI
 import logging
+import certifi
+
 from app.core.config import settings
 
 
@@ -15,7 +17,8 @@ async def init_mongo_client(app: FastAPI):
             settings.STG_MONGODB_URI,
             serverSelectionTimeoutMS=5000,  
             maxPoolSize=10, 
-            minPoolSize=5
+            minPoolSize=5,
+            tlsCAFile=certifi.where()
         )
         
         # 연결 테스트
