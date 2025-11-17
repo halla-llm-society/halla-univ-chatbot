@@ -814,6 +814,11 @@ class ChatbotStream:
                     func_args.setdefault("token_counter", self.token_counter)  # 토큰 카운터 전달
                 elif func_name == "get_halla_cafeteria_menu":
                     func_args.setdefault("date", "오늘")
+                    # cafeteria_type 키워드 감지
+                    if "cafeteria_type" not in func_args:
+                        lowered = message.lower()
+                        if any(k in lowered for k in ["교직원", "교수", "직원", "선생님"]):
+                            func_args["cafeteria_type"] = "교직원"
                     # meal은 지정하지 않으면 전체 끼니 반환
                 elif func_name == "get_shuttle_bus_info":
                     func_args.setdefault("chat_context", self.context[:])
@@ -898,7 +903,11 @@ class ChatbotStream:
                             m = re.search(r"(\d{4}[./-]\d{1,2}[./-]\d{1,2})", message)
                             if m:
                                 date_pref = m.group(1)
-                        func_args = {"date": date_pref, "meal": None}
+                        # cafeteria_type 키워드 감지
+                        cafeteria_type = "학생"
+                        if any(k in lowered_msg for k in ["교직원", "교수", "직원", "선생님"]):
+                            cafeteria_type = "교직원"
+                        func_args = {"date": date_pref, "meal": None, "cafeteria_type": cafeteria_type}
                     
                     self._dbg(f"[FUNCTION] Reasoning 강제 실행 중: {tool_name}")
                     
@@ -960,8 +969,13 @@ class ChatbotStream:
                 elif "점심" in lowered or "중식" in lowered:
                     meal_pref = "중식"
 
+                # cafeteria_type 키워드 감지
+                cafeteria_type = "학생"
+                if any(k in lowered for k in ["교직원", "교수", "직원", "교직원식당", "선생님"]):
+                    cafeteria_type = "교직원"
+
                 # 날짜는 기본값 사용 (Function calling에서 이미 정규화되어 넘어옴)
-                caf_args = {"date": "오늘", "meal": meal_pref}
+                caf_args = {"date": "오늘", "meal": meal_pref, "cafeteria_type": cafeteria_type}
                 get_cafeteria_fn = self.available_functions.get("get_halla_cafeteria_menu")
                 
                 if not get_cafeteria_fn:
