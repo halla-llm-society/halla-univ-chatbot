@@ -483,10 +483,22 @@ async def get_halla_cafeteria_menu(date: Optional[str] = None, meal: Optional[st
         url = "https://www.halla.ac.kr/kr/211/subview.do"
     try:
         net_t = time.time()
+
+        # User-Agent 헤더 추가 (봇 차단 방지)
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        }
+
         async with httpx.AsyncClient() as client:
-            resp = await client.get(url, timeout=10.0)
+            resp = await client.get(url, headers=headers, timeout=60.0)
             resp.raise_for_status()
             html_content = resp.text
+
+        # 에러 HTML 감지 (403 Forbidden 등)
+        if "403 Forbidden" in html_content or "<title>403" in html_content:
+            print(f"[CAF][ERROR] 403 Forbidden detected in response body")
+            return f"❌ 페이지 접근이 차단되었습니다. 잠시 후 다시 시도해주세요."
+
         print(f"[CAF] fetch ok elapsed={time.time()-net_t:.2f}s status={resp.status_code}")
     except Exception as e:
         print(f"[CAF][ERROR] fetch {e}")
@@ -702,10 +714,22 @@ async def get_halla_academic_calendar(month: Optional[str] = None) -> str:
         net_t = time.time()
         # 특정 년월 조회 시도 (파라미터 전달)
         params = {"year": str(year), "month": str(month_num)}
+
+        # User-Agent 헤더 추가 (봇 차단 방지)
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        }
+
         async with httpx.AsyncClient() as client:
-            resp = await client.get(url, params=params, timeout=10.0)
+            resp = await client.get(url, params=params, headers=headers, timeout=60.0)
             resp.raise_for_status()
             html_content = resp.text
+
+        # 에러 HTML 감지 (403 Forbidden 등)
+        if "403 Forbidden" in html_content or "<title>403" in html_content:
+            print(f"[CALENDAR][ERROR] 403 Forbidden detected in response body")
+            return f"❌ 페이지 접근이 차단되었습니다. 잠시 후 다시 시도해주세요."
+
         print(f"[CALENDAR] fetch ok elapsed={time.time()-net_t:.2f}s status={resp.status_code}")
     except Exception as e:
         print(f"[CALENDAR][ERROR] fetch {e}")
