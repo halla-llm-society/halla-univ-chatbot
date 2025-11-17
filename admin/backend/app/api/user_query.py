@@ -90,7 +90,7 @@ async def get_user_query_data(
             doc_date = doc.get(date_field)
             
             results.append({
-                "date": doc_date.strftime('%Y-%m-%d %H:%M:%S') if doc_date else None,
+                "date": doc_date.isoformat() + "Z" if doc_date else None,
                 "question": doc.get("question"),
                 "answer": doc.get("answer"),
                 "decision": doc.get("decision")

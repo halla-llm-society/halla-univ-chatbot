@@ -132,6 +132,29 @@ const UserQueryDataAnalysis = () => {
     }
   };
 
+  // 시간대 변환함수
+  const formatKST = (isoString) => {
+    if (!isoString) return 'N/A';
+    try {
+      const date = new Date(isoString);
+      
+      // 'ko-KR' 로캘과 'Asia/Seoul' 시간대를 사용해 KST로 변환
+      // "2025. 11. 17. 19:00:00" 같은 형식으로 자동 변환됩니다.
+      return date.toLocaleString('sv-SE', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false, // 24시간 표기
+        timeZone: 'Asia/Seoul'
+      });
+    } catch (e) {
+      return isoString; // 파싱 실패 시 원본 표시
+    }
+  };
+
   
   return (
     // 1. 외부 컨테이너: 페이지 전체를 감싸고 중앙 정렬을 담당
@@ -201,7 +224,9 @@ const UserQueryDataAnalysis = () => {
               ) : (
                 tableData.map((rowData, index) => (
                   <tr key={index}>
-                    <td onMouseEnter={(e) => handleMouseEnter(e, rowData.date)} onMouseLeave={handleMouseLeave}>{rowData.date}</td>
+                    <td onMouseEnter={(e) => handleMouseEnter(e, formatKST(rowData.date))} onMouseLeave={handleMouseLeave}>
+                      {formatKST(rowData.date)}
+                    </td>
                     <td onMouseEnter={(e) => handleMouseEnter(e, rowData.question)} onMouseLeave={handleMouseLeave}>{rowData.question}</td>
                     <td onMouseEnter={(e) => handleMouseEnter(e, rowData.answer)} onMouseLeave={handleMouseLeave}>{rowData.answer}</td>
                     <td onMouseEnter={(e) => handleMouseEnter(e, rowData.decision)} onMouseLeave={handleMouseLeave}>{rowData.decision}</td>
