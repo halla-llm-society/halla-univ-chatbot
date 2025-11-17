@@ -1,5 +1,6 @@
 import json
 import requests
+import httpx
 from pprint import pprint
 import re
 import time
@@ -118,6 +119,29 @@ tools = [
                         "type": "string",
                         "enum": ["학생", "교직원"],
                         "description": "식당 종류. '학생' 또는 '교직원'. 기본값은 '학생'입니다. 사용자가 '교직원', '교수', '직원' 등의 키워드를 언급하면 '교직원'을 선택하세요.",
+                    }
+                },
+                "additionalProperties": False
+            }
+            },
+            {
+            "type": "function",
+            "name": "get_halla_academic_calendar",
+            "description": "한라대학교 학사일정을 조회합니다. 특정 월의 학사 일정(개강, 종강, 시험, 방학 등)을 제공합니다.",
+            "parameters": {
+                "type": "object",
+                "required": [],
+                "properties": {
+                    "month": {
+                        "type": "string",
+                        "description": """조회할 월을 지정합니다.
+허용 형식:
+- 상대 월: "이번달", "다음달", "지난달"
+- 절대 월: "3월", "12월" (올해 기준)
+- YYYY-MM 형식: "2025-03"
+- YYYY년 MM월: "2025년 3월"
+- 숫자: "3", "12" (1~12는 월로 해석)
+기본값: 현재 월""",
                     }
                 },
                 "additionalProperties": False
@@ -430,14 +454,14 @@ def _parse_date_input(date_text: Optional[str]) -> datetime.date:
     raise ValueError("날짜 형식은 YYYY-MM-DD / YYYY.M.D / '오늘/내일/어제'를 사용하세요.")
 
 
-def get_halla_cafeteria_menu(date: Optional[str] = None, meal: Optional[str] = None, cafeteria_type: Optional[str] = None) -> str:
+async def get_halla_cafeteria_menu(date: Optional[str] = None, meal: Optional[str] = None, cafeteria_type: Optional[str] = None) -> str:
     """원주 한라대 식당(학생식당/교직원식당) 주간 식단 페이지를 파싱하여 특정 날짜/끼니 메뉴를 반환.
-    
+
     Args:
         date: 조회할 날짜 ("오늘", "내일", "YYYY-MM-DD" 등)
         meal: 조회할 끼니 ("조식", "중식", "석식", None이면 전체)
         cafeteria_type: 식당 종류 ('학생' 또는 '교직원', 기본값: '학생')
-    
+
     제한: 서버가 주차 변경을 JS/폼으로 처리하면 과거/미래 주 선택은 어려울 수 있음. 이 경우 현재 주만 반환.
     """
     # cafeteria_type 검증 및 기본값 설정
@@ -459,14 +483,16 @@ def get_halla_cafeteria_menu(date: Optional[str] = None, meal: Optional[str] = N
         url = "https://www.halla.ac.kr/kr/211/subview.do"
     try:
         net_t = time.time()
-        resp = requests.get(url, timeout=10)
-        resp.raise_for_status()
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(url, timeout=10.0)
+            resp.raise_for_status()
+            html_content = resp.text
         print(f"[CAF] fetch ok elapsed={time.time()-net_t:.2f}s status={resp.status_code}")
     except Exception as e:
         print(f"[CAF][ERROR] fetch {e}")
         return f"❌ 페이지 요청 실패: {e}"
 
-    soup = BeautifulSoup(resp.text, "html.parser")
+    soup = BeautifulSoup(html_content, "html.parser")
 
     # 주간 범위 텍스트 찾기 (예: 2025.08.25 ~ 2025.08.31)
     text = soup.get_text("\n", strip=True)
@@ -601,6 +627,161 @@ def get_halla_cafeteria_menu(date: Optional[str] = None, meal: Optional[str] = N
     return out
 
 
+def _parse_month_input(month_text: Optional[str]) -> tuple:
+    """월 입력을 파싱하여 (년, 월) 튜플 반환
+
+    Args:
+        month_text: 월 입력 ("이번달", "다음달", "2025-03", "3월" 등)
+
+    Returns:
+        (year, month) 튜플
+    """
+    today = datetime.now().date()
+
+    if not month_text:
+        return (today.year, today.month)
+
+    s = str(month_text).strip()
+
+    # 상대 월 지원
+    if s in ("이번달", "이번 달", "현재", "this month"):
+        return (today.year, today.month)
+    if s in ("다음달", "다음 달", "next month"):
+        next_month = today.replace(day=1) + timedelta(days=32)
+        return (next_month.year, next_month.month)
+    if s in ("지난달", "지난 달", "last month"):
+        prev_month = today.replace(day=1) - timedelta(days=1)
+        return (prev_month.year, prev_month.month)
+
+    # YYYY-MM 형식
+    if re.match(r"^\d{4}-\d{1,2}$", s):
+        parts = s.split("-")
+        return (int(parts[0]), int(parts[1]))
+
+    # YYYY년 MM월 형식
+    m = re.search(r"(\d{4})년\s*(\d{1,2})월", s)
+    if m:
+        return (int(m.group(1)), int(m.group(2)))
+
+    # MM월 형식 (올해)
+    m = re.search(r"(\d{1,2})월", s)
+    if m:
+        return (today.year, int(m.group(1)))
+
+    # 숫자만 (1~12: 월, 그 외: 현재 월)
+    if s.isdigit():
+        num = int(s)
+        if 1 <= num <= 12:
+            return (today.year, num)
+
+    # 파싱 실패 시 현재 월
+    return (today.year, today.month)
+
+
+async def get_halla_academic_calendar(month: Optional[str] = None) -> str:
+    """한라대학교 학사일정 조회
+
+    Args:
+        month: 조회할 월 ("이번달", "다음달", "2025-03", "3월" 등)
+
+    Returns:
+        학사일정 정보 문자열
+    """
+    t0 = time.time()
+    print(f"[CALENDAR][START] month={month}")
+
+    try:
+        year, month_num = _parse_month_input(month)
+    except Exception as e:
+        print(f"[CALENDAR][ERROR] month-parse {e}")
+        return f"❌ 월 해석 실패: {e}"
+
+    url = "https://www.halla.ac.kr/kr/100/subview.do"
+
+    try:
+        net_t = time.time()
+        # 특정 년월 조회 시도 (파라미터 전달)
+        params = {"year": str(year), "month": str(month_num)}
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(url, params=params, timeout=10.0)
+            resp.raise_for_status()
+            html_content = resp.text
+        print(f"[CALENDAR] fetch ok elapsed={time.time()-net_t:.2f}s status={resp.status_code}")
+    except Exception as e:
+        print(f"[CALENDAR][ERROR] fetch {e}")
+        return f"❌ 페이지 요청 실패: {e}"
+
+    soup = BeautifulSoup(html_content, "html.parser")
+
+    schedules = []
+
+    # 방법 1: ul 태그에서 li 항목 찾기
+    ul_tags = soup.find_all("ul")
+    for ul in ul_tags:
+        li_items = ul.find_all("li")
+        for li in li_items:
+            text = li.get_text("\n", strip=True)
+            # "MM.DD" 패턴이 포함된 li만 처리
+            if re.search(r"\d{1,2}\.\d{1,2}", text):
+                # 줄바꿈을 공백으로 변경하고 정리
+                cleaned = " ".join(text.split())
+                if len(cleaned) > 5:  # 의미있는 텍스트만
+                    schedules.append(cleaned)
+
+    # 방법 2: ul에서 못 찾았으면, 전체 텍스트에서 패턴 매칭
+    if not schedules:
+        text = soup.get_text("\n", strip=False)
+        lines = text.split("\n")
+
+        # "MM.DD" 패턴으로 시작하는 라인 찾기
+        schedule_pattern = re.compile(r"(\d{1,2}\.\d{1,2})")
+
+        i = 0
+        while i < len(lines):
+            line = lines[i].strip()
+            match = schedule_pattern.match(line)
+
+            if match:
+                # 날짜 라인 발견
+                date_str = match.group(1)
+
+                # 다음 라인이 일정 내용일 가능성
+                if i + 1 < len(lines):
+                    next_line = lines[i + 1].strip()
+
+                    # 범위 날짜 체크 (예: "11.24 - 11.25")
+                    if next_line.startswith("-") and i + 2 < len(lines):
+                        # "- 11.25" 형태
+                        range_match = re.match(r"-\s*(\d{1,2}\.\d{1,2})", next_line)
+                        if range_match:
+                            end_date = range_match.group(1)
+                            date_str = f"{date_str} - {end_date}"
+                            i += 1  # 다음 라인 건너뛰기
+
+                            # 그 다음 라인이 일정 내용
+                            if i + 1 < len(lines):
+                                next_line = lines[i + 1].strip()
+
+                    # 일정 내용인지 확인 (날짜 패턴이 아니고, 의미있는 텍스트)
+                    if next_line and not schedule_pattern.match(next_line) and len(next_line) > 1:
+                        schedules.append(f"{date_str}: {next_line}")
+                        i += 1  # 다음 라인 건너뛰기
+
+            i += 1
+
+    # 결과 구성
+    header = f"한라대 학사일정 ({year}년 {month_num}월)"
+
+    if not schedules:
+        out = header + f"\n등록된 일정이 없습니다.\n원문: {url}"
+        print(f"[CALENDAR][END] elapsed={time.time()-t0:.2f}s no-schedule")
+        return out
+
+    out = header + "\n" + "\n".join(schedules) + f"\n\n원문: {url}"
+    print(f"[CALENDAR][END] elapsed={time.time()-t0:.2f}s schedules={len(schedules)}")
+    return out
+
+
 # 통학버스 서비스 싱글톤 인스턴스
 _shuttle_bus_service = None
 
@@ -686,6 +867,7 @@ class FunctionCalling:
         default_functions = {
             "search_internet": search_internet,
             "get_halla_cafeteria_menu": get_halla_cafeteria_menu,
+            "get_halla_academic_calendar": get_halla_academic_calendar,
             "get_shuttle_bus_info": get_shuttle_bus_info,
         }
 
