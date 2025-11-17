@@ -94,7 +94,7 @@ tools = [
             {
             "type": "function",
             "name": "get_halla_cafeteria_menu",
-            "description": "원주 한라대학교 학생식당의 메뉴를 궁금해 하면 이 함수를 호출하세요. 주간 식단 페이지에서 특정 날짜/끼니의 메뉴를 추출합니다.",
+            "description": "원주 한라대학교 학생식당과 교직원식당의 메뉴를 조회합니다. 주간 식단 페이지에서 특정 날짜/끼니의 메뉴를 추출합니다. 학생식당(/kr/211/)과 교직원식당(/kr/212/) 모두 지원합니다.",
             "parameters": {
                 "type": "object",
                 "required": ["date"],
@@ -113,6 +113,11 @@ tools = [
                         "type": "string",
                         "enum": ["조식", "중식", "석식"],
                         "description": "조회할 끼니. 지정하지 않으면 전체 끼니를 보여줍니다.",
+                    },
+                    "cafeteria_type": {
+                        "type": "string",
+                        "enum": ["학생", "교직원"],
+                        "description": "식당 종류. '학생' 또는 '교직원'. 기본값은 '학생'입니다. 사용자가 '교직원', '교수', '직원' 등의 키워드를 언급하면 '교직원'을 선택하세요.",
                     }
                 },
                 "additionalProperties": False
@@ -425,19 +430,33 @@ def _parse_date_input(date_text: Optional[str]) -> datetime.date:
     raise ValueError("날짜 형식은 YYYY-MM-DD / YYYY.M.D / '오늘/내일/어제'를 사용하세요.")
 
 
-def get_halla_cafeteria_menu(date: Optional[str] = None, meal: Optional[str] = None) -> str:
-    """원주 한라대 학생식당 주간 식단 페이지를 파싱하여 특정 날짜/끼니 메뉴를 반환.
+def get_halla_cafeteria_menu(date: Optional[str] = None, meal: Optional[str] = None, cafeteria_type: Optional[str] = None) -> str:
+    """원주 한라대 식당(학생식당/교직원식당) 주간 식단 페이지를 파싱하여 특정 날짜/끼니 메뉴를 반환.
+    
+    Args:
+        date: 조회할 날짜 ("오늘", "내일", "YYYY-MM-DD" 등)
+        meal: 조회할 끼니 ("조식", "중식", "석식", None이면 전체)
+        cafeteria_type: 식당 종류 ('학생' 또는 '교직원', 기본값: '학생')
+    
     제한: 서버가 주차 변경을 JS/폼으로 처리하면 과거/미래 주 선택은 어려울 수 있음. 이 경우 현재 주만 반환.
     """
+    # cafeteria_type 검증 및 기본값 설정
+    if cafeteria_type is None or cafeteria_type not in ["학생", "교직원"]:
+        cafeteria_type = "학생"
+    
     t0 = time.time()
-    print(f"[CAF][START] date={date} meal={meal}")
+    print(f"[CAF][START] date={date} meal={meal} cafeteria_type={cafeteria_type}")
     try:
         target_date = _parse_date_input(date)
     except Exception as e:
         print(f"[CAF][ERROR] date-parse {e}")
         return f"❌ 날짜 해석 실패: {e}"
 
-    url = "https://www.halla.ac.kr/kr/211/subview.do"
+    # URL 분기: 교직원식당은 /kr/212/, 학생식당은 /kr/211/
+    if cafeteria_type == "교직원":
+        url = "https://www.halla.ac.kr/kr/212/subview.do"
+    else:
+        url = "https://www.halla.ac.kr/kr/211/subview.do"
     try:
         net_t = time.time()
         resp = requests.get(url, timeout=10)
@@ -559,7 +578,8 @@ def get_halla_cafeteria_menu(date: Optional[str] = None, meal: Optional[str] = N
 
     # 결과 구성
     day_label = target_day_label
-    header = f"한라대 학생식당 식단 ({target_date} {day_label})"
+    cafeteria_label = "교직원식당" if cafeteria_type == "교직원" else "학생식당"
+    header = f"한라대 {cafeteria_label} 식단 ({target_date} {day_label})"
 
     if meal in ("조식", "중식", "석식"):
         val = found.get(meal)
