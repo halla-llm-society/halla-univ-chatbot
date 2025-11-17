@@ -490,7 +490,7 @@ async def get_halla_cafeteria_menu(date: Optional[str] = None, meal: Optional[st
         }
 
         async with httpx.AsyncClient() as client:
-            resp = await client.get(url, headers=headers, timeout=10.0)
+            resp = await client.get(url, headers=headers, timeout=60.0)
             resp.raise_for_status()
             html_content = resp.text
 
@@ -721,7 +721,7 @@ async def get_halla_academic_calendar(month: Optional[str] = None) -> str:
         }
 
         async with httpx.AsyncClient() as client:
-            resp = await client.get(url, params=params, headers=headers, timeout=10.0)
+            resp = await client.get(url, params=params, headers=headers, timeout=60.0)
             resp.raise_for_status()
             html_content = resp.text
 
