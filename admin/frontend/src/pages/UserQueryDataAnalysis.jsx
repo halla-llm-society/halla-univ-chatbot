@@ -155,6 +155,28 @@ const UserQueryDataAnalysis = () => {
     }
   };
 
+
+  // 페이지 네이션 길이 고정 로직
+  const PAGE_GROUP_SIZE = 9;
+
+  // (currentPage - 1)을 기준으로 계산해야 1~5페이지가 0번 그룹이 됩니다.
+  const currentPageGroup = Math.floor((currentPage - 1) / PAGE_GROUP_SIZE);
+
+  // 현재 그룹의 시작 페이지 번호
+  const startPage = currentPageGroup * PAGE_GROUP_SIZE + 1;
+
+  const endPage = Math.min(
+    startPage + PAGE_GROUP_SIZE - 1,
+    totalPages
+  );
+
+  // 화면에 렌더링할 페이지 번호 배열 생성 (startPage부터 endPage까지)
+  const pageNumbers = Array.from(
+    { length: (endPage - startPage + 1) },  // 배열 길이 입니다
+    (_, index) => startPage + index         // 배열의 요소 (startPage + 0, startPage + 1, ...)
+  );
+
+
   
   return (
     // 1. 외부 컨테이너: 페이지 전체를 감싸고 중앙 정렬을 담당
@@ -257,16 +279,16 @@ const UserQueryDataAnalysis = () => {
           >
             &lt;
           </button>
+          
 
-          {/* 페이지 번호 버튼들 */}
-          {Array.from({ length: totalPages }, (_, index) => (
+          {pageNumbers.map((pageNumber) => (
             <button
-              key={index + 1}
-              onClick={() => handlePageChange(index + 1)}
-              className={`${styles.pageButton} ${currentPage === index + 1 ? styles.activePage : ''}`}
+              key={pageNumber}
+              onClick={() => handlePageChange(pageNumber)}
+              className={`${styles.pageButton} ${currentPage === pageNumber ? styles.activePage : ''}`}
               disabled={loading}
             >
-              {index + 1}
+              {pageNumber}
             </button>
           ))}
 
