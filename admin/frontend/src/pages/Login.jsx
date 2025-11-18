@@ -1,14 +1,13 @@
 import React from 'react';
 import { GoogleLogin } from '@react-oauth/google';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios'; // apiClient를 사용해도 됩니다.
+import axios from 'axios';
 
-// 이 페이지를 위한 간단한 CSS (인라인 스타일로 대체 가능)
 import styles from './styles/Login.module.css';
-import logo from '../assets/images/logo_2.png'; // 로고가 있다면
+import logo from '../assets/images/logo_2.png';
 
 // apiClient.js에 정의된 baseURL을 사용합니다.
-// 여기서는 /admin/ prefix가 이미 apiClient에 설정되어 있다고 가정합니다.
+// /admin/ prefix가 이미 apiClient에 설정되어 있다고 가정 함.
 import apiClient from '../services/apiClient';
 
 const LoginPage = () => {
