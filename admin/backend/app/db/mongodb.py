@@ -38,7 +38,7 @@ async def init_mongo_client(app: FastAPI):
         app.state.prod_db = app.state.prod_mongo_client[settings.PROD_DB_NAME]
         logger.info(f"PROD MongoDB connected. Database: {settings.PROD_DB_NAME}")
         
-        # 기본 DB 환경을 'stg'로 설정
+        # 기본 DB 환경을 'prod'로 설정
         app.state.current_db_env = "prod"
         
     except Exception as e:

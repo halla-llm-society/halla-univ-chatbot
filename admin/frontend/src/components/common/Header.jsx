@@ -2,7 +2,7 @@
 
 import { NavLink } from 'react-router-dom';
 import styles from '../styles/Header.module.css';
-import logoImage from '../../assets/images/logo.png'; 
+import logoImage from '../../assets/images/logo_2.png'; 
 
 const Header = ({ curEnv, onEnvToggle }) => {
 
