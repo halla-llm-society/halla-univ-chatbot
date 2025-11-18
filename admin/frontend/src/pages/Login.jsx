@@ -5,7 +5,7 @@ import axios from 'axios'; // apiClient를 사용해도 됩니다.
 
 // 이 페이지를 위한 간단한 CSS (인라인 스타일로 대체 가능)
 import styles from './styles/Login.module.css';
-import logo from '../assets/images/logo.png'; // 로고가 있다면
+import logo from '../assets/images/logo_2.png'; // 로고가 있다면
 
 // apiClient.js에 정의된 baseURL을 사용합니다.
 // 여기서는 /admin/ prefix가 이미 apiClient에 설정되어 있다고 가정합니다.
@@ -56,7 +56,7 @@ const LoginPage = () => {
     <div className={styles.loginContainer}>
       <div className={styles.loginBox}>
         <img src={logo} alt="로고" className={styles.logo} />
-        <h2>어드민 페이지</h2>
+        <h2>관리자 페이지</h2>
         <p>로그인이 필요합니다.</p>
         <div className={styles.googleButtonWrapper}>
           <GoogleLogin
