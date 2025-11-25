@@ -7,12 +7,13 @@ from app.schemas.chat_schema import ChatRequest
 from app.db.mongodb_crud import save_to_mongodb, save_chat_and_return_id
 from app.core.config import settings
 
+import time  
 
 logger = logging.getLogger(__name__)
 
 
 async def stream_chat_response(request: ChatRequest, mongo_client: AsyncIOMotorDatabase):
-    ai_endpoint = f"{settings.AI_SERVICE_URL }/api/chat"
+    ai_endpoint = f"{settings.AI_SERVICE_URL}/api/chat"
 
     question = request.user_input
     answer = ""
@@ -21,6 +22,10 @@ async def stream_chat_response(request: ChatRequest, mongo_client: AsyncIOMotorD
     totalTokens = ""
     metadata = {}
     totalCostUsd = ""
+
+    # 시작 시간 측정(로그)
+    start_time = time.perf_counter()
+    first_token_received = False
 
     try:
         async with httpx.AsyncClient() as client:
@@ -42,6 +47,13 @@ async def stream_chat_response(request: ChatRequest, mongo_client: AsyncIOMotorD
                     # 채팅 본문
                     if event_type == "delta":
                         content = payload.get("content", "")
+                        
+                        # 첫 번째 토큰이 도착했을 때 시간(로그)
+                        if not first_token_received and content:
+                            first_token_time = time.perf_counter() - start_time
+                            logger.info(f"[AI 첫 응답 소요 시간]: {first_token_time:.4f}초 | 첫 토큰: {content}")
+                            first_token_received = True
+
                         answer += content
                         yield content.encode("utf-8")
 
@@ -65,6 +77,10 @@ async def stream_chat_response(request: ChatRequest, mongo_client: AsyncIOMotorD
                         friendly_error = "AI 응답 생성 중 오류가 발생했습니다. 다시 시도해주세요."
                         yield friendly_error.encode("utf-8")
                         break
+
+        # 총 소요 시간 측정(로그)
+        total_duration = time.perf_counter() - start_time
+        logger.info(f"[AI  완료 총 소요 시간]: {total_duration:.4f}초")
 
     except httpx.RequestError as exc:
         logger.error(f"AI 서비스 연결 실패: {exc}", exc_info=True)
