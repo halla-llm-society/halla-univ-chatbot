@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 @router.post("")
 async def chat(request: ChatRequest, mongo_client: AsyncIOMotorDatabase = Depends(get_mongo_db)):
     try:
-        await check_cost_limit()
+        # await check_cost_limit()
         return StreamingResponse(stream_chat_response(request, mongo_client), media_type="text/event-stream")
     
     except HTTPException as e:
