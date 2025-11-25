@@ -7,6 +7,7 @@ from app.schemas.chat_schema import ChatRequest
 from app.db.mongodb_crud import save_to_mongodb, save_chat_and_return_id
 from app.core.config import settings
 
+# 로그
 import time  
 
 logger = logging.getLogger(__name__)
