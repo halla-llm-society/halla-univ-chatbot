@@ -1,7 +1,7 @@
 from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
-
+    
     # MongoDB 설정
     STG_MONGODB_URI: str    
     PROD_MONGODB_URI: str
