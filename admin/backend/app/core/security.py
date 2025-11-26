@@ -2,15 +2,13 @@ import jwt
 from jwt import PyJWTError
 from datetime import datetime, timedelta, timezone
 from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import APIKeyCookie
 from pydantic import BaseModel, ValidationError
 
 from app.core.config import settings
 
-# OAuth2 스킴 정의: "/admin/api/..." 경로에서 토큰을 찾습니다.
-# 하지만 프론트엔드가 헤더에 직접 넣어줄 것이므로, 이 자체는 크게 중요하지 않습니다.
-# 실제 토큰 확인은 get_current_admin에서 직접 헤더를 읽습니다.
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/admin/auth/google/login") 
+# 쿠키 설정
+cookie_scheme = APIKeyCookie(name="access_token", auto_error=False)
 
 class TokenPayload(BaseModel):
     sub: str | None = None
@@ -29,7 +27,7 @@ def create_access_token(email: str) -> str:
     return encoded_jwt
 
 async def get_current_admin(
-    token: str = Depends(oauth2_scheme)
+    token_cookie: str | None = Depends(cookie_scheme)
 ) -> str:
     """
     FastAPI 의존성 함수:
@@ -38,11 +36,18 @@ async def get_current_admin(
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
     )
+
+    # 쿠키가 없으면 바로 에러 발생
+    if not token_cookie:
+        raise credentials_exception
+    
     try:
+        # 토큰 디코딩
         payload_data = jwt.decode(
-            token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM]
+            token_cookie, 
+            settings.JWT_SECRET_KEY, 
+            algorithms=[settings.JWT_ALGORITHM]
         )
         
         # 'exp' 필드 (만료 시간) 검증
@@ -51,10 +56,9 @@ async def get_current_admin(
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Token has expired",
-                headers={"WWW-Authenticate": "Bearer"},
             )
 
-        # 'sub' 필드 (이메일) 검증
+        # 이메일 확인
         email = payload_data.get("sub")
         if email is None:
             raise credentials_exception
@@ -62,8 +66,7 @@ async def get_current_admin(
     except (PyJWTError, ValidationError):
         raise credentials_exception
 
-    # 여기서 반환된 이메일은 API 라우터에서 사용할 수 있습니다.
-    # 우리는 이메일이 허용된 이메일과 같은지만 확인하면 됩니다.
+    # 관리자 이메일 일치 확인
     if email != settings.ALLOWED_ADMIN_EMAIL:
          raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
