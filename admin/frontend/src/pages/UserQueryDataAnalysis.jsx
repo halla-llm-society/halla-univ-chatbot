@@ -2,7 +2,7 @@
 // src/pages/UserQueryDataAnalysis.jsx
 
 import { useState, useEffect } from 'react';
-import { FaSortUp, FaSortDown } from 'react-icons/fa'; // 정렬 아이콘 import
+import { FaSortUp, FaSortDown, FaTimes, FaRobot, FaUser } from 'react-icons/fa'; // 정렬 아이콘 import
 import { getUserQueryData } from '../services/userQuery'; // API 함수 import
 import styles from './styles/UserQueryDataAnalysis.module.css'
 
@@ -28,6 +28,10 @@ const UserQueryDataAnalysis = () => {
   const [loading, setLoading] = useState(true); // 로딩 상태
   const [error, setError] = useState(null); // 에러 상태
   const [sortOrder, setSortOrder] = useState('desc'); // 정렬 순서를 관리할 새로운 state ('asc': 오름차순, 'desc': 내림차순)
+
+  // 모달 상태 관리
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedRowData, setSelectedRowData] = useState(null);
   
   // 4. 한 페이지에 보여줄 항목 수
   const ITEMS_PER_PAGE = 20;
@@ -49,6 +53,19 @@ const UserQueryDataAnalysis = () => {
   // 2-1. 마우스가 셀을 벗어났을 때 실행될 함수
   const handleMouseLeave = () => {
     setTooltipVisible(false);
+  };
+
+  // 행 클릭 시 모달 열기
+  const handleRowClick = (rowData) => {
+    setSelectedRowData(rowData);
+    setIsModalOpen(true);
+    setTooltipVisible(false);
+  };
+
+  // 모달 닫기
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setSelectedRowData(null);
   };
 
   // 3-1. API 데이터 호출 로직
@@ -245,7 +262,10 @@ const UserQueryDataAnalysis = () => {
                 <tr><td colSpan="4">오류가 발생했습니다: {error.message}</td></tr>
               ) : (
                 tableData.map((rowData, index) => (
-                  <tr key={index}>
+                  <tr key={index}
+                    onClick={() => handleRowClick(rowData)}
+                    className={styles.clickableRow}
+                  >
                     <td onMouseEnter={(e) => handleMouseEnter(e, formatKST(rowData.date))} onMouseLeave={handleMouseLeave}>
                       {formatKST(rowData.date)}
                     </td>
@@ -309,6 +329,8 @@ const UserQueryDataAnalysis = () => {
           >
             &gt;&gt;
           </button>
+
+          
         </div>
       </div>
 
@@ -319,6 +341,67 @@ const UserQueryDataAnalysis = () => {
       >
         {tooltipContent}
       </div>
+      
+      {/* 챗봇 스타일 모달 팝업 */}
+      {isModalOpen && selectedRowData && (
+        <div className={styles.modalOverlay} onClick={closeModal}>
+          <div className={styles.chatModalContent} onClick={(e) => e.stopPropagation()}>
+            
+            {/* 1. 모달 헤더 */}
+            <div className={styles.chatModalHeader}>
+              <div className={styles.headerTitle}>
+                <h2>대화 상세 내역</h2>
+                <span className={styles.headerDate}>{formatKST(selectedRowData.date)}</span>
+              </div>
+              <button className={styles.closeButton} onClick={closeModal}>
+                <FaTimes />
+              </button>
+            </div>
+            
+            {/* 2. 채팅 영역 (Body) */}
+            <div className={styles.chatBody}>
+              
+              {/* 시스템 메시지 (날짜, 분기점 등) */}
+              <div className={styles.systemMessageWrapper}>
+                <span className={styles.systemMessage}>
+                  {formatKST(selectedRowData.date)}에 시작된 대화입니다.
+                </span>
+                <span className={`${styles.systemMessage} ${styles.decisionBadge}`}>
+                  AI 판단: {selectedRowData.decision}
+                </span>
+              </div>
+
+              {/* 사용자 질문 (오른쪽 배치) */}
+              <div className={`${styles.messageRow} ${styles.userRow}`}>
+                <div className={styles.messageBubbleWrapper}>
+                  <div className={`${styles.messageBubble} ${styles.userBubble}`}>
+                    {selectedRowData.question}
+                  </div>
+                  <span className={styles.senderName}>사용자</span>
+                </div>
+                <div className={styles.avatarIcon} style={{backgroundColor: '#302b6c', color: '#e7e7e7ff'}}>
+                  <FaUser />
+                </div>
+              </div>
+
+              {/* AI 답변 (왼쪽 배치) */}
+              <div className={`${styles.messageRow} ${styles.aiRow}`}>
+                 <div className={styles.avatarIcon} style={{backgroundColor: '#00ade6', color: 'white'}}>
+                  <FaRobot />
+                </div>
+                <div className={styles.messageBubbleWrapper}>
+                  <div className={`${styles.messageBubble} ${styles.aiBubble}`}>
+                    {selectedRowData.answer}
+                  </div>
+                   <span className={styles.senderName}>AI 챗봇</span>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      )}
+      
       
     </section>
   );
