@@ -59,8 +59,11 @@ async def close_mongo_client(app: FastAPI):
 
 # MongoDB 객체 가져오기
 async def get_mongo_db(request: Request) -> AsyncIOMotorDatabase:
-    # 현재 설정된 DB 환경('stg' 또는 'prod')을 확인
-    env = getattr(request.app.state, 'current_db_env', 'stg') 
+    # 헤더에서 환경 정보를 읽어옵니다. (기본값은 'prod' 으로 설정)
+    env_header = request.headers.get("x-db-env", "prod").lower()
+    
+    # 유효성 검사 (stg, prod 외에는 기본값 처리 혹은 에러)
+    env = "stg" if env_header == "stg" else "prod"
 
     db_instance = None
     if env == "stg":
@@ -78,26 +81,19 @@ async def get_mongo_db(request: Request) -> AsyncIOMotorDatabase:
     return db_instance
 
 def get_collection(logical_base_name: str) -> callable:
-    """
-    FastAPI 의존성 주입 팩토리.
-    현재 app.state.current_db_env ('stg'/'prod')에 따라
-    올바른 DB의 올바른 컬렉션(예: 'chat-stg' or 'chat-prod')을 반환합니다.
-    
-    Args:
-        logical_base_name (str): DB 이름의 기본 파트 (예: "chat", "metadata", "survey")
-    """
     async def get_collection_dependency(
         request: Request,
-        db: AsyncIOMotorDatabase = Depends(get_mongo_db) # 3번 함수에 의존
+        db: AsyncIOMotorDatabase = Depends(get_mongo_db)
     ) -> AsyncIOMotorCollection:
         
-        # 1. 현재 환경 상태 확인 ('stg' 또는 'prod')
-        env = getattr(request.app.state, 'current_db_env', 'stg')
+        # 1. 헤더에서 환경 정보 확인 (get_mongo_db와 동일한 로직)
+        env_header = request.headers.get("x-db-env", "prod").lower()
+        env = "stg" if env_header == "stg" else "prod"
         
-        # 2. 환경 접미사 결정 ('-stg' 또는 '-prod')
+        # 2. 환경 접미사 결정
         env_suffix = "-prod" if env == "prod" else "-stg"
         
-        # 3. 컬렉션 이름 조합 (예: "chat" + "-stg" -> "chat-stg")
+        # 3. 컬렉션 이름 조합
         collection_name = f"{logical_base_name}{env_suffix}"
         
         # 4. 올바른 DB에서(db) 올바른 컬렉션(collection_name)을 반환
