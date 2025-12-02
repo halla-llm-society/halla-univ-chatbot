@@ -31,12 +31,10 @@ const messages = document.getElementById("chat-messages");
 
 // 초기화 및 기본 이벤트
 window.addEventListener('DOMContentLoaded', () => {
-    sendDefaultMessage();
+    
     setModal();
-    setUserInputPlaceHolder();
-
     setLangDropdown();
-    setInputAndSend();
+   
 
     setBaseURL();
     setUserInfo();
