@@ -89,11 +89,11 @@ async def get_history(
         if ObjectId.is_valid(chat_id):
             query_filters.append({"chatId": ObjectId(chat_id)})
             
-        cursor = collection.find({"$or": query_filters}).limit(6)
-        
+        cursor = collection.find({"$or": query_filters}).sort("_id", -1).limit(6)
         
         raw_history = await cursor.to_list(length=6)
         
+        raw_history.reverse()
         
         formatted_history = []
         for log in raw_history:
