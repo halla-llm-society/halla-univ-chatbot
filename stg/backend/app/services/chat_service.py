@@ -28,7 +28,8 @@ def serialize_event(event_type: str, data: dict = None, content: str = None):
 async def stream_chat_response(
     request: ChatRequest, 
     mongo_client: AsyncIOMotorDatabase,
-    current_chat_id: str 
+    current_chat_id: str,
+    is_tampered: bool = False
 ):   
     
     ai_endpoint = f"{settings.AI_SERVICE_URL}/api/chat"
@@ -57,6 +58,10 @@ async def stream_chat_response(
     totalCostUsd = ""
 
     yield serialize_event("metadata", data={"chatId": current_chat_id})
+    
+    if is_tampered:
+        warning_msg = "⚠️ [시스템 알림] 유효하지 않은 쿠키가 감지되어 새로운 대화가 시작되었습니다. 쿠키를 임의로 변경하면 이전 대화를 기억하지 못해 응답 품질이 떨어질 수 있습니다.\n\n"
+        yield serialize_event("delta", content=warning_msg)
 
 
     # 시작 시간 측정(로그)
