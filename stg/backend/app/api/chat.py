@@ -26,15 +26,23 @@ async def chat(request: ChatRequest, http_req: Request, http_res: Response, mong
         # await check_cost_limit()
         cookie_id = http_req.cookies.get("chatId")
         is_new_user = False
-        
+        is_tampered = False
+
         if cookie_id:
             current_chat_id = cookie_id
+
+        elif cookie_id and not ObjectId.is_valid(cookie_id):
+            logger.warning(f"잘못된 쿠키 감지됨: {cookie_id}")
+            current_chat_id = str(ObjectId()) 
+            is_new_user = True
+            is_tampered = True
+
         else:
          
             current_chat_id = str(ObjectId())
             is_new_user = True
 
-        stream_generator = stream_chat_response(request, mongo_client, current_chat_id)
+        stream_generator = stream_chat_response(request, mongo_client, current_chat_id, is_tampered)
         
         response = StreamingResponse(stream_generator, media_type="text/event-stream")
 
