@@ -1,20 +1,13 @@
 """RAG service orchestrating the modular Phase 2 components."""
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass
-from typing import Any, Callable, Optional, Sequence, Union
+from typing import Any, Callable, Optional, Sequence
 
 from .RagDocumentPackage import RagDocumentPackage, ContextBuilder
 from .gate import GateDecision, RegulationGate
 from .repository import MongoChunkRepository
-from .retriever import PineconeRetriever, RetrieverResult
-from .mongo_vector_retriever import MongoVectorRetriever, RetrieverResult as MongoRetrieverResult
-
-# 환경 변수로 벡터 검색 엔진 선택 (기본값: mongo)
-# USE_MONGO_VECTOR=true (MongoDB Vector Search 사용)
-# USE_MONGO_VECTOR=false (Pinecone 사용)
-USE_MONGO_VECTOR = os.getenv("USE_MONGO_VECTOR", "true").lower() == "true"
+from .mongo_vector_retriever import MongoVectorRetriever, RetrieverResult
 
 
 @dataclass(slots=True)
@@ -49,29 +42,24 @@ class RagService:
     def __init__(
         self,
         *,
-        retriever: Union[PineconeRetriever, MongoVectorRetriever, None] = None,
+        retriever: MongoVectorRetriever | None = None,
         repository: MongoChunkRepository | None = None,
         context_builder: ContextBuilder | None = None,
         gate: RegulationGate | None = None,
         debug_fn: Callable[[str], None] | None = None,
         token_counter=None,
-        use_mongo_vector: bool | None = None,  # None이면 환경변수 사용
     ) -> None:
         self._debug = debug_fn or (lambda _: None)
         self._repository = repository or MongoChunkRepository(debug_fn=self._debug)
 
-        # 벡터 검색 엔진 선택
-        _use_mongo = use_mongo_vector if use_mongo_vector is not None else USE_MONGO_VECTOR
+        # MongoDB Vector Search 사용
         if retriever is not None:
             self._retriever = retriever
-        elif _use_mongo:
+        else:
             self._debug("RagService: Using MongoVectorRetriever")
             self._retriever = MongoVectorRetriever(top_k=5, debug_fn=self._debug)
-        else:
-            self._debug("RagService: Using PineconeRetriever")
-            self._retriever = PineconeRetriever(top_k=5, debug_fn=self._debug)
 
-        self._use_mongo_vector = _use_mongo
+        self._use_mongo_vector = True
         self._context_builder = context_builder or ContextBuilder(
             self._repository, debug_fn=self._debug
         )
