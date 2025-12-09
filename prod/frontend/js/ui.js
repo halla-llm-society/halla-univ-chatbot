@@ -50,15 +50,10 @@ const setResetModal = () => {
     });
 
     resetConfirmBtn.addEventListener("click", () => {   // 초기화 확인
-        let botMessages = document.querySelectorAll('.bot-message-container');
-        let userMessages = document.querySelectorAll('.user');
+        
+        deleteCookie("chatId"); 
 
-        botMessages.forEach(msg => msg.remove());
-        userMessages.forEach(msg => msg.remove());
-        sendDefaultMessage();
-
-        resetModal.classList.remove('fade-in');
-        resetModal.classList.add('fade-out');
+        location.reload();
     });
 
     resetModal.addEventListener('animationend', (e) => {   // 모달 애니메이션 처리

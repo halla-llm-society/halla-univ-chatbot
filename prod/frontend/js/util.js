@@ -1,5 +1,7 @@
 // 공용 함수
 
+window.baseURL = "";
+
 // 딜레이
 const delay = (ms) => {
     return new Promise(resolve => setTimeout(resolve, ms));
@@ -19,12 +21,16 @@ const escapeHTML = (str) => {
 
 const setBaseURL = () => {
     if (window.location.hostname.includes("localhost")) {
-        baseURL = "http://localhost:8080";
+        window.baseURL = "http://localhost:8080";
     }
     else if (window.location.pathname.startsWith("/stg")) {
-        baseURL = "https://halla-chatbot.com/stg";
+        window.baseURL = "https://halla-chatbot.com/stg";
     }
     else {
-        baseURL = "https://halla-chatbot.com";
+        window.baseURL = "https://halla-chatbot.com";
     }
+
+    
 }
+
+setBaseURL();
