@@ -59,8 +59,19 @@ def makeup_response(message, finish_reason="ERROR"):
         ],
         "usage": {"total_tokens": 0},
     }
-    
-tools = [
+
+# 함수 정의는 function_prompts.py에서 가져옴
+try:
+    from app.ai.chatbot.function_prompts import get_function_definitions
+    tools = get_function_definitions()
+    print("[ANALYZER][INIT] ✅ Successfully imported function definitions from function_prompts.py")
+except ImportError as e:
+    # 폴백: 기존 하드코딩 방식
+    print(f"[ANALYZER][INIT] ⚠️ Failed to import function_prompts: {e}")
+    print(f"[ANALYZER][INIT] Using fallback hardcoded function definitions")
+    import traceback
+    traceback.print_exc()
+    tools = [
         
             {
             "type": "function",
@@ -103,12 +114,12 @@ tools = [
                     "date": {
                         "type": "string",
                         "description": """조회할 날짜를 정규화하여 전달합니다.
-허용 형식:
-- 상대 날짜: "오늘", "내일", "모레", "어제"
-- 절대 날짜: YYYY-MM-DD 형식 (예: "2025-11-18")
-- 오타 처리: "야모레" → "모레"로 자동 변환
-- 자연어: "이틀 후" → "모레", "다음주 월요일" → 날짜 계산
-기본값: "오늘" """,
+                                허용 형식:
+                                - 상대 날짜: "오늘", "내일", "모레", "어제"
+                                - 절대 날짜: YYYY-MM-DD 형식 (예: "2025-11-18")
+                                - 오타 처리: "야모레" → "모레"로 자동 변환
+                                - 자연어: "이틀 후" → "모레", "다음주 월요일" → 날짜 계산
+                                기본값: "오늘" """,
                     },
                     "meal": {
                         "type": "string",
@@ -122,7 +133,7 @@ tools = [
                     }
                 },
                 "additionalProperties": False
-            }
+             }
             },
             {
             "type": "function",
@@ -135,13 +146,13 @@ tools = [
                     "month": {
                         "type": "string",
                         "description": """조회할 월을 지정합니다.
-허용 형식:
-- 상대 월: "이번달", "다음달", "지난달"
-- 절대 월: "3월", "12월" (올해 기준)
-- YYYY-MM 형식: "2025-03"
-- YYYY년 MM월: "2025년 3월"
-- 숫자: "3", "12" (1~12는 월로 해석)
-기본값: 현재 월""",
+                            허용 형식:
+                            - 상대 월: "이번달", "다음달", "지난달"
+                            - 절대 월: "3월", "12월" (올해 기준)
+                            - YYYY-MM 형식: "2025-03"
+                            - YYYY년 MM월: "2025년 3월"
+                            - 숫자: "3", "12" (1~12는 월로 해석)
+                            기본값: 현재 월""",
                     }
                 },
                 "additionalProperties": False
@@ -223,9 +234,14 @@ async def _classify_notice_category_llm(user_input: str, context_info: str | Non
         for a in allowed:
             if a in text_norm:
                 return a
+        print(f"[_classify_notice_category_llm] ⚠️ No matching category found in response: {text_norm}")
         return None
     except Exception as e:
-        print(f"[_classify_notice_category_llm] Error: {e}")
+        print(f"[_classify_notice_category_llm] ❌ Error: {e}")
+        print(f"[_classify_notice_category_llm] user_input: {user_input}")
+        print(f"[_classify_notice_category_llm] context_info: {context_info}")
+        import traceback
+        traceback.print_exc()
         return None
 
 # --- 규칙 기반 사이트 선호 라우팅 ---
@@ -418,7 +434,11 @@ async def search_internet(user_input: str, chat_context=None, token_counter=None
         print(f"[WEB][END] success total_elapsed={time.time()-start_ts:.2f}s")
         return result + "\n[WEB_METADATA]elapsed={:.2f}s did_call={}".format(time.time()-start_ts, did_call)
     except Exception as e:
-        print(f"[WEB][ERROR] {e} total_elapsed={time.time()-start_ts:.2f}s")
+        print(f"[WEB][ERROR] ❌ Exception occurred: {e} total_elapsed={time.time()-start_ts:.2f}s")
+        print(f"[WEB][ERROR] user_input: {user_input}")
+        print(f"[WEB][ERROR] chat_context: {chat_context is not None}")
+        import traceback
+        traceback.print_exc()
         return f"🚨 웹검색 오류: {str(e)}"
 
 
@@ -473,7 +493,10 @@ async def get_halla_cafeteria_menu(date: Optional[str] = None, meal: Optional[st
     try:
         target_date = _parse_date_input(date)
     except Exception as e:
-        print(f"[CAF][ERROR] date-parse {e}")
+        print(f"[CAF][ERROR] ❌ date-parse exception: {e}")
+        print(f"[CAF][ERROR] date input value: {date}")
+        import traceback
+        traceback.print_exc()
         return f"❌ 날짜 해석 실패: {e}"
 
     # URL 분기: 교직원식당은 /kr/212/, 학생식당은 /kr/211/
@@ -501,7 +524,11 @@ async def get_halla_cafeteria_menu(date: Optional[str] = None, meal: Optional[st
 
         print(f"[CAF] fetch ok elapsed={time.time()-net_t:.2f}s status={resp.status_code}")
     except Exception as e:
-        print(f"[CAF][ERROR] fetch {e}")
+        print(f"[CAF][ERROR] ❌ fetch exception: {e}")
+        print(f"[CAF][ERROR] url: {url}")
+        print(f"[CAF][ERROR] cafeteria_type: {cafeteria_type}")
+        import traceback
+        traceback.print_exc()
         return f"❌ 페이지 요청 실패: {e}"
 
     soup = BeautifulSoup(html_content, "html.parser")
@@ -705,7 +732,10 @@ async def get_halla_academic_calendar(month: Optional[str] = None) -> str:
     try:
         year, month_num = _parse_month_input(month)
     except Exception as e:
-        print(f"[CALENDAR][ERROR] month-parse {e}")
+        print(f"[CALENDAR][ERROR] ❌ month-parse exception: {e}")
+        print(f"[CALENDAR][ERROR] month input value: {month}")
+        import traceback
+        traceback.print_exc()
         return f"❌ 월 해석 실패: {e}"
 
     url = "https://www.halla.ac.kr/kr/100/subview.do"
@@ -732,7 +762,11 @@ async def get_halla_academic_calendar(month: Optional[str] = None) -> str:
 
         print(f"[CALENDAR] fetch ok elapsed={time.time()-net_t:.2f}s status={resp.status_code}")
     except Exception as e:
-        print(f"[CALENDAR][ERROR] fetch {e}")
+        print(f"[CALENDAR][ERROR] ❌ fetch exception: {e}")
+        print(f"[CALENDAR][ERROR] url: {url}")
+        print(f"[CALENDAR][ERROR] params: {params}")
+        import traceback
+        traceback.print_exc()
         return f"❌ 페이지 요청 실패: {e}"
 
     soup = BeautifulSoup(html_content, "html.parser")
@@ -957,6 +991,10 @@ class FunctionCalling:
                 reasoning = payload.get("reasoning", "").strip() or None
                 selected_tools = payload.get("selected_tools", [])
         except Exception as e:
+            print(f"[ANALYZER][analyze] ❌ Reasoning generation failed: {e}")
+            print(f"[ANALYZER][analyze] user_message: {user_message}")
+            import traceback
+            traceback.print_exc()
             reasoning = f"추론 생성 실패 ({e})"
             selected_tools = []  # exception 발생 시 기본값 설정
 
@@ -1028,6 +1066,11 @@ class FunctionCalling:
                 "output": response.output
             }
         except Exception as e:
+            print(f"[ANALYZER][analyze] ❌ OpenAI API call failed: {e}")
+            print(f"[ANALYZER][analyze] user_message: {user_message}")
+            print(f"[ANALYZER][analyze] model: {model.o3_mini}")
+            import traceback
+            traceback.print_exc()
             return {
                 "reasoning": reasoning,
                 "selected_tools": selected_tools,
