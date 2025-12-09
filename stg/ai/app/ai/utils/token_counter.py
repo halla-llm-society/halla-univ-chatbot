@@ -11,8 +11,11 @@ import tiktoken
 import threading
 import json
 import yaml
+import logging
 from pathlib import Path
 from typing import List, Dict, Any, Optional, TYPE_CHECKING
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from app.ai.llm.base import BaseLLMProvider
@@ -42,7 +45,7 @@ class TokenCounter:
         except KeyError:
             # 폴백: cl100k_base (gpt-4, gpt-3.5-turbo 공통)
             self.encoding = tiktoken.get_encoding("cl100k_base")
-            print(f"[TokenCounter] 모델 {model}의 encoding이 없어 cl100k_base 사용")
+            logger.debug(f"[TokenCounter] 모델 {model}의 encoding이 없어 cl100k_base 사용")
 
         self.model = model
 
@@ -68,7 +71,7 @@ class TokenCounter:
         self._tracking_config = config.get("token_tracking", {})
         self._tracking_mode = self._tracking_config.get("mode", "tiktoken_only")
 
-        print(f"[TokenCounter] 토큰 추적 모드: {self._tracking_mode}")
+        logger.debug(f"[TokenCounter] 토큰 추적 모드: {self._tracking_mode}")
 
         # Provider별 실제 토큰 수 추적 (Gemini 등)
         self._provider_tokens = {
@@ -227,11 +230,11 @@ class TokenCounter:
                 # Provider가 제공한 실제 토큰 수 사용
                 num_tokens = actual_tokens
                 self._provider_tokens["rag"][role] = actual_tokens
-                print(f"[TokenCounter] RAG ({role}): {actual_tokens} 토큰 (provider 실제값)")
+                logger.debug(f"[TokenCounter] RAG ({role}): {actual_tokens} 토큰 (provider 실제값)")
             else:
                 # tiktoken 폴백
                 num_tokens = len(self.encoding.encode(context))
-                print(f"[TokenCounter] RAG ({role}): {num_tokens} 토큰 (tiktoken 추정)")
+                logger.debug(f"[TokenCounter] RAG ({role}): {num_tokens} 토큰 (tiktoken 추정)")
             
             self.rag_tokens += num_tokens
             return num_tokens
@@ -272,14 +275,14 @@ class TokenCounter:
                         input_tokens = provider.count_tokens(input_text) if input_text else 0
                         total_tokens = input_tokens + output_tokens
                         
-                        print(f"[TokenCounter] {role} (Gemini 실제): "
+                        logger.debug(f"[TokenCounter] {role} (Gemini 실제): "
                               f"입력 {input_tokens} + 출력 {output_tokens} = {total_tokens}")
                         
                         self._provider_tokens["rag"][role] = total_tokens
                         self.rag_tokens += total_tokens
                         return total_tokens
                     except Exception as e:
-                        print(f"[TokenCounter] Gemini 토큰 계산 실패: {e}, tiktoken 폴백")
+                        logger.debug(f"[TokenCounter] Gemini 토큰 계산 실패: {e}, tiktoken 폴백")
                         # 폴백으로 계속 진행
                 
                 case "openai":
@@ -288,7 +291,7 @@ class TokenCounter:
                     input_tokens = len(self.encoding.encode(input_text)) if input_text else 0
                     total_tokens = input_tokens + output_tokens
                     
-                    print(f"[TokenCounter] {role} (OpenAI tiktoken): "
+                    logger.debug(f"[TokenCounter] {role} (OpenAI tiktoken): "
                           f"입력 {input_tokens} + 출력 {output_tokens} = {total_tokens}")
                     
                     self.rag_tokens += total_tokens
@@ -300,7 +303,7 @@ class TokenCounter:
                     input_tokens = len(self.encoding.encode(input_text)) if input_text else 0
                     total_tokens = input_tokens + output_tokens
                     
-                    print(f"[TokenCounter] {role} ({provider_name} → tiktoken 폴백): "
+                    logger.debug(f"[TokenCounter] {role} ({provider_name} → tiktoken 폴백): "
                           f"입력 {input_tokens} + 출력 {output_tokens} = {total_tokens}")
                     
             self.rag_tokens += total_tokens
@@ -378,10 +381,10 @@ class TokenCounter:
                 config = yaml.safe_load(f)
 
             provider_config = config.get("provider_config", {})
-            print(f"[TokenCounter] Provider config loaded: {provider_config}")
+            logger.debug(f"[TokenCounter] Provider config loaded: {provider_config}")
             return config
         except Exception as e:
-            print(f"[TokenCounter] Failed to load config: {e}")
+            logger.debug(f"[TokenCounter] Failed to load config: {e}")
             # 폴백: 기본값 사용
             return {
                 "provider_config": {
@@ -534,7 +537,7 @@ class TokenCounter:
             elif self._tracking_mode == "hybrid":
                 # 비교를 위해 캐시에 저장
                 self._api_usage_cache[role] = usage.copy()
-                print(f"[TokenCounter][hybrid] {role} API usage: {usage}")
+                logger.debug(f"[TokenCounter][hybrid] {role} API usage: {usage}")
 
             # replace 모드: 기존 role의 토큰을 제거
             if replace and role in self._role_breakdown:
@@ -552,7 +555,7 @@ class TokenCounter:
                 # reasoning tokens 제거
                 self.reasoning_tokens -= old_tokens["reasoning"]
 
-                print(f"[TokenCounter] {role} 기존 토큰 제거 (replace=True): "
+                logger.debug(f"[TokenCounter] {role} 기존 토큰 제거 (replace=True): "
                       f"input={old_tokens['input']}, output={old_tokens['output']}, reasoning={old_tokens['reasoning']}")
 
                 # role_breakdown 초기화
@@ -582,7 +585,7 @@ class TokenCounter:
             # 역할별 모델 추적 (비용 계산용)
             self._role_model_map[role] = model
 
-            print(f"[TokenCounter] {role} ({model}) API usage 반영 (replace={replace}): "
+            logger.debug(f"[TokenCounter] {role} ({model}) API usage 반영 (replace={replace}): "
                   f"input={input_tok}, output={output_tok}, reasoning={reasoning_tok}")
 
     def get_role_usage_for_cost_calc(self) -> List[Dict[str, any]]:

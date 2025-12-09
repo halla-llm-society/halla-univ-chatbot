@@ -39,10 +39,10 @@ class MongoChunkRepository:
             self._debug("repository.fetch_chunks: Mongo unavailable -> returning []")
             return []
 
-        results: list[dict] = []
-        hits = 0
-        misses = 0
-
+        # ObjectId 변환 및 유효성 검증
+        object_ids: list[Any] = []
+        id_mapping: dict[str, Any] = {}  # 원본 chunk_id -> ObjectId 매핑
+        
         for chunk_id in chunk_ids:
             try:
                 if isinstance(chunk_id, str) and len(chunk_id) == 24:
@@ -51,32 +51,51 @@ class MongoChunkRepository:
                 else:
                     object_id = chunk_id
                     self._debug(f"  - using id '{chunk_id}' without conversion (type={type(chunk_id).__name__})")
+                
+                object_ids.append(object_id)
+                id_mapping[str(object_id)] = chunk_id
             except errors.InvalidId as exc:
                 self._debug(
-                    f"  - ObjectId conversion failed for '{chunk_id}' ({exc}); using raw value"
+                    f"  - ObjectId conversion failed for '{chunk_id}' ({exc}); skipping"
                 )
-                object_id = chunk_id
-
-            try:
-                # Note: pymongo의 find_one은 동기 함수이므로 asyncio.to_thread로 래핑
-                # motor (비동기 MongoDB 드라이버)로 전환하면 더 나은 성능 기대
-                import asyncio
-                document = await asyncio.to_thread(self._collection.find_one, {"_id": object_id})
-            except Exception as exc:  # pragma: no cover - defensive logging
-                self._debug(f"    -> Mongo query error for _id={chunk_id}: {exc}")
                 continue
 
-            if document:
-                results.append(document)
-                hits += 1
-                text_value = document.get("text")
-                text_len = len(text_value) if isinstance(text_value, str) else 0
-                self._debug(
-                    f"    -> hit: _id={document.get('_id')} text_length={text_len}"
-                )
-            else:
-                misses += 1
-                self._debug(f"    -> miss: _id={chunk_id}")
+        if not object_ids:
+            self._debug("repository.fetch_chunks: No valid ObjectIds to query")
+            return []
+
+        # $in 연산자로 한 번에 조회 (성능 개선: N번 쿼리 → 1번 쿼리)
+        try:
+            import asyncio
+            self._debug(f"  - querying MongoDB with $in operator for {len(object_ids)} ids")
+            documents = await asyncio.to_thread(
+                lambda: list(self._collection.find({"_id": {"$in": object_ids}}))
+            )
+        except Exception as exc:  # pragma: no cover - defensive logging
+            self._debug(f"    -> Mongo bulk query error: {exc}")
+            return []
+
+        # 결과 처리 및 통계
+        results: list[dict] = []
+        found_ids = set()
+        
+        for document in documents:
+            results.append(document)
+            found_ids.add(str(document.get("_id")))
+            text_value = document.get("text")
+            text_len = len(text_value) if isinstance(text_value, str) else 0
+            self._debug(
+                f"    -> hit: _id={document.get('_id')} text_length={text_len}"
+            )
+
+        # 못 찾은 ID 로깅
+        hits = len(found_ids)
+        misses = len(object_ids) - hits
+        
+        for obj_id_str in id_mapping:
+            if obj_id_str not in found_ids:
+                original_id = id_mapping[obj_id_str]
+                self._debug(f"    -> miss: _id={original_id}")
 
         self._debug(
             f"repository.fetch_chunks summary: hits={hits} misses={misses} returned={len(results)}"
