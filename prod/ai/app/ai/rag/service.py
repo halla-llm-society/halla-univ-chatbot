@@ -1,6 +1,7 @@
 """RAG service orchestrating the modular Phase 2 components."""
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from typing import Any, Callable, Optional, Sequence
 
@@ -8,6 +9,8 @@ from .RagDocumentPackage import RagDocumentPackage, ContextBuilder
 from .gate import GateDecision, RegulationGate
 from .repository import MongoChunkRepository
 from .mongo_vector_retriever import MongoVectorRetriever, RetrieverResult
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(slots=True)
@@ -111,7 +114,7 @@ class RagService:
         
         if not decision.is_regulation:
             self._debug("rag_service.retrieve_context: 규정 질문 아님 → 검색 생략")
-            print("[INFO] 학사 규정 관련이 아님 → RAG 검색 안 함")
+            logger.info("학사 규정 관련이 아님 → RAG 검색 안 함")
             return self._make_result(
                 merged_documents_text=None,
                 hits=[],
@@ -129,7 +132,7 @@ class RagService:
         if not hits:
             self._debug("rag_service.retrieve_context: 벡터검색 결과 없음")
             engine = "MongoDB Vector Search" if self._use_mongo_vector else "Pinecone"
-            print(f"[INFO] {engine}에서 유사 데이터 없음")
+            logger.info(f"{engine}에서 유사 데이터 없음")
             return self._make_result(
                 merged_documents_text=None,
                 hits=[],
@@ -143,7 +146,7 @@ class RagService:
         if not chunk_ids:
             self._debug("rag_service.retrieve_context: 청크ID 추출 실패")
             engine = "MongoDB Vector Search" if self._use_mongo_vector else "Pinecone"
-            print(f"[INFO] {engine} 결과에 id 없음")
+            logger.info(f"{engine} 결과에 id 없음")
             return self._make_result(
                 merged_documents_text=None,
                 hits=hits,
@@ -158,7 +161,7 @@ class RagService:
         doc_package: RagDocumentPackage = await self._context_builder.build(hits, chunk_ids)
         
         if doc_package.source in {"preview", "none"}:
-            print("[INFO] MongoDB에서 매칭된 문서 없음")
+            logger.info("MongoDB에서 매칭된 문서 없음")
         if doc_package.merged_documents_text is None:
             self._debug("rag_service.retrieve_context: 문서 패키지 조립 결과 없음(None)")
 
