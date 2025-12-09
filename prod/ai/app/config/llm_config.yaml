@@ -77,24 +77,24 @@ presets:
         provider: openai
         model: o3-mini
   openai_only:
-    name: OpenAI 전용 (경량)
-    description: 모든 부분을 OpenAI nano 모델로 설정 (Gemini 미사용)
+    name: OpenAI 전용 (속도 최적화)
+    description: 모든 부분을 OpenAI mini/nano 모델로 설정 (속도 우선)
     roles:
       category:
         provider: openai
-        model: gpt-5-nano
+        model: gpt-4.1-mini
       search_rewrite:
         provider: openai
-        model: gpt-4.1-nano
+        model: gpt-4.1-mini
       condense:
         provider: openai
-        model: gpt-4.1-nano
+        model: gpt-4.1-mini
       gate:
         provider: openai
-        model: o3-mini
+        model: gpt-4.1-mini
       function_analyze:
         provider: openai
-        model: o3-mini
+        model: gpt-4.1-mini
   gpt4_nano_only:
     name: GPT-4.1 Nano 전용
     description: 모든 교체 가능 부분을 GPT-4.1 Nano로 설정 (극도로 저렴한 OpenAI 전용, Gate만 Gemini)
@@ -155,16 +155,16 @@ presets:
 fixed_roles:
   function_calling:
     provider: openai
-    model: o3-mini
-    reason: OpenAI Responses API의 tool calling 기능 종속
+    model: gpt-4.1-mini
+    reason: OpenAI Responses API의 tool calling 기능 종속 (속도 최적화로 mini 사용)
   web_search:
     provider: openai
     model: gpt-4.1
     reason: web_search_preview 기능은 gpt-4.1만 지원
   streaming:
     provider: openai
-    model: gpt-4.1
-    reason: 스트리밍 응답 파싱 로직이 OpenAI API에 종속
+    model: gpt-4.1-mini
+    reason: 스트리밍 응답 파싱 로직이 OpenAI API에 종속 (속도 최적화로 mini 사용)
 role_descriptions:
   category: 공지 카테고리 분류 (학사공지/비교과공지/장학공지/일반공지/해당없음)
   search_rewrite: 검색어 재작성 (사용자 질문 + 문맥 → 최적화된 검색어)

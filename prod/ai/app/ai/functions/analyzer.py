@@ -4,6 +4,7 @@ import httpx
 from pprint import pprint
 import re
 import time
+import logging
 from datetime import datetime, timedelta
 from typing import Optional
 from bs4 import BeautifulSoup
@@ -12,6 +13,8 @@ from pathlib import Path
 from openai import OpenAI
 from dotenv import load_dotenv
 from dataclasses import dataclass
+
+logger = logging.getLogger(__name__)
 
 # LLM Manager import
 try:
@@ -64,11 +67,11 @@ def makeup_response(message, finish_reason="ERROR"):
 try:
     from app.ai.chatbot.function_prompts import get_function_definitions
     tools = get_function_definitions()
-    print("[ANALYZER][INIT] ✅ Successfully imported function definitions from function_prompts.py")
+    logger.debug("[ANALYZER][INIT] ✅ Successfully imported function definitions from function_prompts.py")
 except ImportError as e:
     # 폴백: 기존 하드코딩 방식
-    print(f"[ANALYZER][INIT] ⚠️ Failed to import function_prompts: {e}")
-    print(f"[ANALYZER][INIT] Using fallback hardcoded function definitions")
+    logger.warning(f"[ANALYZER][INIT] ⚠️ Failed to import function_prompts: {e}")
+    logger.debug(f"[ANALYZER][INIT] Using fallback hardcoded function definitions")
     import traceback
     traceback.print_exc()
     tools = [
@@ -113,13 +116,15 @@ except ImportError as e:
                 "properties": {
                     "date": {
                         "type": "string",
-                        "description": """조회할 날짜를 정규화하여 전달합니다.
-                                허용 형식:
-                                - 상대 날짜: "오늘", "내일", "모레", "어제"
-                                - 절대 날짜: YYYY-MM-DD 형식 (예: "2025-11-18")
-                                - 오타 처리: "야모레" → "모레"로 자동 변환
-                                - 자연어: "이틀 후" → "모레", "다음주 월요일" → 날짜 계산
-                                기본값: "오늘" """,
+                        "description": """반드시 YYYY-MM-DD 형식으로 계산하여 전달하세요.
+                                오늘 날짜를 기준으로 직접 계산:
+                                - "오늘" → 오늘 날짜 
+                                - "내일" → 오늘+1일
+                                - "모레" → 오늘+2일
+                                - "글피/그을피" → 오늘+3일
+                                - "그글피" → 오늘+4일
+                                - "다음주 월요일" → 해당 날짜 계산
+                                사용자가 어떤 표현을 쓰든 YYYY-MM-DD로 변환하여 전달.""",
                     },
                     "meal": {
                         "type": "string",
@@ -228,20 +233,18 @@ async def _classify_notice_category_llm(user_input: str, context_info: str | Non
                 category="function"
             )
         
-        print("공지 카테고리 분류기 원문:", raw)
+        logger.debug(f"공지 카테고리 분류기 원문: {raw}")
         # 정규화 및 선택
         text_norm = raw.replace(" ", "").replace("\n", "")
         for a in allowed:
             if a in text_norm:
                 return a
-        print(f"[_classify_notice_category_llm] ⚠️ No matching category found in response: {text_norm}")
+        logger.debug(f"[_classify_notice_category_llm] ⚠️ No matching category found in response: {text_norm}")
         return None
     except Exception as e:
-        print(f"[_classify_notice_category_llm] ❌ Error: {e}")
-        print(f"[_classify_notice_category_llm] user_input: {user_input}")
-        print(f"[_classify_notice_category_llm] context_info: {context_info}")
-        import traceback
-        traceback.print_exc()
+        logger.warning(f"[_classify_notice_category_llm] ❌ Error: {e}")
+        logger.debug(f"[_classify_notice_category_llm] user_input: {user_input}")
+        logger.debug(f"[_classify_notice_category_llm] context_info: {context_info}")
         return None
 
 # --- 규칙 기반 사이트 선호 라우팅 ---
@@ -290,17 +293,33 @@ async def _prefer_halla_site_query(user_input: str, context_info: str | None = N
 
 async def search_internet(user_input: str, chat_context=None, token_counter=None) -> str:
     start_ts = time.time()
-    print(f"[WEB][START] query='{user_input}' chat_ctx={'Y' if chat_context else 'N'}")
+    logger.debug(f"[WEB][START] query='{user_input}' chat_ctx={'Y' if chat_context else 'N'}")
     try:
+        # 대화 문맥 처리: 최근 2개만 사용
         if chat_context:
-            print("[WEB] context available -> trimming recent messages")
-            recent_messages = chat_context[-4:]
-            context_info = "\n".join([
-                f"{m.get('role','unknown')}: {m.get('content','')}" for m in recent_messages if m.get('role') != 'system'
-            ])
+            logger.debug("[WEB] context available -> trimming recent messages")
+            # system 역할 제외한 메시지만 필터링
+            non_system_messages = [m for m in chat_context if m.get('role') != 'system']
+            
+            # 최근 2개만 선택
+            recent_messages = non_system_messages[-2:] if len(non_system_messages) >= 2 else non_system_messages
+            
+            # 대화 문맥 구성
+            if len(recent_messages) == 0:
+                context_info = "최근 대화가 없습니다"
+                logger.debug("[WEB] No recent conversation history")
+            elif len(recent_messages) == 1:
+                context_info = f"{recent_messages[0].get('role','unknown')}: {recent_messages[0].get('content','')}"
+                logger.debug(f"[WEB] Using 1 recent message for context")
+            else:  # len(recent_messages) == 2
+                context_info = "\n".join([
+                    f"{m.get('role','unknown')}: {m.get('content','')}" for m in recent_messages
+                ])
+                logger.debug(f"[WEB] Using 2 recent messages for context")
         else:
             recent_messages = []
-            context_info = ""
+            context_info = "최근 대화가 없습니다"
+            logger.debug("[WEB] No chat_context provided")
 
         preferred = await _prefer_halla_site_query(user_input, context_info if context_info else None, token_counter)
         
@@ -317,6 +336,7 @@ async def search_internet(user_input: str, chat_context=None, token_counter=None
             f"[현재 날짜] {date_str} ({year_str}년)\n"
             f"[사용자 요청] {user_input}\n"
             f"[대화 문맥] {context_info or '없음'}\n\n"
+            "**중요**: 검색 엔진에 직접 입력할 순수한 검색어만 출력하세요. 설명, 안내문, 추가 설명 절대 금지.\n\n"
             "검색어 작성 규칙:\n"
             "1. site:halla.ac.kr 필수 포함\n"
         )
@@ -324,19 +344,22 @@ async def search_internet(user_input: str, chat_context=None, token_counter=None
         # 공지사항 검색이면 항상 현재 연도 포함
         if is_notice_query:
             rewrite_prompt += (
-                f"2. **중요**: 공지사항 검색이므로 반드시 현재 연도({year_str}년)를 검색어에 포함하세요\n"
-                "3. 공지사항 검색 시 반드시 'halla.ac.kr > 커뮤니티 > 공지사항' 경로 명시\n"
-                "4. 간결하고 핵심적인 검색어로 구성\n"
+                f"2. 반드시 현재 연도({year_str}년) 포함\n"
+                "3. 간결하고 핵심적인 검색어로만 구성 (한 줄)\n"
+                "4. 출력 예시: 'site:halla.ac.kr 2025년 학사공지'\n"
             )
         else:
             rewrite_prompt += (
-                f"2. '최신', '최근', '요즘' 키워드 발견 시 반드시 현재 연도({year_str}년)를 검색어에 포함하세요\n"
-                "3. 간결하고 핵심적인 검색어로 구성\n"
+                f"2. '최신', '최근' 키워드 발견 시 현재 연도({year_str}년) 포함\n"
+                "3. 간결하고 핵심적인 검색어로만 구성 (한 줄)\n"
+                "4. 출력 예시: 'site:halla.ac.kr 키워드'\n"
             )
         
         # preferred가 있으면 추가 정보로 활용
         if preferred:
-            rewrite_prompt += f"\n[추천 URL] {preferred}\n이 URL에서 최신 정보를 우선 검색하세요.\n"
+            rewrite_prompt += f"\n[추천 검색어] {preferred}\n위 검색어를 참고하되, 순수 검색어만 출력하세요.\n"
+        
+        rewrite_prompt += "\n**출력**: 검색어만 한 줄로 작성 (설명 금지)"
         
         provider = get_provider("search_rewrite")
         messages = [{"role": "user", "content": [{"type": "input_text", "text": rewrite_prompt}]}]
@@ -351,12 +374,18 @@ async def search_internet(user_input: str, chat_context=None, token_counter=None
                 model=provider.get_model_name(),
                 category="function"
             )
-        print(f"[WEB] final_search_text='{search_text}'")
+        logger.debug(f"[WEB] final_search_text='{search_text}'")
+        logger.debug(f"[WEB][🔍 실제 검색어] '{search_text}'")
+        logger.debug(f"[WEB][DEBUG] 이 검색어로 OpenAI web_search_preview API를 호출합니다")
 
         context_input = [{
             "role": "user",
             "content": [{"type": "input_text", "text": search_text}]
         }]
+        
+        logger.debug(f"[WEB][DEBUG] Request payload - model: {model.advanced}")
+        logger.debug(f"[WEB][DEBUG] Request payload - search_text: '{search_text}'")
+        logger.debug(f"[WEB][DEBUG] Request payload - tools: web_search_preview")
 
         call_ts = time.time()
         response = client.responses.create(
@@ -375,7 +404,12 @@ async def search_internet(user_input: str, chat_context=None, token_counter=None
             top_p=1,
             store=True
         )
-        print(f"[WEB] openai.responses.create elapsed={time.time()-call_ts:.2f}s total={time.time()-start_ts:.2f}s")
+        logger.debug(f"[WEB] openai.responses.create elapsed={time.time()-call_ts:.2f}s total={time.time()-start_ts:.2f}s")
+        logger.debug(f"[WEB][DEBUG] Response object type: {type(response)}")
+        logger.debug(f"[WEB][DEBUG] Response has output: {hasattr(response, 'output')}")
+        if hasattr(response, 'output'):
+            logger.debug(f"[WEB][DEBUG] Output length: {len(response.output) if response.output else 0}")
+            logger.debug(f"[WEB][DEBUG] Output types: {[getattr(item, 'type', 'unknown') for item in response.output] if response.output else []}")
 
         # ✅ API usage 추적 (web_search 역할)
         if token_counter:
@@ -406,37 +440,79 @@ async def search_internet(user_input: str, chat_context=None, token_counter=None
                     category="function",
                     replace=False
                 )
-                print(f"[TokenTrack][web_search] ✅ API usage tracked: input={input_tok}, output={output_tok}, reasoning={reasoning_tok}")
+                logger.debug(f"[TokenTrack][web_search] ✅ API usage tracked: input={input_tok}, output={output_tok}, reasoning={reasoning_tok}")
             else:
-                print(f"[TokenTrack][web_search] ⚠️ No API usage available")
+                logger.debug(f"[TokenTrack][web_search] ⚠️ No API usage available")
 
         did_call = any(getattr(item, "type", None) == "web_search_call" for item in getattr(response, "output", []))
-        print(f"[WEB] search_call_performed={did_call}")
+        logger.debug(f"[WEB] search_call_performed={did_call}")
+        
+        # 📊 Output 아이템 상세 디버깅
+        if hasattr(response, 'output') and response.output:
+            logger.debug(f"[WEB][DEBUG] === Output Items Detail ===")
+            for idx, item in enumerate(response.output):
+                item_type = getattr(item, 'type', 'unknown')
+                logger.debug(f"[WEB][DEBUG] Item[{idx}]: type={item_type}")
+                if item_type == "web_search_call":
+                    logger.debug(f"[WEB][DEBUG]   - web_search_call detected")
+                elif item_type == "message":
+                    content_count = len(getattr(item, 'content', [])) if hasattr(item, 'content') else 0
+                    logger.debug(f"[WEB][DEBUG]   - message with {content_count} content blocks")
 
         message = next((item for item in response.output if getattr(item, "type", None) == "message"), None)
+        logger.debug(f"[WEB][DEBUG] Message found: {message is not None}")
         if not message:
+            logger.debug(f"[WEB][ERROR] ❌ No message in output")
             return "❌ GPT 응답 메시지를 찾을 수 없습니다."
+        
+        # Content blocks 디버깅
+        content_blocks = getattr(message, 'content', [])
+        logger.debug(f"[WEB][DEBUG] Content blocks count: {len(content_blocks)}")
+        for idx, block in enumerate(content_blocks):
+            block_type = getattr(block, 'type', 'unknown')
+            logger.debug(f"[WEB][DEBUG] Content[{idx}]: type={block_type}")
+        
         content_block = next((block for block in message.content if getattr(block, "type", None) == "output_text"), None)
+        logger.debug(f"[WEB][DEBUG] Output_text block found: {content_block is not None}")
         if not content_block:
+            logger.debug(f"[WEB][ERROR] ❌ No output_text in content blocks")
             return "❌ GPT 응답 내 output_text 항목을 찾을 수 없습니다."
+        
         output_text = getattr(content_block, "text", "").strip()
+        logger.debug(f"[WEB][DEBUG] Output text length: {len(output_text)}")
+        logger.debug(f"[WEB][DEBUG] Output text preview: {output_text[:200] if output_text else '(empty)'}...")
+        
         annotations = getattr(content_block, "annotations", [])
+        logger.debug(f"[WEB][DEBUG] Annotations count: {len(annotations)}")
+        logger.debug(f"[WEB][DEBUG] Annotations count: {len(annotations)}")
+        
         citations = []
-        for a in annotations:
-            if getattr(a, "type", None) == "url_citation":
+        for idx, a in enumerate(annotations):
+            ann_type = getattr(a, "type", None)
+            logger.debug(f"[WEB][DEBUG] Annotation[{idx}]: type={ann_type}")
+            if ann_type == "url_citation":
                 title = getattr(a, "title", "출처")
                 url = getattr(a, "url", "")
+                logger.debug(f"[WEB][DEBUG]   - Citation: title='{title}', url='{url}'")
                 if url:
                     citations.append(f"[{title}]({url})")
+        
+        logger.debug(f"[WEB][DEBUG] Total citations extracted: {len(citations)}")
+        
         result = output_text
         if citations:
             result += "\n\n📎 출처:\n" + "\n".join(citations)
-        print(f"[WEB][END] success total_elapsed={time.time()-start_ts:.2f}s")
+            logger.debug(f"[WEB][DEBUG] Citations added to result")
+        else:
+            logger.debug(f"[WEB][DEBUG] ⚠️ No citations found")
+        
+        logger.debug(f"[WEB][DEBUG] Final result length: {len(result)}")
+        logger.debug(f"[WEB][END] ✅ success total_elapsed={time.time()-start_ts:.2f}s")
         return result + "\n[WEB_METADATA]elapsed={:.2f}s did_call={}".format(time.time()-start_ts, did_call)
     except Exception as e:
-        print(f"[WEB][ERROR] ❌ Exception occurred: {e} total_elapsed={time.time()-start_ts:.2f}s")
-        print(f"[WEB][ERROR] user_input: {user_input}")
-        print(f"[WEB][ERROR] chat_context: {chat_context is not None}")
+        logger.debug(f"[WEB][ERROR] ❌ Exception occurred: {e} total_elapsed={time.time()-start_ts:.2f}s")
+        logger.debug(f"[WEB][ERROR] user_input: {user_input}")
+        logger.debug(f"[WEB][ERROR] chat_context: {chat_context is not None}")
         import traceback
         traceback.print_exc()
         return f"🚨 웹검색 오류: {str(e)}"
@@ -489,12 +565,12 @@ async def get_halla_cafeteria_menu(date: Optional[str] = None, meal: Optional[st
         cafeteria_type = "학생"
     
     t0 = time.time()
-    print(f"[CAF][START] date={date} meal={meal} cafeteria_type={cafeteria_type}")
+    logger.debug(f"[CAF][START] date={date} meal={meal} cafeteria_type={cafeteria_type}")
     try:
         target_date = _parse_date_input(date)
     except Exception as e:
-        print(f"[CAF][ERROR] ❌ date-parse exception: {e}")
-        print(f"[CAF][ERROR] date input value: {date}")
+        logger.debug(f"[CAF][ERROR] ❌ date-parse exception: {e}")
+        logger.debug(f"[CAF][ERROR] date input value: {date}")
         import traceback
         traceback.print_exc()
         return f"❌ 날짜 해석 실패: {e}"
@@ -519,14 +595,14 @@ async def get_halla_cafeteria_menu(date: Optional[str] = None, meal: Optional[st
 
         # 에러 HTML 감지 (403 Forbidden 등)
         if "403 Forbidden" in html_content or "<title>403" in html_content:
-            print(f"[CAF][ERROR] 403 Forbidden detected in response body")
+            logger.debug(f"[CAF][ERROR] 403 Forbidden detected in response body")
             return f"❌ 페이지 접근이 차단되었습니다. 잠시 후 다시 시도해주세요."
 
-        print(f"[CAF] fetch ok elapsed={time.time()-net_t:.2f}s status={resp.status_code}")
+        logger.debug(f"[CAF] fetch ok elapsed={time.time()-net_t:.2f}s status={resp.status_code}")
     except Exception as e:
-        print(f"[CAF][ERROR] ❌ fetch exception: {e}")
-        print(f"[CAF][ERROR] url: {url}")
-        print(f"[CAF][ERROR] cafeteria_type: {cafeteria_type}")
+        logger.debug(f"[CAF][ERROR] ❌ fetch exception: {e}")
+        logger.debug(f"[CAF][ERROR] url: {url}")
+        logger.debug(f"[CAF][ERROR] cafeteria_type: {cafeteria_type}")
         import traceback
         traceback.print_exc()
         return f"❌ 페이지 요청 실패: {e}"
@@ -612,7 +688,7 @@ async def get_halla_cafeteria_menu(date: Optional[str] = None, meal: Optional[st
 
     parse_t = time.time()
     found = pick_table_and_parse()
-    print(f"[CAF] primary-parse elapsed={time.time()-parse_t:.2f}s result={found}")
+    logger.debug(f"[CAF] primary-parse elapsed={time.time()-parse_t:.2f}s result={found}")
 
     # 폴백: 표 파싱 실패 시 페이지 텍스트에서 라인 기반 추론(부정확할 수 있음)
     if all(v is None for v in found.values()):
@@ -650,10 +726,10 @@ async def get_halla_cafeteria_menu(date: Optional[str] = None, meal: Optional[st
         val = found.get(meal)
         if not val:
             out = header + f"\n[{meal}] 정보 없음\n추가 사항: 원문: {url}"
-            print(f"[CAF][END] elapsed={time.time()-t0:.2f}s meal-miss")
+            logger.debug(f"[CAF][END] elapsed={time.time()-t0:.2f}s meal-miss")
             return out
         out = header + f"\n[{meal}] {val}\n추가 사항: 원문: {url}"
-        print(f"[CAF][END] elapsed={time.time()-t0:.2f}s meal-hit")
+        logger.debug(f"[CAF][END] elapsed={time.time()-t0:.2f}s meal-hit")
         return out
 
     # 3끼 모두 반환
@@ -662,7 +738,7 @@ async def get_halla_cafeteria_menu(date: Optional[str] = None, meal: Optional[st
         v = found.get(k)
         lines_out.append(f"[{k}] {v if v else '정보 없음'}")
     out = header + "\n" + "\n".join(lines_out) + f"\n추가 사항: 원문: {url}"
-    print(f"[CAF][END] elapsed={time.time()-t0:.2f}s all-meals")
+    logger.debug(f"[CAF][END] elapsed={time.time()-t0:.2f}s all-meals")
     return out
 
 
@@ -727,13 +803,13 @@ async def get_halla_academic_calendar(month: Optional[str] = None) -> str:
         학사일정 정보 문자열
     """
     t0 = time.time()
-    print(f"[CALENDAR][START] month={month}")
+    logger.debug(f"[CALENDAR][START] month={month}")
 
     try:
         year, month_num = _parse_month_input(month)
     except Exception as e:
-        print(f"[CALENDAR][ERROR] ❌ month-parse exception: {e}")
-        print(f"[CALENDAR][ERROR] month input value: {month}")
+        logger.debug(f"[CALENDAR][ERROR] ❌ month-parse exception: {e}")
+        logger.debug(f"[CALENDAR][ERROR] month input value: {month}")
         import traceback
         traceback.print_exc()
         return f"❌ 월 해석 실패: {e}"
@@ -757,14 +833,14 @@ async def get_halla_academic_calendar(month: Optional[str] = None) -> str:
 
         # 에러 HTML 감지 (403 Forbidden 등)
         if "403 Forbidden" in html_content or "<title>403" in html_content:
-            print(f"[CALENDAR][ERROR] 403 Forbidden detected in response body")
+            logger.debug(f"[CALENDAR][ERROR] 403 Forbidden detected in response body")
             return f"❌ 페이지 접근이 차단되었습니다. 잠시 후 다시 시도해주세요."
 
-        print(f"[CALENDAR] fetch ok elapsed={time.time()-net_t:.2f}s status={resp.status_code}")
+        logger.debug(f"[CALENDAR] fetch ok elapsed={time.time()-net_t:.2f}s status={resp.status_code}")
     except Exception as e:
-        print(f"[CALENDAR][ERROR] ❌ fetch exception: {e}")
-        print(f"[CALENDAR][ERROR] url: {url}")
-        print(f"[CALENDAR][ERROR] params: {params}")
+        logger.debug(f"[CALENDAR][ERROR] ❌ fetch exception: {e}")
+        logger.debug(f"[CALENDAR][ERROR] url: {url}")
+        logger.debug(f"[CALENDAR][ERROR] params: {params}")
         import traceback
         traceback.print_exc()
         return f"❌ 페이지 요청 실패: {e}"
@@ -832,11 +908,11 @@ async def get_halla_academic_calendar(month: Optional[str] = None) -> str:
 
     if not schedules:
         out = header + f"\n등록된 일정이 없습니다.\n원문: {url}"
-        print(f"[CALENDAR][END] elapsed={time.time()-t0:.2f}s no-schedule")
+        logger.debug(f"[CALENDAR][END] elapsed={time.time()-t0:.2f}s no-schedule")
         return out
 
     out = header + "\n" + "\n".join(schedules) + f"\n\n원문: {url}"
-    print(f"[CALENDAR][END] elapsed={time.time()-t0:.2f}s schedules={len(schedules)}")
+    logger.debug(f"[CALENDAR][END] elapsed={time.time()-t0:.2f}s schedules={len(schedules)}")
     return out
 
 
@@ -863,7 +939,7 @@ async def get_shuttle_bus_info(user_query: str, chat_context=None, token_counter
         통학버스 정보 응답 문자열
     """
     start_ts = time.time()
-    print(f"[SHUTTLE][START] query='{user_query}' chat_ctx={'Y' if chat_context else 'N'}")
+    logger.debug(f"[SHUTTLE][START] query='{user_query}' chat_ctx={'Y' if chat_context else 'N'}")
 
     try:
         # 대화 문맥 추출
@@ -886,17 +962,17 @@ async def get_shuttle_bus_info(user_query: str, chat_context=None, token_counter
             token_counter=token_counter
         )
 
-        print(f"[SHUTTLE] category={category}")
+        logger.debug(f"[SHUTTLE] category={category}")
 
         # 통학버스 관련 질문이 아닌 경우
         if category == "not_shuttle_bus":
             elapsed = time.time() - start_ts
-            print(f"[SHUTTLE][END] elapsed={elapsed:.2f}s result=not_shuttle_bus")
+            logger.debug(f"[SHUTTLE][END] elapsed={elapsed:.2f}s result=not_shuttle_bus")
             return "통학버스와 관련 없는 질문입니다. 시내버스, 시외버스 시간표, 예약 방법 등에 대해 질문해주세요."
 
         # 2단계: 카테고리별 정보 추출
         shuttle_info = service.get_info_by_category(category, user_query)
-        print(f"[SHUTTLE] info extracted len={len(shuttle_info)}")
+        logger.debug(f"[SHUTTLE] info extracted len={len(shuttle_info)}")
 
         # 3단계: 응답 생성
         response = await service.generate_response(
@@ -906,13 +982,13 @@ async def get_shuttle_bus_info(user_query: str, chat_context=None, token_counter
         )
 
         elapsed = time.time() - start_ts
-        print(f"[SHUTTLE][END] elapsed={elapsed:.2f}s response_len={len(response)}")
+        logger.debug(f"[SHUTTLE][END] elapsed={elapsed:.2f}s response_len={len(response)}")
 
         return response
 
     except Exception as e:
         elapsed = time.time() - start_ts
-        print(f"[SHUTTLE][ERROR] elapsed={elapsed:.2f}s error={e}")
+        logger.debug(f"[SHUTTLE][ERROR] elapsed={elapsed:.2f}s error={e}")
         import traceback
         traceback.print_exc()
         return f"❌ 통학버스 정보 조회 중 오류가 발생했습니다: {str(e)}"
@@ -991,8 +1067,8 @@ class FunctionCalling:
                 reasoning = payload.get("reasoning", "").strip() or None
                 selected_tools = payload.get("selected_tools", [])
         except Exception as e:
-            print(f"[ANALYZER][analyze] ❌ Reasoning generation failed: {e}")
-            print(f"[ANALYZER][analyze] user_message: {user_message}")
+            logger.debug(f"[ANALYZER][analyze] ❌ Reasoning generation failed: {e}")
+            logger.debug(f"[ANALYZER][analyze] user_message: {user_message}")
             import traceback
             traceback.print_exc()
             reasoning = f"추론 생성 실패 ({e})"
@@ -1016,19 +1092,17 @@ class FunctionCalling:
                 "content": f"""현재 날짜: {date_info}
 
 [필수 규칙]
-한국어 날짜 순서: 오늘(0일) → 내일(1일) → 모레(2일) → 글피(3일)
-출력 형식: "오늘", "내일", "모레", "글피", "YYYY-MM-DD" 중 하나
-- 상대 표현: "N일 후" → 정확히 N일 더하기
-- 자연어 날짜: "다음주 월요일" → YYYY-MM-DD로 계산
-- 날짜 미언급: "오늘"
+모든 날짜를 반드시 YYYY-MM-DD 형식으로 계산하여 출력하세요.
+- 오늘 → {current_date.strftime("%Y-%m-%d")}
+- 내일 → 오늘+1일 계산
+- 모레 → 오늘+2일 계산
+- 글피/그을피 → 오늘+3일 계산
+- 그글피 → 오늘+4일 계산
+- "N일 후" → 오늘+N일 계산
+- "다음주 월요일" → 해당 날짜 계산
+- 날짜 미언급 → 오늘 날짜 출력
 
-[주의사항]
-사용자가 오타나 애매한 날짜 표현을 사용할 수 있습니다. 다음은 예시이며, 이와 유사한 패턴에 유연하게 대응하세요:
-- 오타 예시: "야모레"→"모레", "글을피"→"글피", "그을피"→"글피"
-- 띄어쓰기 오류, 자모 분리 등 다양한 형태 가능
-- 명확하지 않은 경우 문맥과 상식으로 판단하되, 사용자 의도에 가장 가까운 해석 선택
-
-위 예시는 참고용입니다. 실제 입력의 맥락을 우선하여 자연스럽게 해석하세요."""
+사용자가 오타(야모레, 그을피 등)를 쓰더라도 의도를 파악하여 YYYY-MM-DD로 변환."""
             },
             {
                 "role": "user",
@@ -1066,9 +1140,9 @@ class FunctionCalling:
                 "output": response.output
             }
         except Exception as e:
-            print(f"[ANALYZER][analyze] ❌ OpenAI API call failed: {e}")
-            print(f"[ANALYZER][analyze] user_message: {user_message}")
-            print(f"[ANALYZER][analyze] model: {model.o3_mini}")
+            logger.debug(f"[ANALYZER][analyze] ❌ OpenAI API call failed: {e}")
+            logger.debug(f"[ANALYZER][analyze] user_message: {user_message}")
+            logger.debug(f"[ANALYZER][analyze] model: {model.o3_mini}")
             import traceback
             traceback.print_exc()
             return {
@@ -1108,7 +1182,7 @@ class FunctionCalling:
   
 
             except Exception as e:
-                print("Error occurred(run):",e)
+                logger.warning("Error occurred(run):",e)
                 return makeup_response("[run 오류입니다]")
 
         # 함수 실행 후 최종 응답 생성
@@ -1141,6 +1215,6 @@ class FunctionCalling:
             func_response = func_to_call(**func_args)
             return str(func_response)
         except Exception as e:
-            print("Error occurred(call_function):",e)
+            logger.warning("Error occurred(call_function):",e)
             return makeup_response("[call_function 오류입니다]")
     
