@@ -26,6 +26,10 @@
                     "valueFrom": "arn:aws:ssm:ap-northeast-2:855738538544:parameter/chatbot/MONGODB_URI"
                 },
                 {
+                    "name": "MONGO_DB_NAME",
+                    "valueFrom": "arn:aws:ssm:ap-northeast-2:855738538544:parameter/chatbot/MONGO_DB_NAME"
+                },
+                {
                     "name": "OPENAI_API_KEY",
                     "valueFrom": "arn:aws:ssm:ap-northeast-2:855738538544:parameter/chatbot/OPENAI_API_KEY"
                 },
