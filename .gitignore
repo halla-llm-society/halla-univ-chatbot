@@ -18,3 +18,18 @@ pdfs/
 
 # set
 Docker.txt
+
+# Test files
+**/tests/test_*.py
+**/tests/results/
+**/tests/results_rag_only/
+**/test_*.py
+*test_performance.py
+check_*.py
+explain_*.py
+prove_*.py
+copy_*.py
+
+# JSON results
+*.json
+!.github/**/*.json
