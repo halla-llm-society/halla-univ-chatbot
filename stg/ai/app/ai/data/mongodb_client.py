@@ -10,7 +10,8 @@ MONGODB_URI = os.getenv("MONGODB_URI")
 if not MONGODB_URI:
     raise ValueError("MONGODB_URI 환경 변수가 설정되지 않았습니다.")
 COLLECTION_NAME = "regulation_chunks"
-DB_NAME = "halla-academic-db"
+# 환경변수로 DB_NAME 오버라이드 가능 (테스트용)
+DB_NAME = os.getenv("MONGO_DB_NAME", "halla-chatbot-stg")
 
 # Mongo 연결
 # 일부 환경에서 시스템 CA 경로가 누락될 수 있어 보조적으로 SSL_CERT_FILE을 지정
