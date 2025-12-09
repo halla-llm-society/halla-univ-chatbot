@@ -5,12 +5,29 @@ It provides the same interface (RetrieverResult) for seamless integration.
 """
 from __future__ import annotations
 
+import os
 import time
 from dataclasses import dataclass
 from typing import Any, Callable, Iterable, List, Sequence
 
+from openai import OpenAI
+from dotenv import load_dotenv
+
 from app.ai.data import collection, MONGO_AVAILABLE
-from app.ai.data.vector_uploader import get_embedding
+
+# Load API key
+load_dotenv("apikey.env")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+openai_client = OpenAI(api_key=OPENAI_API_KEY)
+
+
+def get_embedding(text: str) -> List[float]:
+    """OpenAI text-embedding-3-small을 사용하여 임베딩 생성"""
+    response = openai_client.embeddings.create(
+        input=text,
+        model="text-embedding-3-small"
+    )
+    return response.data[0].embedding
 
 
 @dataclass(slots=True)
@@ -158,23 +175,14 @@ class MongoVectorRetriever:
         )
 
 
-# Factory function for easy switching
-def create_retriever(
-    use_mongo: bool = True,
-    **kwargs
-) -> MongoVectorRetriever:
-    """Create a retriever instance.
+# Factory function for creating retriever
+def create_retriever(**kwargs) -> MongoVectorRetriever:
+    """Create a MongoVectorRetriever instance.
 
     Args:
-        use_mongo: True면 MongoVectorRetriever, False면 PineconeRetriever (호환성)
         **kwargs: Retriever 생성자에 전달할 인자
 
     Returns:
-        Retriever instance
+        MongoVectorRetriever instance
     """
-    if use_mongo:
-        return MongoVectorRetriever(**kwargs)
-    else:
-        # Fallback to Pinecone (import lazily to avoid dependency issues)
-        from app.ai.rag.retriever import PineconeRetriever
-        return PineconeRetriever(**kwargs)
+    return MongoVectorRetriever(**kwargs)

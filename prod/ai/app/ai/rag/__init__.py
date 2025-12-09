@@ -3,7 +3,7 @@
 from .RagDocumentPackage import RagDocumentPackage, ContextBuilder
 from .gate import GateDecision, RegulationGate
 from .repository import MongoChunkRepository
-from .retriever import PineconeRetriever, RetrieverResult
+from .mongo_vector_retriever import MongoVectorRetriever, RetrieverResult
 from .service import RagResult, RagService
 
 __all__ = [
@@ -12,7 +12,7 @@ __all__ = [
 	"GateDecision",
 	"RegulationGate",
 	"MongoChunkRepository",
-	"PineconeRetriever",
+	"MongoVectorRetriever",
 	"RetrieverResult",
 	"RagResult",
 	"RagService",
