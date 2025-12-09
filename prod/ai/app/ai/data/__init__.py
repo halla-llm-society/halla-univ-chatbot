@@ -5,6 +5,5 @@
 """
 
 from .mongodb_client import collection, MONGO_AVAILABLE
-from .vector_uploader import get_embedding, index
 
-__all__ = ["collection", "MONGO_AVAILABLE", "get_embedding", "index"]
+__all__ = ["collection", "MONGO_AVAILABLE"]
