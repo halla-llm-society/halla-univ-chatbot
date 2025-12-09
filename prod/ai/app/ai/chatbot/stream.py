@@ -3,12 +3,17 @@ import os
 import json
 import uuid
 import asyncio
+import time
+import logging
 from typing import Any, Dict, List, Optional, AsyncGenerator
 from datetime import datetime
 
+# 로거 설정
+logger = logging.getLogger(__name__)
+
 # 새로운 import 경로
 from app.ai.chatbot.config import model, client, currTime
-from app.ai.chatbot.metadata import FunctionCallMetadata, RagMetadata, ChatMetadata, TokenUsageMetadata, ToolReasoningMetadata
+from app.ai.chatbot.metadata import FunctionCallMetadata, RagMetadata, ChatMetadata, TokenUsageMetadata, ToolReasoningMetadata, TimingMetadata
 from app.ai.functions import FunctionCalling, tools
 from app.ai.rag.service import RagService
 from app.ai.utils.token_counter import TokenCounter
@@ -72,7 +77,7 @@ class ChatbotStream:
     def _dbg(self, msg: str):
         """작은 디버그 헬퍼: RAG 관련 내부 상태를 보기 쉽게 출력."""
         if self.debug:
-            print(f"[RAG-DEBUG] {msg}")
+            logger.debug(f"[RAG-DEBUG] {msg}")
 
     def _format_rag_sources(self, source_documents: List[Dict[str, str]]) -> str:
         """RAG 문서 출처를 포맷팅하여 반환합니다.
@@ -272,27 +277,26 @@ class ChatbotStream:
             #print(f"event: {event}")
             match event.type:
                 case "response.created":
-                    print("[🤖 응답 생성 시작]")
+                    logger.debug("[🤖 응답 생성 시작]")
                     loading = True
-                    # 로딩 애니메이션용 대기 시작
-                    print("⏳ GPT가 응답을 준비 중입니다...")
-                    
+                    logger.debug("⏳ GPT가 응답을 준비 중입니다...")
+
                 case "response.output_text.delta":
                     if loading:
-                        print("\n[💬 응답 시작됨 ↓]")
+                        logger.debug("\n[💬 응답 시작됨 ↓]")
                         loading = False
-                    # 글자 단위 출력
-                    print(event.delta, end="", flush=True)
-                 
+                    # 글자 단위 출력 (디버그용)
+                    logger.debug(event.delta)
+
 
                 case "response.in_progress":
-                    print("[🌀 응답 생성 중...]")
+                    logger.debug("[🌀 응답 생성 중...]")
 
                 case "response.output_item.added":
                     if getattr(event.item, "type", None) == "reasoning":
-                        print("[🧠 GPT가 추론을 시작합니다...]")
+                        logger.debug("[🧠 GPT가 추론을 시작합니다...]")
                     elif getattr(event.item, "type", None) == "message":
-                        print("[📩 메시지 아이템 추가됨]")
+                        logger.debug("[📩 메시지 아이템 추가됨]")
                 #ResponseOutputItemDoneEvent는 우리가 case "response.output_item.done"에서 잡아야 해
                 case "response.output_item.done":
                     item = event.item
@@ -301,15 +305,13 @@ class ChatbotStream:
                             if getattr(part, "type", None) == "output_text":
                                 completed_text= part.text
                 case "response.completed":
-                    print("\n")
-                    #print(f"\n📦 최종 전체 출력: \n{completed_text}")
+                    logger.debug("응답 생성 완료")
                 case "response.failed":
-                    print("❌ 응답 생성 실패")
+                    logger.error("❌ 응답 생성 실패")
                 case "error":
-                    print("⚠️ 스트리밍 중 에러 발생!")
+                    logger.error("⚠️ 스트리밍 중 에러 발생!")
                 case _:
-                    
-                    print(f"[📬 기타 이벤트 감지: {event.type}]")
+                    logger.debug(f"[📬 기타 이벤트 감지: {event.type}]")
         return completed_text
   
   
@@ -343,7 +345,7 @@ class ChatbotStream:
         응답내용반환:
           - 메시지를 콘솔(또는 UI) 출력 후, 그대로 반환
         """
-        print(response_text['choices'][0]['message']['content'])
+        logger.debug(response_text['choices'][0]['message']['content'])
         return response_text
 #마지막 지침제거
     def clean_context(self):
@@ -367,7 +369,7 @@ class ChatbotStream:
                 remove_size = math.ceil(len(self.context) / 10)
                 self.context = [self.context[0]] + self.context[remove_size+1:]
         except Exception as e:
-            print(f"handle_token_limit exception:{e}")
+            logger.warning(f"handle_token_limit exception:{e}")
             
     def to_openai_context(self, context):
         return [{"role":v["role"], "content":v["content"]} for v in context]
@@ -464,27 +466,11 @@ class ChatbotStream:
         sanitized_rag = _sanitize_text(raw_context)
         self._dbg(f"[CONDENSE] Sanitized 길이: {len(sanitized_rag)}자")
 
+        from app.ai.chatbot.character import get_condense_prompt_narrow
         condense_prompt = [
             {
                 "role": "system",
-                "content": (
-                                    f"""
-                당신은 긴 규정/세칙 문서 묶음에서 사용자 질문과 직접 관련된 부분을 "넓은 맥락"으로 추출·표시하는 어시스턴트입니다.
-                규칙(넓은 맥락 포함):
-                1) 원문 전체는 <기억검색> 태그 안에 있습니다.
-                2) 사용자 질문과 직접 관련된 근거는 <반영>...</반영> 태그 안에 담되, 다음을 포함하세요.
-                - 표/목록/번호 조항은 해당 항목의 머리글(제목/헤더)과 인접 행·항까지 함께 포함(최소 ±5~10줄 맥락).
-                - "주)" 형태의 주석/비고가 붙은 경우 해당 주석 전부 포함.
-                - 학점·과목·배분영역·트랙과 같은 숫자/항목은 표의 열 머리말과 같이 포함(헤더+행 세트).
-                3) 사용자가 특정 번호(예: 1번, 2번)를 언급했지만 모호할 경우, 후보 번호 2~3개를 모두 포함하되 각 블록 앞에 [후보] 표기.
-                4) 관련 근거가 충분치 않다고 판단되면, 상위 단락(조/항/표 제목) 단위까지 확장하여 최소 15줄 이상을 담고, 지나친 요약을 피하세요.
-                5) 원문 구조(조/항/호/표 제목)는 유지하고 임의 재작성 금지. 반드시 원문을 거의 그대로 인용하세요.
-                6) 원문 밖 추론/창작 금지.
-
-                사용자 질문: {user_question}
-                <기억검색>{sanitized_rag}</기억검색>
-                """
-                ),
+                "content": get_condense_prompt_narrow(user_question, sanitized_rag)
             }
         ]
         
@@ -510,20 +496,11 @@ class ChatbotStream:
             # 1차 결과가 너무 짧으면 2차 시도
             if (len(condensed) <200):
                 self._dbg("[CONDENSE] 1차 결과 너무 짧음 -> 2차 시도 (넓은 맥락)")
+                from app.ai.chatbot.character import get_condense_prompt_broad
                 broader_prompt = [
                     {
                         "role": "system",
-                        "content": (
-                                                    f"""
-                        당신은 사용자 질문과 관련된 표/번호조항/주석의 전체 맥락을 넓게 포함해 추출합니다.
-                        반드시 다음을 지키세요:
-                        - <반영>...</반영> 안에 헤더(표 제목/열 머리말) + 관련 행/항 전부와 해당 주석(주)까지 포함.
-                        - 최소 25줄 이상, 가능하면 관련 블록을 통째로 포함(불필요한 요약 금지).
-                        - 모호하면 후보 블록 2~3개를 [후보]로 나누어 모두 포함.
-                        원문: <기억검색>{sanitized_rag}</기억검색>
-                        질문: {user_question}
-                        """
-                        ),
+                        "content": get_condense_prompt_broad(user_question, sanitized_rag)
                     }
                 ]
                 try:
@@ -613,10 +590,23 @@ class ChatbotStream:
 
         # 3) 기억검색 지침 및 본문
         if has_rag:
-            rag_guidance = (
-                "기억검색 결과입니다. <반영> </반영> 태그 내부 내용을 보고 사용자의 원하는 쿼리에 맞게 대답하세요. "
-                "<기억검색></기억검색> 태그는 참조용이며 태그 밖 임의 창작 금지"
-            )
+            # 요약 사용 여부에 따라 지침 변경
+            use_rag_condense = os.getenv("USE_RAG_CONDENSE", "1") == "1"
+            
+            if use_rag_condense:
+                # 요약본 사용 시: <반영> 태그 기반 지침
+                rag_guidance = (
+                    "기억검색 결과입니다. <반영> </반영> 태그 내부 내용을 보고 사용자의 원하는 쿼리에 맞게 대답하세요. "
+                    "<기억검색></기억검색> 태그는 참조용이며 태그 밖 임의 창작 금지"
+                )
+            else:
+                # 원문 직접 사용 시: 규정 원문 기반 지침
+                rag_guidance = (
+                    "기억검색 결과입니다. <기억검색> 태그 내부의 규정 원문을 참고하여 사용자 질문에 맞는 부분을 찾아 정확히 답변하세요. "
+                    "표, 조항 번호, 학점 요건, 별표 등이 포함되어 있으니 질문과 관련된 정보를 선별하여 답변하세요. "
+                    "원문 구조(제○조, 제○항 등)를 유지하여 인용하고, 태그 밖 임의 창작 금지."
+                )
+            
             sections.append("[기억검색지침]\n" + rag_guidance)
             sections.append("[기억검색]\n<기억검색>\n" + condensed_rag + "\n</기억검색>")
 
@@ -750,11 +740,10 @@ class ChatbotStream:
         message: str
     ) -> tuple[str | None, List[FunctionCallMetadata]]:
         """함수 호출 분석 및 실행
-        
+
         1) FunctionCalling.analyze()로 필요한 함수 파악 (추론 포함)
         2) 각 함수 실행
-        3) 학식 키워드 기반 fallback 호출(규칙 기반) 포함
-        4) 결과를 FunctionCallMetadata 리스트로 직렬화하여 반환
+        3) 결과를 FunctionCallMetadata 리스트로 직렬화하여 반환
         
         Args:
             message: 사용자 메시지
@@ -950,56 +939,7 @@ class ChatbotStream:
                         is_fallback=True,
                         reasoning=f"Reasoning에서 선택됨 (실행 실패): {reasoning}"
                     ))
-        
-        # 2) 학식 보강 Fallback
-        lowered = message.lower()
-        cafeteria_keywords = any(k in lowered for k in ["학식", "식단", "점심", "저녁", "메뉴", "조식", "석식", "아침", "오늘 메뉴", "밥 뭐"])
-        already_called_cafeteria = any(meta.name == "get_halla_cafeteria_menu" for meta in func_results)
-        
-        if cafeteria_keywords and not already_called_cafeteria:
-            try:
-                self._dbg("[FUNCTION] Cafeteria fallback engaged")
-                
-                # 끼니 추출
-                meal_pref = None
-                if any(x in lowered for x in ["조식", "아침"]):
-                    meal_pref = "조식"
-                elif any(x in lowered for x in ["석식", "저녁"]):
-                    meal_pref = "석식"
-                elif "점심" in lowered or "중식" in lowered:
-                    meal_pref = "중식"
 
-                # cafeteria_type 키워드 감지
-                cafeteria_type = "학생"
-                if any(k in lowered for k in ["교직원", "교수", "직원", "교직원식당", "선생님"]):
-                    cafeteria_type = "교직원"
-
-                # 날짜는 기본값 사용 (Function calling에서 이미 정규화되어 넘어옴)
-                caf_args = {"date": "오늘", "meal": meal_pref, "cafeteria_type": cafeteria_type}
-                get_cafeteria_fn = self.available_functions.get("get_halla_cafeteria_menu")
-                
-                if not get_cafeteria_fn:
-                    raise RuntimeError("get_halla_cafeteria_menu not registered")
-                
-                caf_out = get_cafeteria_fn(**caf_args)
-                
-                # 함수 호출 토큰 계산
-                sanitized_caf_args = self._sanitize_function_arguments(caf_args)
-                self.token_counter.count_function_call("get_halla_cafeteria_menu", sanitized_caf_args, str(caf_out))
-                
-                # Fallback 메타데이터 추가 (키워드 기반 호출은 reasoning 없음)
-                func_results.append(FunctionCallMetadata(
-                    name="get_halla_cafeteria_menu",
-                    arguments=sanitized_caf_args,
-                    output=str(caf_out),
-                    call_id="cafeteria_auto",
-                    is_fallback=True,
-                    reasoning="키워드 기반 학식 메뉴 자동 호출"
-                ))
-                
-            except Exception as e:
-                self._dbg(f"[FUNCTION] 학식 fallback 실패: {e}")
-        
         return reasoning, func_results
 
     async def _stream_openai_response(
@@ -1154,9 +1094,11 @@ class ChatbotStream:
         
         # === 3단계: RAG 요약 (RAG 결과가 있을 경우만) ===
         condensed_rag = None
+        use_rag_condense = os.getenv("USE_RAG_CONDENSE", "1") == "1"  # 환경변수로 제어
         
         if rag_result.merged_documents_text:
             self._dbg(f"[STREAM_CHAT] RAG 검색 완료 - 원본 길이: {len(rag_result.merged_documents_text)}자")
+            self._dbg(f"[STREAM_CHAT] 요약 모드: {'사용' if use_rag_condense else '생략 (원문 직접 사용)'}")
             
             # === RAG 검색 결과 상세 디버그 출력 ===
             self._dbg("=" * 80)
@@ -1170,7 +1112,7 @@ class ChatbotStream:
             self._dbg(f"  - 청크 ID 수: {len(rag_result.chunk_ids)}개")
             #검색문서 id 샘플 출력 (최대 5개) 5개 초과 시 생략표시
             if rag_result.chunk_ids:
-                chunk_ids_str = ", ".join(rag_result.chunk_ids[:5])
+                chunk_ids_str = ", ".join(str(cid) for cid in rag_result.chunk_ids[:5])
                 if len(rag_result.chunk_ids) > 5:
                     chunk_ids_str += f" ... (외 {len(rag_result.chunk_ids) - 5}개)"
                 self._dbg(f"  - 청크 ID 샘플: [{chunk_ids_str}]")
@@ -1182,13 +1124,20 @@ class ChatbotStream:
             #self._dbg(f"  - 원본 컨텍스트 샘플:\n{context_sample}")
             #self._dbg("=" * 80)
             
-            self._dbg("[STREAM_CHAT] 3단계: RAG 요약 시작...")
-            condensed_rag = await self._condense_rag_context(
-                user_input, rag_result.merged_documents_text
-            )
-            self._dbg(f"[STREAM_CHAT] RAG 요약 완료 - 요약 길이: {len(condensed_rag)}자")
-            # RAG 메타데이터 설정
+            if use_rag_condense:
+                # 요약 사용 (기존 방식)
+                self._dbg("[STREAM_CHAT] 3단계: RAG 요약 시작...")
+                condensed_rag = await self._condense_rag_context(
+                    user_input, rag_result.merged_documents_text
+                )
+                self._dbg(f"[STREAM_CHAT] RAG 요약 완료 - 요약 길이: {len(condensed_rag)}자")
+            else:
+                # 요약 생략, 원본 직접 사용
+                self._dbg("[STREAM_CHAT] 3단계: RAG 요약 생략 (원본 직접 사용)")
+                condensed_rag = rag_result.merged_documents_text
+                self._dbg(f"[STREAM_CHAT] 원본 컨텍스트 길이: {len(condensed_rag)}자")
             
+            # RAG 메타데이터 설정
             metadata.rag = RagMetadata(
                 is_regulation=rag_result.is_regulation,
                 gate_reason=rag_result.gate_reason or "",
@@ -1199,7 +1148,7 @@ class ChatbotStream:
                 chunk_ids=list(rag_result.chunk_ids),
                 source_documents=rag_result.source_documents,  # 출처 문서 정보 추가
                 raw_context=rag_result.merged_documents_text,  # 원본 컨텍스트 추가
-                condensed_context=condensed_rag,
+                condensed_context=condensed_rag if use_rag_condense else None,  # 요약 사용 시만 저장
             )
         else:
             self._dbg("[STREAM_CHAT] RAG 검색 결과 없음")
