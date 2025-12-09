@@ -1,13 +1,20 @@
 """RAG service orchestrating the modular Phase 2 components."""
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
-from typing import Any, Callable, Optional, Sequence
+from typing import Any, Callable, Optional, Sequence, Union
 
 from .RagDocumentPackage import RagDocumentPackage, ContextBuilder
 from .gate import GateDecision, RegulationGate
 from .repository import MongoChunkRepository
 from .retriever import PineconeRetriever, RetrieverResult
+from .mongo_vector_retriever import MongoVectorRetriever, RetrieverResult as MongoRetrieverResult
+
+# 환경 변수로 벡터 검색 엔진 선택 (기본값: mongo)
+# USE_MONGO_VECTOR=true (MongoDB Vector Search 사용)
+# USE_MONGO_VECTOR=false (Pinecone 사용)
+USE_MONGO_VECTOR = os.getenv("USE_MONGO_VECTOR", "true").lower() == "true"
 
 
 @dataclass(slots=True)
@@ -42,16 +49,29 @@ class RagService:
     def __init__(
         self,
         *,
-        retriever: PineconeRetriever | None = None,
+        retriever: Union[PineconeRetriever, MongoVectorRetriever, None] = None,
         repository: MongoChunkRepository | None = None,
         context_builder: ContextBuilder | None = None,
         gate: RegulationGate | None = None,
         debug_fn: Callable[[str], None] | None = None,
         token_counter=None,
+        use_mongo_vector: bool | None = None,  # None이면 환경변수 사용
     ) -> None:
         self._debug = debug_fn or (lambda _: None)
         self._repository = repository or MongoChunkRepository(debug_fn=self._debug)
-        self._retriever = retriever or PineconeRetriever(top_k=2, debug_fn=self._debug)
+
+        # 벡터 검색 엔진 선택
+        _use_mongo = use_mongo_vector if use_mongo_vector is not None else USE_MONGO_VECTOR
+        if retriever is not None:
+            self._retriever = retriever
+        elif _use_mongo:
+            self._debug("RagService: Using MongoVectorRetriever")
+            self._retriever = MongoVectorRetriever(top_k=5, debug_fn=self._debug)
+        else:
+            self._debug("RagService: Using PineconeRetriever")
+            self._retriever = PineconeRetriever(top_k=5, debug_fn=self._debug)
+
+        self._use_mongo_vector = _use_mongo
         self._context_builder = context_builder or ContextBuilder(
             self._repository, debug_fn=self._debug
         )
@@ -120,7 +140,8 @@ class RagService:
 
         if not hits:
             self._debug("rag_service.retrieve_context: 벡터검색 결과 없음")
-            print("[INFO] Pinecone에서 유사 데이터 없음")
+            engine = "MongoDB Vector Search" if self._use_mongo_vector else "Pinecone"
+            print(f"[INFO] {engine}에서 유사 데이터 없음")
             return self._make_result(
                 merged_documents_text=None,
                 hits=[],
@@ -133,7 +154,8 @@ class RagService:
         # 3단계: 청크 ID 확인
         if not chunk_ids:
             self._debug("rag_service.retrieve_context: 청크ID 추출 실패")
-            print("[INFO] Pinecone 결과에 id 없음")
+            engine = "MongoDB Vector Search" if self._use_mongo_vector else "Pinecone"
+            print(f"[INFO] {engine} 결과에 id 없음")
             return self._make_result(
                 merged_documents_text=None,
                 hits=hits,

@@ -258,35 +258,83 @@ class TokenUsageMetadata:
 
 
 @dataclass
+class TimingMetadata:
+    """성능 타이밍 메타데이터
+
+    각 처리 단계별 소요 시간을 담습니다.
+    """
+
+    total_time: float = 0.0
+    """전체 소요 시간 (초)"""
+
+    rag_search_time: float = 0.0
+    """RAG 검색 시간 (벡터 검색 + MongoDB 조회, 초)"""
+
+    rag_condense_time: float = 0.0
+    """RAG 요약 시간 (LLM 요약, 초)"""
+
+    function_calling_time: float = 0.0
+    """함수 호출 시간 (웹 검색, 학식 조회 등, 초)"""
+
+    llm_streaming_time: float = 0.0
+    """LLM 스트리밍 응답 시간 (초)"""
+
+    context_building_time: float = 0.0
+    """컨텍스트 구성 시간 (초)"""
+
+    def to_dict(self) -> Dict[str, Any]:
+        """JSON 직렬화용 딕셔너리 변환"""
+        total = self.total_time if self.total_time > 0 else 1.0  # 0 나누기 방지
+        return {
+            "total_time": round(self.total_time, 3),
+            "rag_search_time": round(self.rag_search_time, 3),
+            "rag_condense_time": round(self.rag_condense_time, 3),
+            "function_calling_time": round(self.function_calling_time, 3),
+            "llm_streaming_time": round(self.llm_streaming_time, 3),
+            "context_building_time": round(self.context_building_time, 3),
+            "percentages": {
+                "rag_search": round((self.rag_search_time / total) * 100, 2),
+                "rag_condense": round((self.rag_condense_time / total) * 100, 2),
+                "function_calling": round((self.function_calling_time / total) * 100, 2),
+                "llm_streaming": round((self.llm_streaming_time / total) * 100, 2),
+                "context_building": round((self.context_building_time / total) * 100, 2),
+            }
+        }
+
+
+@dataclass
 class ChatMetadata:
     """챗봇 응답 전체 메타데이터
-    
+
     RAG 검색 결과와 함수 호출 결과를 모두 포함하는 컨테이너입니다.
     """
-    
+
     rag: Optional[RagMetadata] = None
     """RAG 검색 메타데이터 (규정 질문인 경우만 존재)"""
-    
+
     functions: List[FunctionCallMetadata] = field(default_factory=list)
     """함수 호출 메타데이터 목록"""
-    
+
     web_search_status: Optional[str] = None
     """웹검색 상태
-    
+
     - "ok": 검색 성공
     - "empty-or-error": 결과 없음 또는 오류
     - "not-run": 실행 안 함
     """
-    
+
     tool_reasoning: Optional[ToolReasoningMetadata] = None
     """도구 선택 추론 메타데이터 (LLM이 도구를 선택한 이유)"""
-    
+
     token_usage: Optional[TokenUsageMetadata] = None
     """토큰 사용량 및 비용 메타데이터"""
+
+    timing: Optional[TimingMetadata] = None
+    """성능 타이밍 메타데이터 (각 단계별 소요 시간)"""
     
     def to_dict(self) -> Dict[str, Any]:
         """JSON 직렬화용 딕셔너리 변환
-        
+
         Returns:
             전체 메타데이터를 담은 딕셔너리
         """
@@ -297,6 +345,7 @@ class ChatMetadata:
             "web_search_status": self.web_search_status,
             "tool_reasoning": self.tool_reasoning.to_dict() if self.tool_reasoning else None,
             "token_usage": self.token_usage.to_dict() if self.token_usage else None,
+            "timing": self.timing.to_dict() if self.timing else None,
         }
     
     def add_function(self, func_meta: FunctionCallMetadata) -> None:

@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from typing import Optional, Dict, List
 
 from app.ai.chatbot import ChatbotStream, model
+from app.ai.chatbot.character import system_role, instruction
 from app.ai.llm import get_llm_manager
 from app.ai.events.chat_observer import admin_event_stream  # 협의 후 활성화 예정
 
@@ -23,16 +24,11 @@ class PresetSaveRequest(BaseModel):
 
 router = APIRouter()
 
-# ChatbotStream 인스턴스 생성
+# ChatbotStream 인스턴스 생성 (character.py에서 프롬프트 import)
 chatbot = ChatbotStream(
     model=model.advanced,
-    system_role="""당신은 학교 생활, 학과 정보, 행사 등 사용자가 궁금한 점이 있으면 아는 범위 안에서 대답합니다. 단 절대 거짓내용을 말하지 않습니다. 아는 범위에서 말하고 부족한 부분은 인정하세요.
-    당신은 실시간으로 검색하는 기능이있습니다.
-    당신은 한라대 공지사항을 탐색할 수 있습니다.
-    당신은 한라대 학생식당과 교직원식당 메뉴를 탐색할 수 있습니다.
-    당신은 한라대 학사일정을 탐색할 수 있습니다.
-    학교와 관련 없는 질문에는 정중하게 답변을 거절하고, 반드시 학내 정보로 유도하세요.""",
-    instruction="당신은 사용자의 질문에 답변하는 역할을 합니다.",
+    system_role=system_role,
+    instruction=instruction,
     user="한라대 대학생",
     assistant="memmo"
 )
