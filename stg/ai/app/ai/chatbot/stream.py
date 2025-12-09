@@ -1112,7 +1112,7 @@ class ChatbotStream:
             self._dbg(f"  - 청크 ID 수: {len(rag_result.chunk_ids)}개")
             #검색문서 id 샘플 출력 (최대 5개) 5개 초과 시 생략표시
             if rag_result.chunk_ids:
-                chunk_ids_str = ", ".join(rag_result.chunk_ids[:5])
+                chunk_ids_str = ", ".join(str(cid) for cid in rag_result.chunk_ids[:5])
                 if len(rag_result.chunk_ids) > 5:
                     chunk_ids_str += f" ... (외 {len(rag_result.chunk_ids) - 5}개)"
                 self._dbg(f"  - 청크 ID 샘플: [{chunk_ids_str}]")

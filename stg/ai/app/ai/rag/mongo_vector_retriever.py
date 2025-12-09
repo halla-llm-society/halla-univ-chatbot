@@ -128,11 +128,11 @@ class MongoVectorRetriever:
                     "metadata": doc.get("metadata", {}),
                 }
                 filtered_results.append(type("Hit", (), hit)())  # 간단한 객체로 변환
-                chunk_ids.append(doc["_id"])
+                chunk_ids.append(str(doc["_id"]))  # ObjectId를 문자열로 변환
 
                 # 전체 문서 저장 (MongoDB는 한 번에 조회 가능)
                 documents.append({
-                    "_id": doc["_id"],
+                    "_id": str(doc["_id"]),  # ObjectId를 문자열로 변환
                     "text": doc.get("text", ""),
                     "metadata": doc.get("metadata", {}),
                     "score": score,
