@@ -5,8 +5,8 @@
     "requiresCompatibilities": [
         "FARGATE"
     ],
-    "cpu": "2048",
-    "memory": "8192",
+    "cpu": "1024",
+    "memory": "2048",
     "containerDefinitions": [
         {
             "name": "chatbot-prod-ai",
