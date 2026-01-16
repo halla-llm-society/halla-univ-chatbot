@@ -1,0 +1,12 @@
+version: "1.0"
+linter: jetbrains/qodana-jvm-community:latest
+
+# 분석 전 빌드 명령어
+bootstrap: ./gradlew clean build -x test
+
+# 제외할 경로 설정
+exclude:
+  - name: All
+    paths:
+      - "src/test/**"
+      - "build/**"

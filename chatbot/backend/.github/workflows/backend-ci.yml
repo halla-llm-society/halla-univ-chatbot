@@ -1,0 +1,62 @@
+name: Backend CI (Quality Check)
+
+on:
+  push:
+    branches: [ "main", "stg" ]
+  pull_request:
+    branches: [ "main", "stg" ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+  security-events: write
+
+jobs:
+  quality-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. 코드 체크아웃
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # 2. JDK 21 설정
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'corretto'
+          cache: 'gradle'
+
+      # 3. Gradle 실행 권한 부여
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      # 4. Gradle 빌드 & 분석
+      - name: Build and Analyze with Gradle
+        run: ./gradlew clean build -x test
+
+      # 5. 테스트 결과 리포트
+      - name: Publish Test Report
+        uses: mikepenz/action-junit-report@v4
+        if: always()
+        with:
+          report_paths: '**/build/test-results/test/TEST-*.xml'
+
+      # 6. Qodana 정적 분석
+      - name: Qodana Scan
+        if: github.event_name == 'pull_request'
+        uses: jetbrains/qodana-action@v2023.3
+        env:
+          QODANA_TOKEN: ${{ secrets.QODANA_TOKEN }}
+        with:
+          args: --project-dir,.
+          pr-mode: ${{ github.event_name == 'pull_request' }}
+          upload-result: true

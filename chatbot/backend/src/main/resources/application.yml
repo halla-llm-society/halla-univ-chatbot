@@ -1,0 +1,27 @@
+spring:
+  application:
+    name: halla-univ-chatbot-backend
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev} # 기본 'dev' 모드로 실행
+
+# config.py의 항목들을 'app' 접두사로 그룹화
+app:
+  # 기본값 설정 (config.py의 Default 값 반영)
+  ai-service-url: "http://chatbot-ai-container:8000"
+  monthly-cost-limit: 1000.0
+
+  # CORS 설정
+  cors:
+    allowed-origins:
+      - "http://localhost:5173"
+      - "https://halla-chatbot.com"
+      - "http://localhost:3000"
+    allowed-methods: "*"
+    allowed-headers: "*"
+
+# Actuator (헬스 체크용)
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info
