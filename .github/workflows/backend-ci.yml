@@ -1,10 +1,7 @@
 name: Backend CI (Quality Check)
 
 on:
-  push:
-    branches: [ "main", "stg" ]
-  pull_request:
-    branches: [ "main", "stg" ]
+  workflow_call:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -19,6 +16,9 @@ permissions:
 jobs:
   quality-check:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./chatbot/backend
 
     steps:
       # 1. 코드 체크아웃
