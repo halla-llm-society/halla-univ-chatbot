@@ -1,0 +1,50 @@
+{
+  "family": "chatbot-{{ENV}}-ai-task",
+  "executionRoleArn": "arn:aws:iam::855738538544:role/ecsTaskExecutionRole",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": [
+    "FARGATE"
+  ],
+  "containerDefinitions": [
+    {
+      "name": "chatbot-{{ENV}}-ai",
+      "image": "<IMAGE_URI>",
+      "essential": true,
+      "cpu": 0,
+      "portMappings": [
+        {
+          "containerPort": 8000,
+          "protocol": "tcp",
+          "appProtocol": "http"
+        }
+      ],
+      "secrets": [
+        {
+          "name": "MONGODB_URI",
+          "valueFrom": "arn:aws:ssm:ap-northeast-2:855738538544:parameter/chatbot/{{SSM_ENV}}MONGODB_URI"
+        },
+        {
+          "name": "MONGO_DB_NAME",
+          "valueFrom": "arn:aws:ssm:ap-northeast-2:855738538544:parameter/chatbot/{{SSM_ENV}}MONGO_DB_NAME"
+        },
+        {
+          "name": "OPENAI_API_KEY",
+          "valueFrom": "arn:aws:ssm:ap-northeast-2:855738538544:parameter/chatbot/{{SSM_ENV}}OPENAI_API_KEY"
+        },
+        {
+          "name": "PINECONE_API_KEY",
+          "valueFrom": "arn:aws:ssm:ap-northeast-2:855738538544:parameter/chatbot/{{SSM_ENV}}PINECONE_API_KEY"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/chatbot-{{ENV}}-ai-task",
+          "awslogs-region": "ap-northeast-2",
+          "awslogs-stream-prefix": "ecs",
+          "awslogs-create-group": "true"
+        }
+      }
+    }
+  ]
+}
