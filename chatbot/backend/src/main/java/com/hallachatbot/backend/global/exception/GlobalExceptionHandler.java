@@ -27,8 +27,7 @@ import lombok.extern.slf4j.Slf4j;
  * 전역 예외 처리 핸들러 (Global Exception Handler).
  * <p>
  * 애플리케이션 전역에서 발생하는 예외를 포착하여 표준화된 {@link ApiResponse} 포맷으로 응답합니다.
- * {@link ResponseEntityExceptionHandler}를 상속받아 Spring MVC 표준 예외를 커스터마이징하며,
- * 비즈니스 로직상의 {@link GlobalException} 및 기타 런타임 예외를 처리합니다.
+ * {@link ResponseEntityExceptionHandler}를 상속받아 Spring MVC 표준 예외를 커스터마이징 하여 적용합니다.
  * </p>
  *
  * <b>[사용 예시]</b>
@@ -72,6 +71,10 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
 	/**
 	 * [400] @Valid 유효성 검사 실패 처리.
+	 * <p>
+	 * Tip: DTO 작성 시 @NotBlank(message = "이메일은 필수입니다")와 같이 message 속성을 꼭 작성해주세요.
+	 * 그래야 클라이언트에게 정확한 에러 원인을 전달할 수 있습니다.
+	 * </p>
 	 */
 	// [Error Code] INVALID_INPUT_VALUE
 	@Override
@@ -83,10 +86,6 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
 	/**
 	 * [400] JSON 파싱 실패 또는 잘못된 형식의 요청 데이터 처리.
-	 * <p>
-	 * Tip: DTO 작성 시 @NotBlank(message = "이메일은 필수입니다")와 같이 message 속성을 꼭 작성해주세요.
-	 * 그래야 클라이언트에게 정확한 에러 원인을 전달할 수 있습니다.
-	 * <p>
 	 */
 	// [Error Code] INVALID_REQUEST_FORMAT
 	@Override
