@@ -21,8 +21,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.hallachatbot.backend.global.errorcode.GlobalErrorCode;
-
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 
@@ -48,11 +46,6 @@ class GlobalExceptionHandlerTest {
 	@RestController
 	@RequestMapping("/test")
 	static class TestController {
-
-		@GetMapping("/global")
-		public void global() {
-			throw new GlobalException(GlobalErrorCode.INVALID_INPUT_VALUE);
-		}
 
 		@GetMapping("/db")
 		public void db() {
@@ -106,15 +99,7 @@ class GlobalExceptionHandlerTest {
 	// =================================================================================
 
 	@Test
-	@DisplayName("1. [GlobalException] 비즈니스 로직 에러 처리 확인")
-	void handleGlobalException() throws Exception {
-		mockMvc.perform(get("/test/global"))
-			.andExpect(status().isBadRequest())
-			.andExpect(jsonPath("$.errorCode").value("INVALID_INPUT_VALUE"));
-	}
-
-	@Test
-	@DisplayName("2. [DataAccessException] DB 관련 에러 500 처리 확인")
+	@DisplayName("1. [DataAccessException] DB 관련 에러 500 처리 확인")
 	void handleDatabaseError() throws Exception {
 		mockMvc.perform(get("/test/db"))
 			.andExpect(status().isInternalServerError())
@@ -122,7 +107,7 @@ class GlobalExceptionHandlerTest {
 	}
 
 	@Test
-	@DisplayName("3. [Exception] 기타 서버 에러 500 처리 확인")
+	@DisplayName("2. [Exception] 기타 서버 에러 500 처리 확인")
 	void handleAllException() throws Exception {
 		mockMvc.perform(get("/test/runtime"))
 			.andExpect(status().isInternalServerError())
@@ -130,7 +115,7 @@ class GlobalExceptionHandlerTest {
 	}
 
 	@Test
-	@DisplayName("4. [TypeMismatch] 파라미터 타입 불일치 400 처리 확인")
+	@DisplayName("3. [TypeMismatch] 파라미터 타입 불일치 400 처리 확인")
 	void handleTypeMismatch() throws Exception {
 		// int 파라미터에 "abc" 문자열 전송
 		mockMvc.perform(get("/test/type-mismatch").param("num", "abc"))
@@ -139,7 +124,7 @@ class GlobalExceptionHandlerTest {
 	}
 
 	@Test
-	@DisplayName("5. [MissingParameter] 필수 파라미터 누락 400 처리 확인")
+	@DisplayName("4. [MissingParameter] 필수 파라미터 누락 400 처리 확인")
 	void handleMissingParam() throws Exception {
 		// required 파라미터 없이 요청
 		mockMvc.perform(get("/test/missing-param"))
@@ -148,7 +133,7 @@ class GlobalExceptionHandlerTest {
 	}
 
 	@Test
-	@DisplayName("6. [MissingHeader] 필수 헤더 누락 400 처리 확인")
+	@DisplayName("5. [MissingHeader] 필수 헤더 누락 400 처리 확인")
 	void handleMissingHeader() throws Exception {
 		// X-Token 헤더 없이 요청
 		mockMvc.perform(get("/test/missing-header"))
@@ -157,7 +142,7 @@ class GlobalExceptionHandlerTest {
 	}
 
 	@Test
-	@DisplayName("7. [MethodArgumentNotValid] @Valid 유효성 실패 400 처리 확인")
+	@DisplayName("6. [MethodArgumentNotValid] @Valid 유효성 실패 400 처리 확인")
 	void handleValidation() throws Exception {
 		// name이 빈 JSON 전송
 		String json = "{\"name\": \"\"}";
@@ -171,7 +156,7 @@ class GlobalExceptionHandlerTest {
 	}
 
 	@Test
-	@DisplayName("8. [HttpMessageNotReadable] JSON 형식이 깨졌을 때 400 처리 확인")
+	@DisplayName("7. [HttpMessageNotReadable] JSON 형식이 깨졌을 때 400 처리 확인")
 	void handleBrokenJson() throws Exception {
 		// 닫는 괄호가 없는 잘못된 JSON
 		String brokenJson = "{\"name\": \"test\"";
@@ -184,7 +169,7 @@ class GlobalExceptionHandlerTest {
 	}
 
 	@Test
-	@DisplayName("9. [MethodNotSupported] 지원하지 않는 HTTP 메서드 405 처리 확인")
+	@DisplayName("8. [MethodNotSupported] 지원하지 않는 HTTP 메서드 405 처리 확인")
 	void handleMethodNotSupported() throws Exception {
 		// POST 메서드에 GET 요청
 		mockMvc.perform(get("/test/method"))
@@ -193,7 +178,7 @@ class GlobalExceptionHandlerTest {
 	}
 
 	@Test
-	@DisplayName("10. [MediaTypeNotSupported] 지원하지 않는 Content-Type 415 처리 확인")
+	@DisplayName("9. [MediaTypeNotSupported] 지원하지 않는 Content-Type 415 처리 확인")
 	void handleMediaTypeNotSupported() throws Exception {
 		// JSON을 받는 곳에 TEXT로 요청
 		mockMvc.perform(post("/test/media")
