@@ -8,6 +8,10 @@ on:
   pull_request:
     branches: [ main, stg ]
 
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   # ====================================================
   # 1. 변경된 파일 기준으로 애플리케이션 영역별 변경 여부 판단
