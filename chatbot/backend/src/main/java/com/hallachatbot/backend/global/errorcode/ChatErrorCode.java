@@ -1,4 +1,4 @@
-package com.hallachatbot.global.errorcode;
+package com.hallachatbot.backend.global.errorcode;
 
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR;
