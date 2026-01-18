@@ -5,19 +5,19 @@ import com.hallachatbot.backend.global.errorcode.ErrorCode;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record ApiResponse<T>(
-	boolean success,
-	String name,
-	String message,
+	boolean isSuccess,
+	String errorCode,
+	String errorMessage,
 	T data
 ) {
 
 	// 1. 성공 응답 (데이터 있음)
-	public static <T> ApiResponse<T> ok(T data) {
+	public static <T> ApiResponse<T> success(T data) {
 		return new ApiResponse<>(true, null, null, data);
 	}
 
 	// 2. 성공 응답 (데이터 없음)
-	public static <T> ApiResponse<T> ok() {
+	public static <T> ApiResponse<T> success() {
 		return new ApiResponse<>(true, null, null, null);
 	}
 
