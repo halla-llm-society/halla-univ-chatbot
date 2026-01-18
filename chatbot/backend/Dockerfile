@@ -1,30 +1,53 @@
-# 1. 베이스 이미지 설정
-FROM python:3.12.3-slim
+# ==========
+# 1. 빌드
+# ===========
+FROM eclipse-temurin:21-jdk-jammy AS builder
 
-# 2. 작업 디렉토리 설정
+# 작업 디렉토리 설정
 WORKDIR /app
 
-# 3. uv 설치
-RUN pip install --no-cache-dir uv
+# 의존성 설치에 필요한 파일 복사
+COPY gradlew .
+COPY gradle gradle
+COPY build.gradle .
+COPY settings.gradle .
 
-# 4. pyproject.toml 복사
-COPY pyproject.toml ./
+# gradlew 실행 권한 부여
+RUN chmod +x gradlew
 
-# 5. uv.lock 파일 toml 기반에서 pip 기반으로 변경
-RUN uv pip compile pyproject.toml -o uv.lock
+# 의존성 다운로드
+RUN ./gradlew dependencies --no-daemon
 
-# 6. 의존성 설치 
-RUN uv pip sync uv.lock --link-mode=copy --system
+# 소스 코드, 설정 파일 복사
+COPY src src
+COPY config ./config
 
-# 7. 애플리케이션 코드 복사
-COPY . .
+# 애플리케이션 빌드
+RUN ./gradlew build -x test --no-daemon
 
-# 8. 비루트 사용자 생성 및 권한 설정
-RUN useradd -m prod_backend_user && chown -R prod_backend_user:prod_backend_user /app
-USER prod_backend_user
+# jar만 골라 app.jar로 이름 변경
+RUN find build/libs -name "*.jar" ! -name "*plain.jar" -exec cp {} build/libs/app.jar \;
 
-# 9. 컨테이너 포트 
+# ==========
+# 2. 실행
+# ==========
+FROM eclipse-temurin:21-jre-jammy
+
+# 작업 디렉토리 설정
+WORKDIR /app
+
+# 비루트 사용자 생성 및 권한 설정
+RUN useradd -m user && chown -R user:user /app
+USER user
+
+# app.jar 파일 복사
+COPY --from=builder /app/build/libs/app.jar app.jar
+
+# 기본 포트 변경
+ENV SERVER_PORT=8000
+
+# 컨테이너 포트
 EXPOSE 8000
 
-# 10. 컨테이너 실행 명령
-CMD ["gunicorn", "-c", "gunicorn.conf.py", "app.main:app"]
+# 컨테이너 실행
+ENTRYPOINT ["java", "-Djava.security.egd=file:/dev/./urandom", "-jar", "app.jar"]
