@@ -29,35 +29,18 @@ import lombok.extern.slf4j.Slf4j;
  * 애플리케이션 전역에서 발생하는 예외를 포착하여 표준화된 {@link ApiResponse} 포맷으로 응답합니다.
  * {@link ResponseEntityExceptionHandler}를 상속받아 Spring MVC 표준 예외를 커스터마이징하며,
  * 비즈니스 로직상의 {@link GlobalException} 및 기타 런타임 예외를 처리합니다.
+ * </p>
  *
+ * <b>[사용 예시]</b>
+ * <pre>
+ * if (member == null) {
+ * throw new GlobalException(GlobalErrorCode.MEMBER_NOT_FOUND);
+ * }
+ * </pre>
  */
-
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
-
-	/**
-	 * [Custom Exception] 비즈니스 로직 예외 처리.
-	 * <p>
-	 * 비즈니스 로직 수행 중 발생하는 '예측 가능한' 예외를 처리합니다.
-	 * (예: 중복된 이메일 가입 시도, 포인트 부족, 존재하지 않는 게시글 조회 등)
-	 * </p>
-	 *
-	 * <b>[사용 예시]</b>
-	 * <pre>
-	 * if (member == null) {
-	 * throw new GlobalException(GlobalErrorCode.MEMBER_NOT_FOUND);
-	 * }
-	 * </pre>
-	 *
-	 * @param e 발생한 GlobalException
-	 * @return ErrorCode에 정의된 상태 코드와 메시지를 담은 ResponseEntity
-	 */
-	// [Error Code] Custom Defined ErrorCode (GlobalErrorCode, ChatErrorCode 등)
-	@ExceptionHandler(GlobalException.class)
-	public ResponseEntity<Object> handleGlobalException(GlobalException error) {
-		return handleExceptionInternal(error.getErrorCode(), error.getErrorCode().getLogMessage());
-	}
 
 	/**
 	 * [500] 데이터베이스(DB) 관련 오류 처리.
