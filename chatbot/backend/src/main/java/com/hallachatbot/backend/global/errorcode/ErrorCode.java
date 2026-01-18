@@ -1,4 +1,4 @@
-package com.hallachatbot.global.errorcode;
+package com.hallachatbot.backend.global.errorcode;
 
 import org.springframework.http.HttpStatus;
 

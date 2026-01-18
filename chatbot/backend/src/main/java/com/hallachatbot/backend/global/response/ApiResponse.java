@@ -1,33 +1,28 @@
 package com.hallachatbot.backend.global.response;
 
-import org.springframework.http.HttpStatus;
-
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.hallachatbot.backend.global.errorcode.ErrorCode;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record ApiResponse<T>(
 	boolean success,
+	String name,
 	String message,
 	T data
 ) {
 
 	// 1. 성공 응답 (데이터 있음)
 	public static <T> ApiResponse<T> ok(T data) {
-		return new ApiResponse<>(true, "Success", data);
+		return new ApiResponse<>(true, null, null, data);
 	}
 
 	// 2. 성공 응답 (데이터 없음)
 	public static <T> ApiResponse<T> ok() {
-		return new ApiResponse<>(true, "Success", null);
+		return new ApiResponse<>(true, null, null, null);
 	}
 
-	// 3. 성공 응답 (커스텀 메시지 + 데이터)
-	public static <T> ApiResponse<T> ok(T data, String message) {
-		return new ApiResponse<>(true, message, data);
-	}
-
-	// 4. 실패 응답
-	public static <T> ApiResponse<T> fail(HttpStatus status, String message) {
-		return new ApiResponse<>(false, message, null);
+	// 3. 실패 응답
+	public static <T> ApiResponse<T> fail(ErrorCode errorCode) {
+		return new ApiResponse<>(false, errorCode.name(), errorCode.getMessage(), null);
 	}
 }
