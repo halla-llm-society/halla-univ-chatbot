@@ -62,5 +62,5 @@ jobs:
         env:
           QODANA_TOKEN: ${{ secrets.QODANA_TOKEN }}
         with:
-          args: --project-dir,halla-univ-chatbot/chatbot/backend
+          args: --project-dir,chatbot/backend
           upload-result: true
