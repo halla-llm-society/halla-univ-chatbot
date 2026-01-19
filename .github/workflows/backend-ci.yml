@@ -62,6 +62,7 @@ jobs:
         uses: jetbrains/qodana-action@v2023.3
         env:
           QODANA_TOKEN: ${{ secrets.QODANA_TOKEN }}
+          GIT_DISCOVERY_ACROSS_FILESYSTEM: 1
         with:
           args: --project-dir,chatbot/backend
           pr-mode: ${{ github.event_name == 'pull_request' }}
