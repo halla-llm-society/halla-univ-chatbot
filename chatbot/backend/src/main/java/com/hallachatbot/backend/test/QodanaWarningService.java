@@ -25,5 +25,6 @@ public class QodanaWarningService {
 		}
 
 		return text;
+		//재 테스트
 	}
 }
