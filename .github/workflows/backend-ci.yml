@@ -59,8 +59,5 @@ jobs:
       # 6. Qodana 정적 분석
       - name: Qodana Scan
         uses: jetbrains/qodana-action@v2023.3
-        env:
-          QODANA_TOKEN: ${{ secrets.QODANA_TOKEN }}
         with:
-          args: --project-dir,chatbot/backend
           upload-result: true

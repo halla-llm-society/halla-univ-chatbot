@@ -1,12 +1,17 @@
 version: "1.0"
 linter: jetbrains/qodana-jvm-community:latest
 
-# 분석 전 빌드 명령어
-bootstrap: ./gradlew clean build -x test
+project:
+  modules:
+    - name: backend
+      path: chatbot/backend
 
-# 제외할 경로 설정
+bootstrap: |
+  cd chatbot/backend
+  ./gradlew clean build -x test
+
 exclude:
   - name: All
     paths:
-      - "src/test/**"
-      - "build/**"
+      - "chatbot/backend/src/test/**"
+      - "chatbot/backend/build/**"
