@@ -55,10 +55,13 @@ jobs:
         with:
           name: jacoco-report
           path: chatbot/backend/build/reports/jacoco/test/html/
+
+      # 7. Qodana 설정 파일 루트로 복사
+      - name: Copy Qodana Config
+        run: cp chatbot/backend/qodana.yaml ./qodana.yaml
       
-      # 6. Qodana 정적 분석
+      # 8. Qodana 정적 분석
       - name: Qodana Scan
         uses: jetbrains/qodana-action@v2023.3
         with:
           upload-result: true
-          args: --linter,jetbrains/qodana-jvm-community:latest,--config,chatbot/backend/qodana.yaml
