@@ -53,7 +53,11 @@ jobs:
     if: needs.check-changes.outputs.backend == 'true'
     uses: ./.github/workflows/backend-ci.yml
     secrets: inherit
-    permissions: inherit
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
+      security-events: write
 
   ci-ai:
     needs: check-changes
