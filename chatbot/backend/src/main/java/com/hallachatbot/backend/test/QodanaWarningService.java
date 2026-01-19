@@ -1,30 +1,39 @@
 package com.hallachatbot.backend.test;
 
+import java.util.ArrayList;
+
 import org.springframework.stereotype.Service;
 
 @Service
 public class QodanaWarningService {
 
-	public String potentialBugMethod(String input) {
-		// [경고 1] Condition is always true
-		// 10이 5보다 큰 것은 자명하므로 불필요한 조건문입니다.
-		if (10 > 5) {
-			System.out.println("Always printed");
+	public String badNamingVariable = "test";
+
+	@SuppressWarnings("unused")
+	private int unusedField = 100;
+
+	public void dirtyMethod() {
+		// [Qodana 타겟] 제네릭(<String>)을 안 씀 -> Type safety 경고
+		ArrayList list = new ArrayList();
+		list.add("Danger");
+
+		// [Qodana 타겟] 무의미한 조건문
+		if (true) {
+			// [Qodana 타겟] 서버 코드에서 System.out 사용 (로깅 안 함)
+			System.out.println("This is bad practice in server code");
 		}
 
-		String text = "Hello";
-
-		// [경고 2] Result of method call ignored
-		// replace를 했지만 그 결과를 변수에 할당하지 않아 아무 일도 일어나지 않습니다.
-		text.replace("H", "h");
-
-		// [경고 3] String comparison using '=='
-		// 문자열 비교는 equals()를 써야 합니다. (잠재적 버그)
-		if (input == "test") {
-			return "Equal";
+		try {
+			// [Qodana 타겟] 0으로 나누기 (ArithmeticException) -> 심각한 버그
+			int result = 10 / 0;
+		} catch (Exception e) {
+			// [Checkstyle] 빈 catch 블록은 보통 잡지만, 일단 넘어가는지 확인
 		}
+	}
 
-		return text;
-		//재 테스트
+	// public 메서드인데 javadoc 없음 (Checkstyle 설정에 따라 경고 뜰 수 있음)
+	public boolean check() {
+		// [Qodana 타겟] 문자열 비교에 '==' 사용 (버그 유발)
+		return badNamingVariable == "test";
 	}
 }
