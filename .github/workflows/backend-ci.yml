@@ -16,9 +16,6 @@ permissions:
 jobs:
   quality-check:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./chatbot/backend
 
     steps:
       # 1. 코드 체크아웃
@@ -37,10 +34,11 @@ jobs:
 
       # 3. Gradle 실행 권한 부여
       - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
+        run: chmod +x chatbot/backend/gradlew
 
       # 4. Gradle 빌드 & 분석
       - name: Build and Analyze with Gradle
+        working-directory: ./chatbot/backend
         run: ./gradlew clean build
 
       # 5. 테스트 결과 리포트
