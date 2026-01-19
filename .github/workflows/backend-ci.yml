@@ -61,3 +61,4 @@ jobs:
         uses: jetbrains/qodana-action@v2023.3
         with:
           upload-result: true
+          args: --linter,jetbrains/qodana-jvm-community:latest,--config,chatbot/backend/qodana.yaml
