@@ -48,10 +48,16 @@ jobs:
     if: needs.check-changes.outputs.frontend == 'true'
     uses: ./.github/workflows/frontend-ci.yml
 
-#  ci-backend:
-#    needs: check-changes
-#    if: needs.check-changes.outputs.backend == 'true'
-#    uses: ./.github/workflows/backend-ci.yml
+  ci-backend:
+    needs: check-changes
+    if: needs.check-changes.outputs.backend == 'true'
+    uses: ./.github/workflows/backend-ci.yml
+    secrets: inherit
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
+      security-events: write
 
   ci-ai:
     needs: check-changes
@@ -73,17 +79,17 @@ jobs:
       service: frontend
     secrets: inherit
 
-#  stg-cd-backend:
-#    needs: [ check-changes, ci-backend ]
-#    if: |
-#      github.event_name == 'push' &&
-#      github.ref == 'refs/heads/stg' &&
-#      needs.check-changes.outputs.backend == 'true'
-#    uses: ./.github/workflows/common-cd.yml
-#    with:
-#      environment: stg
-#      service: backend
-#    secrets: inherit
+  #  stg-cd-backend:
+  #    needs: [ check-changes, ci-backend ]
+  #    if: |
+  #      github.event_name == 'push' &&
+  #      github.ref == 'refs/heads/stg' &&
+  #      needs.check-changes.outputs.backend == 'true'
+  #    uses: ./.github/workflows/common-cd.yml
+  #    with:
+  #      environment: stg
+  #      service: backend
+  #    secrets: inherit
 
   stg-cd-ai:
     needs: [ check-changes, ci-ai ]
@@ -113,17 +119,17 @@ jobs:
       service: frontend
     secrets: inherit
 
-#  prod-cd-backend:
-#    needs: [ check-changes, ci-backend ]
-#    if: |
-#      github.event_name == 'push' &&
-#      github.ref == 'refs/heads/main' &&
-#      needs.check-changes.outputs.backend == 'true'
-#    uses: ./.github/workflows/common-cd.yml
-#    with:
-#      environment: prod
-#      service: backend
-#    secrets: inherit
+  #  prod-cd-backend:
+  #    needs: [ check-changes, ci-backend ]
+  #    if: |
+  #      github.event_name == 'push' &&
+  #      github.ref == 'refs/heads/main' &&
+  #      needs.check-changes.outputs.backend == 'true'
+  #    uses: ./.github/workflows/common-cd.yml
+  #    with:
+  #      environment: prod
+  #      service: backend
+  #    secrets: inherit
 
   prod-cd-ai:
     needs: [ check-changes, ci-ai ]

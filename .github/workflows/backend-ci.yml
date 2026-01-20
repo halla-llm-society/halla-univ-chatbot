@@ -16,9 +16,6 @@ permissions:
 jobs:
   quality-check:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./chatbot/backend
 
     steps:
       # 1. 코드 체크아웃
@@ -37,11 +34,12 @@ jobs:
 
       # 3. Gradle 실행 권한 부여
       - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
+        run: chmod +x chatbot/backend/gradlew
 
       # 4. Gradle 빌드 & 분석
       - name: Build and Analyze with Gradle
-        run: ./gradlew clean build -x test
+        working-directory: ./chatbot/backend
+        run: ./gradlew clean build
 
       # 5. 테스트 결과 리포트
       - name: Publish Test Report
@@ -50,13 +48,34 @@ jobs:
         with:
           report_paths: '**/build/test-results/test/TEST-*.xml'
 
-      # 6. Qodana 정적 분석
+      # 6. Jacoco 커버리지 리포트 업로드
+      - name: Upload Jacoco Report
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-report
+          path: chatbot/backend/build/reports/jacoco/test/html/
+
+      # 7. Jacoco 커버리지 댓글 추가
+      - name: Add Coverage Comment
+        uses: Madrapps/jacoco-report@v1.7.1
+        if: success()
+        with:
+          paths: chatbot/backend/build/reports/jacoco/test/jacocoTestReport.xml
+          token: ${{ secrets.GITHUB_TOKEN }}
+          min-coverage-overall: 40
+          min-coverage-changed-files: 60
+          title: 'Test Code Coverage'
+          update-comment: true
+
+      # 8. Qodana 설정 파일 루트로 복사
+      - name: Copy Qodana Config
+        run: cp chatbot/backend/qodana.yaml ./qodana.yaml
+      
+      # 9. Qodana 정적 분석
       - name: Qodana Scan
-        if: github.event_name == 'pull_request'
         uses: jetbrains/qodana-action@v2023.3
         env:
           QODANA_TOKEN: ${{ secrets.QODANA_TOKEN }}
         with:
-          args: --project-dir,.
-          pr-mode: ${{ github.event_name == 'pull_request' }}
           upload-result: true
