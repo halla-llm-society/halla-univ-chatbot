@@ -31,7 +31,7 @@ public class QodanaWarningService {
 		}
 	}
 
-	// 테스트 1
+	// 테스트 2
 	// public 메서드인데 javadoc 없음 (Checkstyle 설정에 따라 경고 뜰 수 있음)
 	public boolean check() {
 		// [Qodana 타겟] 문자열 비교에 '==' 사용 (버그 유발)

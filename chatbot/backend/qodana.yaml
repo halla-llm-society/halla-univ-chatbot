@@ -1,11 +1,6 @@
 version: "1.0"
 linter: jetbrains/qodana-jvm-community:latest
 
-project:
-  modules:
-    - name: backend
-      path: chatbot/backend
-
 bootstrap: |
   cd chatbot/backend
   ./gradlew clean build -x test
