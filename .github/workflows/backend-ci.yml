@@ -56,11 +56,22 @@ jobs:
           name: jacoco-report
           path: chatbot/backend/build/reports/jacoco/test/html/
 
-      # 7. Qodana 설정 파일 루트로 복사
+      # 7. Jacoco 커버리지 댓글
+      - name: Add Coverage Comment
+        uses: Madrapps/jacoco-report@v1.7.1
+        if: success()
+        with:
+          paths: chatbot/backend/build/reports/jacoco/test/jacocoTestReport.xml
+          token: ${{ secrets.GITHUB_TOKEN }}
+          min-coverage-changed-files: 60
+          title: 'Backend Code Coverage'
+          update-comment: true
+
+      # 8. Qodana 설정 파일 루트로 복사
       - name: Copy Qodana Config
         run: cp chatbot/backend/qodana.yaml ./qodana.yaml
       
-      # 8. Qodana 정적 분석
+      # 9. Qodana 정적 분석
       - name: Qodana Scan
         uses: jetbrains/qodana-action@v2023.3
         with:
