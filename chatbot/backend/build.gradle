@@ -62,6 +62,7 @@ jacocoTestReport {
 dependencies {
     // 필수 의존성
     implementation 'org.springframework.boot:spring-boot-starter-data-mongodb-reactive' // MongoDB 비동기
+    implementation 'org.springframework.boot:spring-boot-starter-webmvc' // Spring MVC
     implementation 'org.springframework.boot:spring-boot-starter-webflux' // WebFlux (Netty, Jackson 포함)
     implementation 'org.springframework.boot:spring-boot-starter-validation' // 유효성 검사
     implementation 'org.springframework.boot:spring-boot-starter-data-redis' // // Redis (캐싱, 세션 등)
@@ -76,7 +77,8 @@ dependencies {
     // 테스트 의존성
     testImplementation 'org.springframework.boot:spring-boot-starter-test' // JUnit5, Mockito 등 포함
     testImplementation 'io.projectreactor:reactor-test' // WebFlux 테스트용 (StepVerifier 등)
-    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    testImplementation 'org.springframework.boot:spring-boot-starter-data-mongodb-test' // MongoDB Test
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher' // JUnit Platform: JUnit 5 테스트 실행 런처
 }
 
 tasks.named('test') {
