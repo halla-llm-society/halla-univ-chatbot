@@ -1,0 +1,38 @@
+# CodeRabbit 설정 파일
+language: "ko-KR"
+
+reviews:
+  profile: "chill"
+
+  # 리뷰 범위 설정
+  path_filters:
+    - "!**"
+    - "chatbot/backend/**"
+    - "!chatbot/backend/**/dto/**"
+    - "!chatbot/backend/**/errorcode/**"
+    - "!**/build/**"
+    - "!**/test/**"
+
+  # 백엔드 공통 지시사항
+  path_instructions:
+    - path: "chatbot/backend/**"
+      instructions: |
+        이 프로젝트는 Java 21, Spring Boot 3.5 기반의 백엔드 서버입니다.
+        다음 기준에 맞춰 리뷰해주세요:
+        1. Java 21의 최신 문법(Record, Pattern Matching 등) 활용을 제안해주세요.
+        2. 불필요한 객체 생성이나 비효율적인 스트림(Stream) 사용을 지적해주세요.
+        3. 예외 처리는 GlobalExceptionHandler를 따르므로, 불필요한 try-catch를 지양하도록 안내해주세요.
+
+  auto_review:
+    enabled: true
+    base_branches:
+      - "main"
+      - "stg"
+
+    ignore_title_keywords: # PR 제목에 이 단어가 있으면 리뷰 생략
+      - "WIP"
+      - "Draft"
+      - "Release"
+
+chat:
+  auto_reply: true
