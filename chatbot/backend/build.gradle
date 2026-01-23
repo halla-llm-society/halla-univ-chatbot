@@ -60,25 +60,19 @@ jacocoTestReport {
 }
 
 dependencies {
-    // 필수 의존성
-    implementation 'org.springframework.boot:spring-boot-starter-data-mongodb-reactive' // MongoDB 비동기
-    implementation 'org.springframework.boot:spring-boot-starter-webmvc' // Spring MVC
-    implementation 'org.springframework.boot:spring-boot-starter-webflux' // WebFlux (Netty, Jackson 포함)
-    implementation 'org.springframework.boot:spring-boot-starter-validation' // 유효성 검사
-    implementation 'org.springframework.boot:spring-boot-starter-data-redis' // // Redis (캐싱, 세션 등)
-
-    // Lombok
+    implementation 'org.springframework.boot:spring-boot-starter-data-mongodb'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.boot:spring-boot-starter-webflux'
+    implementation 'org.springframework.boot:spring-boot-starter-webmvc'
     compileOnly 'org.projectlombok:lombok'
-    annotationProcessor 'org.projectlombok:lombok'
-
-    // 개발 툴
     developmentOnly 'org.springframework.boot:spring-boot-devtools'
-
-    // 테스트 의존성
-    testImplementation 'org.springframework.boot:spring-boot-starter-test' // JUnit5, Mockito 등 포함
-    testImplementation 'io.projectreactor:reactor-test' // WebFlux 테스트용 (StepVerifier 등)
+    annotationProcessor 'org.projectlombok:lombok'
     testImplementation 'org.springframework.boot:spring-boot-starter-data-mongodb-test'
-    testRuntimeOnly 'org.junit.platform:junit-platform-launcher' // JUnit Platform: JUnit 5 테스트 실행 런처
+    testImplementation 'org.springframework.boot:spring-boot-starter-validation-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-webflux-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 }
 
 tasks.named('test') {
