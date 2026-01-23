@@ -28,6 +28,10 @@ reviews:
 
   auto_review:
     enabled: true
+    base_branches:
+      - "main"
+      - "stg"
+
     ignore_title_keywords: # PR 제목에 이 단어가 있으면 리뷰 생략
       - "WIP"
       - "Draft"
