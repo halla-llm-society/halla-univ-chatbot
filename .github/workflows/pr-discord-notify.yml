@@ -41,42 +41,55 @@ jobs:
             STATUS_TEXT="PR이 닫혔습니다"
           fi
 
-          curl -H "Content-Type: application/json" \
-            -X POST \
-            -d "{
-              \"avatar_url\": \"https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png\",
-              \"embeds\": [
+          # 🔥 안전한 JSON 생성 (문자열 자동 escape)
+          PAYLOAD=$(jq -n \
+            --arg title "$PR_TITLE" \
+            --arg url "$PR_URL" \
+            --arg author "$PR_AUTHOR" \
+            --arg avatar "$PR_AUTHOR_AVATAR" \
+            --arg repo "$REPO_NAME" \
+            --arg head "$PR_HEAD" \
+            --arg base "$PR_BASE" \
+            --arg status "$STATUS_TEXT" \
+            --argjson color $COLOR \
+            '{
+              avatar_url: "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png",
+              embeds: [
                 {
-                  \"title\": \"Pull Request 알림\",
-                  \"url\": \"${PR_URL}\",
-                  \"description\": \"**${PR_TITLE}**\",
-                  \"color\": ${COLOR},
-                  \"author\": {
-                    \"name\": \"${PR_AUTHOR}\",
-                    \"icon_url\": \"${PR_AUTHOR_AVATAR}\"
+                  title: "Pull Request 알림",
+                  url: $url,
+                  description: ("**" + $title + "**"),
+                  color: $color,
+                  author: {
+                    name: $author,
+                    icon_url: $avatar
                   },
-                  \"fields\": [
+                  fields: [
                     {
-                      \"name\": \"저장소\",
-                      \"value\": \"`${REPO_NAME}`\",
-                      \"inline\": true
+                      name: "저장소",
+                      value: ("`" + $repo + "`"),
+                      inline: true
                     },
                     {
-                      \"name\": \"브랜치\",
-                      \"value\": \"`${PR_HEAD}` → `${PR_BASE}`\",
-                      \"inline\": true
+                      name: "브랜치",
+                      value: ("`" + $head + "` → `" + $base + "`"),
+                      inline: true
                     },
                     {
-                      \"name\": \"상태\",
-                      \"value\": \"${STATUS_TEXT}\",
-                      \"inline\": false
+                      name: "상태",
+                      value: $status,
+                      inline: false
                     }
                   ],
-                  \"footer\": {
-                    \"text\": \"GitHub Actions · PR Notification\"
+                  footer: {
+                    text: "GitHub Actions · PR Notification"
                   },
-                  \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"
+                  timestamp: (now | todate)
                 }
               ]
-            }" \
-            $DISCORD_WEBHOOK_URL
+            }')
+
+          curl -H "Content-Type: application/json" \
+               -X POST \
+               -d "$PAYLOAD" \
+               $DISCORD_WEBHOOK_URL
