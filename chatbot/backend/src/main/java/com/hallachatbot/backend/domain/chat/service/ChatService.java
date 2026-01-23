@@ -32,6 +32,8 @@ import reactor.core.publisher.Flux;
 @RequiredArgsConstructor
 public class ChatService {
 
+	// TODO: 채팅 전, 후에 cost 확인 및 추가
+
 	private final ChatRepository chatRepository;
 	private final TokenRepository tokenRepository;
 	private final WebClient.Builder webClientBuilder;
@@ -81,7 +83,7 @@ public class ChatService {
 					.bodyValue(aiBody)
 					.retrieve()
 					.bodyToFlux(String.class) // JSON String 라인 단위 수신
-					.flatMap(line -> parseAndMapToSSE(line, fullAnswer, decision, preset, totalTokens, totalCostUsd))
+					.flatMap(line -> parseAndMapToSse(line, fullAnswer, decision, preset, totalTokens, totalCostUsd))
 					.onErrorResume(e -> {
 						log.error("AI Service Error", e);
 						return Flux.just(ServerSentEvent.<String>builder()
@@ -119,7 +121,7 @@ public class ChatService {
 	}
 
 	// JSON 라인 파싱 및 SSE 변환 로직
-	private Flux<ServerSentEvent<String>> parseAndMapToSSE(
+	private Flux<ServerSentEvent<String>> parseAndMapToSse(
 		String line,
 		AtomicReference<StringBuilder> fullAnswer,
 		AtomicReference<String> decision,
