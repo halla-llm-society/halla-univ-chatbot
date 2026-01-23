@@ -9,10 +9,7 @@ reviews:
     - "!**"
     - "chatbot/backend/**"
     - "!chatbot/backend/**/dto/**"
-    - "!chatbot/backend/**/config/**"
     - "!chatbot/backend/**/errorcode/**"
-    - "!chatbot/backend/build.gradle"
-    - "!chatbot/backend/build.gradle"
     - "!**/build/**"
     - "!**/test/**"
 
