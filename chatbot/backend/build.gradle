@@ -1,9 +1,9 @@
 plugins {
-	id 'java'
-	id 'org.springframework.boot' version '4.0.1'
-	id 'io.spring.dependency-management' version '1.1.7'
-	id 'checkstyle'
-	id 'jacoco'
+    id 'java'
+    id 'org.springframework.boot' version '3.5.8'
+    id 'io.spring.dependency-management' version '1.1.7'
+    id 'checkstyle'
+    id 'jacoco'
 }
 
 group = 'com.hallachatbot'
@@ -11,56 +11,74 @@ version = '0.0.1-SNAPSHOT'
 description = 'backend'
 
 java {
-	toolchain {
-		languageVersion = JavaLanguageVersion.of(21)
-	}
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
 }
 
 configurations {
-	compileOnly {
-		extendsFrom annotationProcessor
-	}
+    compileOnly {
+        extendsFrom annotationProcessor
+    }
 }
 
 repositories {
-	mavenCentral()
+    mavenCentral()
 }
 
 checkstyle {
-	toolVersion = "10.12.5"
-	configFile = file("config/checkstyle/naver-checkstyle-rules.xml")
-	ignoreFailures = false
-	maxWarnings = 0
+    toolVersion = "10.12.5"
+    configFile = file("config/checkstyle/naver-checkstyle-rules.xml")
+    ignoreFailures = false
+    maxWarnings = 0
 }
 
 test {
-	useJUnitPlatform()
-	finalizedBy jacocoTestReport
+    useJUnitPlatform()
+    finalizedBy jacocoTestReport
 }
 
 jacocoTestReport {
-	dependsOn test
-	reports {
-		xml.required = true
-		html.required = true
-	}
+    dependsOn test
+    reports {
+        xml.required = true
+        html.required = true
+    }
+
+    afterEvaluate {
+        classDirectories.setFrom(files(classDirectories.files.collect {
+            fileTree(dir: it, exclude: [
+                    "**/dto/**",                // DTO 패키지 제외
+                    "**/event/**",              // Event 객체 제외
+                    "**/global/error/**",       // 에러 처리 관련 패키지 제외
+                    "**/*ErrorCode.*",          // ErrorCode Enum 제외
+                    "**/config/**",             // 설정 파일 제외
+                    "**/*Application.*",        // 메인 애플리케이션 클래스 제외
+            ])
+        }))
+    }
 }
 
 dependencies {
-	implementation 'org.springframework.boot:spring-boot-starter-data-mongodb'
-	implementation 'org.springframework.boot:spring-boot-starter-validation'
-	implementation 'org.springframework.boot:spring-boot-starter-webflux'
-	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
-	compileOnly 'org.projectlombok:lombok'
-	developmentOnly 'org.springframework.boot:spring-boot-devtools'
-	annotationProcessor 'org.projectlombok:lombok'
-	testImplementation 'org.springframework.boot:spring-boot-starter-data-mongodb-test'
-	testImplementation 'org.springframework.boot:spring-boot-starter-validation-test'
-	testImplementation 'org.springframework.boot:spring-boot-starter-webflux-test'
-	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
-	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    // 필수 의존성
+    implementation 'org.springframework.boot:spring-boot-starter-data-mongodb-reactive' // MongoDB 비동기
+    implementation 'org.springframework.boot:spring-boot-starter-webflux' // WebFlux (Netty, Jackson 포함)
+    implementation 'org.springframework.boot:spring-boot-starter-validation' // 유효성 검사
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis' // // Redis (캐싱, 세션 등)
+
+    // Lombok
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+
+    // 개발 툴
+    developmentOnly 'org.springframework.boot:spring-boot-devtools'
+
+    // 테스트 의존성
+    testImplementation 'org.springframework.boot:spring-boot-starter-test' // JUnit5, Mockito 등 포함
+    testImplementation 'io.projectreactor:reactor-test' // WebFlux 테스트용 (StepVerifier 등)
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
 tasks.named('test') {
-	useJUnitPlatform()
+    useJUnitPlatform()
 }
