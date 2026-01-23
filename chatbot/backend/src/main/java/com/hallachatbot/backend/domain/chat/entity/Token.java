@@ -17,21 +17,21 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Document(collection = "chat")
-public class Chat {
+@Document(collection = "token")
+public class Token {
 
 	@Id
 	private String id;
 
 	@Indexed
-	@Field("chatId")
-	private String chatId;
+	@Field("chatId") // 실제로는 Chat 메시지의 ID를 참조 (파이썬 코드 기준)
+	private String relatedChatId;
 
-	private String question;
+	private String preset;
 
-	private String answer;
+	private String totalTokens;
 
-	private String decision; // RAG 검색 결과 판단 (gate_reason)
+	private String totalCostUsd;
 
 	@CreatedDate
 	private LocalDateTime date;
