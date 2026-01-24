@@ -50,7 +50,7 @@ jacocoTestReport {
             fileTree(dir: it, exclude: [
                     "**/dto/**",                // DTO 패키지 제외
                     "**/event/**",              // Event 객체 제외
-                    "**/global/errorcode/**",       // 에러 처리 관련 패키지 제외
+                    "**/global/errorcode/**",   // 에러 처리 관련 패키지 제외
                     "**/*ErrorCode.*",          // ErrorCode Enum 제외
                     "**/config/**",             // 설정 파일 제외
                     "**/*Application.*",        // 메인 애플리케이션 클래스 제외
