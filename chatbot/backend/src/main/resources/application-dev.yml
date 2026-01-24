@@ -1,14 +1,8 @@
-spring:
-  config:
-    import: "optional:classpath:/application-secret.yml"
-
 logging:
   level:
     root: INFO
     com.hallachatbot: DEBUG
 
 app:
-  ai-service-url: "http://localhost:8000"
-  
-  # DB Suffix는 stg DB 이름에 맞춰 설정 (이미 URI에 포함했다면 생략 가능하지만 명시적으로)
-  mongodb-suffix: "_stg"
+  ai-service-url: "http://localhost:3000"
+  mongodb-suffix: "-stg"
