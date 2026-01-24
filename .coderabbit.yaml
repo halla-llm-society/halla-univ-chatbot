@@ -6,13 +6,15 @@ reviews:
 
   # 리뷰 범위 설정
   path_filters:
-    - "!**"
-    - "chatbot/backend/**"
+    - "!admin/**"
+    - "!chatbot/frontend/**"
+    - "!chatbot/ai/**"
     - "!chatbot/backend/**/dto/**"
+    - "!chatbot/backend/**/config/**"
     - "!chatbot/backend/**/errorcode/**"
-    - "!**/build/**"
+    - "!chatbot/backend/build.gradle"
     - "!**/test/**"
-
+  
   # 백엔드 공통 지시사항
   path_instructions:
     - path: "chatbot/backend/**"
