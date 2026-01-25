@@ -165,6 +165,22 @@ class ChatServiceTest {
 		given(chatMessageRepository.findTop6ByChatIdOrderByCreatedDateDesc(chatId))
 			.willReturn(Collections.emptyList());
 
+		given(chatMessageRepository.save(any(ChatMessage.class)))
+			.willAnswer(invocation -> {
+				ChatMessage sourceMsg = invocation.getArgument(0);
+
+				ChatMessage savedMsg = ChatMessage.builder()
+					.chatId(sourceMsg.getChatId())
+					.question(sourceMsg.getQuestion())
+					.answer(sourceMsg.getAnswer())
+					.decision(sourceMsg.getDecision())
+					.build();
+
+				ReflectionTestUtils.setField(savedMsg, "id", "generated-msg-id");
+
+				return savedMsg;
+			});
+
 		// 다양한 타입의 응답 시뮬레이션
 		AiServiceResponse delta = new AiServiceResponse();
 		ReflectionTestUtils.setField(delta, "type", "delta");
