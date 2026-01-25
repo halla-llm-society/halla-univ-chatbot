@@ -110,7 +110,9 @@ public class ChatService {
 	 * 스트림 완료 후 누적된 데이터를 DB에 저장 (비동기)
 	 */
 	private void saveChatData(StreamState state) {
-		if (state.getAnswerBuilder().isEmpty()) {
+		if (state.getAnswerBuilder().isEmpty()
+			&& (state.getMetadataMap() == null || state.getMetadataMap().isEmpty())
+			&& (state.getTotalTokens() == null || state.getTotalTokens() == 0)) {
 			return;
 		}
 
@@ -245,19 +247,20 @@ public class ChatService {
 			this.metadataMap = data;
 
 			// RAG Decision 추출
-			if (data.containsKey("rag")) {
-				Map<String, Object> rag = (Map<String, Object>)data.get("rag");
-				this.decision = (String)rag.getOrDefault("gate_reason", "");
+			if (data.get("rag") instanceof Map<?, ?> rag) {
+				Object gateReason = rag.get("gate_reason");
+				this.decision = gateReason != null ? gateReason.toString() : "";
 			}
 
 			// Token Usage 추출
-			if (data.containsKey("token_usage")) {
-				Map<String, Object> usage = (Map<String, Object>)data.get("token_usage");
-				this.preset = (String)usage.getOrDefault("preset", "");
-				// 숫자가 Integer 혹은 String으로 올 수 있으므로 안전하게 파싱 필요하나 여기선 단순 캐스팅
+			if (data.get("token_usage") instanceof Map<?, ?> usage) {
+				Object presetObj = usage.get("preset");
+				this.preset = presetObj != null ? presetObj.toString() : "";
 				Object tokens = usage.get("total_tokens");
-				if (tokens instanceof Number) {
-					this.totalTokens = ((Number)tokens).intValue();
+				if (tokens instanceof Number n) {
+					this.totalTokens = n.intValue();
+				} else if (tokens instanceof String s) {
+					this.totalTokens = Integer.parseInt(s);
 				}
 			}
 		}
