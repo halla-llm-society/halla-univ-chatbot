@@ -72,14 +72,13 @@ public class AiServiceClient {
 				if ("delta".equals(response.getType()) && !firstTokenReceived.get() && response.getContent() != null) {
 					firstTokenReceived.set(true);
 					double durationSeconds = (System.nanoTime() - startTime) / 1_000_000_000.0;
-					log.info("[AI 첫 응답 소요 시간]: String.format(\"%.4f초\", durationSeconds) | 첫 토큰: {}",
-						response.getContent());
+					log.info("[AI 첫 응답 소요 시간]: {:.4f}초 | 첫 토큰: {}", durationSeconds, response.getContent());
 				}
 			})
 			.doOnComplete(() -> {
 				// 전체 완료 시간 로깅
 				double totalDuration = (System.nanoTime() - startTime) / 1_000_000_000.0;
-				log.info("[AI 완료 총 소요 시간]: String.format(\"%.4f초\", totalDuration)");
+				log.info("[AI 완료 총 소요 시간]: {}초", String.format("%.4f", totalDuration));
 			})
 			.doOnError(WebClientResponseException.class, e -> {
 				log.error("AI Service HTTP Error: {} {}", e.getStatusCode(), e.getResponseBodyAsString());

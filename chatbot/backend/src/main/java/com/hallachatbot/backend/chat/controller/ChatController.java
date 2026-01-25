@@ -21,6 +21,14 @@ import com.hallachatbot.backend.chat.entity.ChatMessage;
 import com.hallachatbot.backend.chat.repository.ChatMessageRepository;
 import com.hallachatbot.backend.chat.service.ChatService;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -31,13 +39,13 @@ import reactor.core.publisher.Flux;
  * 채팅 도메인 컨트롤러
  *
  * <p>
- * Python의 app/api/chat.py 리팩토링<br>
  * 엔드포인트: /api/chat
  * </p>
  *
  * @author pwk0131
  */
 @Slf4j
+@Tag(name = "Chat API", description = "AI 챗봇 대화 및 히스토리 관리")
 @RestController
 @RequestMapping("/api/chat")
 @RequiredArgsConstructor
@@ -59,10 +67,24 @@ public class ChatController {
 	 * @param response HTTP 응답 객체 (쿠키 설정용)
 	 * @return SSE 스트림
 	 */
+	@Operation(summary = "채팅 답변 스트리밍", description = "사용자의 질문을 입력받아 AI 답변을 SSE(Server-Sent Events)로 실시간 스트리밍합니다.")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "성공 (스트리밍 시작)",
+			content = @Content(mediaType = "text/event-stream",
+				schema = @Schema(implementation = ServerSentEvent.class))
+		),
+		@ApiResponse(responseCode = "400", description = "잘못된 요청 (입력값 누락 등)"),
+		@ApiResponse(responseCode = "500", description = "서버 내부 오류")
+	})
+
 	@PostMapping
 	public Flux<ServerSentEvent<String>> chat(
+		@Parameter(description = "채팅 요청 정보 (질문, 언어 등)", required = true)
 		@Valid @RequestBody ChatRequest request,
+
+		@Parameter(description = "사용자 식별 쿠키 (chatId)", in = ParameterIn.COOKIE, required = false)
 		@CookieValue(value = "chatId", required = false) String cookieChatId,
+
 		HttpServletResponse response
 	) {
 		String currentChatId;
@@ -107,8 +129,15 @@ public class ChatController {
 	 * @param cookieChatId 쿠키에 저장된 chatId
 	 * @return 대화 내역 리스트 (user/assistant 쌍)
 	 */
+	@Operation(summary = "대화 히스토리 조회", description = "쿠키에 저장된 chatId를 기반으로 최근 대화 내역(최대 6개)을 조회합니다.")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "조회 성공"),
+		@ApiResponse(responseCode = "401", description = "인증 실패 (쿠키 없음)")
+	})
+
 	@GetMapping("/history")
 	public List<ChatHistoryResponse> getHistory(
+		@Parameter(description = "사용자 식별 쿠키 (chatId)", in = ParameterIn.COOKIE, required = false)
 		@CookieValue(value = "chatId", required = false) String cookieChatId
 	) {
 		if (cookieChatId == null || !ObjectId.isValid(cookieChatId)) {

@@ -126,12 +126,16 @@ public class ChatService {
 		// 실제 운영 시에는 ReactiveMongoRepository를 쓰거나 subscribeOn 사용
 		Flux.just(chatMessage)
 			.publishOn(Schedulers.boundedElastic())
-			.doOnNext(savedMsg -> {
-				String messageId = savedMsg.getId(); // MongoDB _id
-				chatMessageRepository.save(savedMsg);
+			.doOnNext(msg -> {
+				ChatMessage savedMsg = chatMessageRepository.save(msg);
+				String messageId = savedMsg.getId();
 				saveTokenAndMetadata(state, messageId);
 			})
-			.subscribe();
+			.subscribe(
+				success -> {
+				},
+				error -> log.error("채팅 데이터 저장 실패: chatId={}", state.getChatId(), error)
+			);
 	}
 
 	private void saveTokenAndMetadata(StreamState state, String messageId) {
