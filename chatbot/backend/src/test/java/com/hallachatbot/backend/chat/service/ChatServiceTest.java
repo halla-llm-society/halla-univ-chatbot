@@ -31,8 +31,8 @@ import com.hallachatbot.backend.chat.entity.ChatMessage;
 import com.hallachatbot.backend.chat.repository.ChatMessageRepository;
 import com.hallachatbot.backend.chat.repository.ChatMetadataRepository;
 import com.hallachatbot.backend.chat.repository.ChatTokenUsageRepository;
-import com.hallachatbot.backend.global.errorcode.CostErrorCode;
-import com.hallachatbot.backend.global.exception.CostException;
+import com.hallachatbot.backend.global.errorcode.UsageErrorCode;
+import com.hallachatbot.backend.global.exception.UsageException;
 import com.hallachatbot.backend.usage.service.UsageService;
 
 import reactor.core.publisher.Flux;
@@ -70,13 +70,13 @@ class ChatServiceTest {
 		String chatId = "test-chat-id";
 
 		// [수정됨] void 메서드에 대한 BDDMockito 예외 발생 설정
-		willThrow(new CostException(CostErrorCode.MONTHLY_LLM_BUDGET_EXCEEDED))
+		willThrow(new UsageException(UsageErrorCode.MONTHLY_LLM_BUDGET_EXCEEDED))
 			.given(usageService).checkLlmUsage();
 
 		// when & then
 		assertThatThrownBy(() -> chatService.startChat(request, chatId, false))
-			.isInstanceOf(CostException.class)
-			.hasFieldOrPropertyWithValue("errorCode", CostErrorCode.MONTHLY_LLM_BUDGET_EXCEEDED);
+			.isInstanceOf(UsageException.class)
+			.hasFieldOrPropertyWithValue("errorCode", UsageErrorCode.MONTHLY_LLM_BUDGET_EXCEEDED);
 
 		// AI 서비스는 호출되지 않아야 함
 		verify(aiServiceClient, never()).streamChat(any(), any());
