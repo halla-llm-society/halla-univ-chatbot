@@ -118,7 +118,7 @@ public class ChatService {
 		ChatMessage chatMessage = ChatMessage.builder()
 			.chatId(state.getChatId())
 			.question(state.getQuestion())
-			.answer(state.getAnswerBuilder().toString())
+			.answer(state.getAnswer())
 			.decision(state.getDecision())
 			.build();
 
@@ -231,6 +231,10 @@ public class ChatService {
 
 		public void appendAnswer(String chunk) {
 			this.answerBuilder.append(chunk);
+		}
+
+		public String getAnswer() {
+			return this.answerBuilder.toString();
 		}
 
 		@SuppressWarnings("unchecked")
