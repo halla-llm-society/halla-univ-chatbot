@@ -3,6 +3,7 @@ language: "ko-KR"
 
 reviews:
   profile: "chill"
+  poem: false
 
   # 리뷰 범위 설정
   path_filters:
