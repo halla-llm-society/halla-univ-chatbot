@@ -95,10 +95,10 @@ public class ChatService {
 			state.updateMetadata(data);
 
 			// 클라이언트에 보낼 때는 chatId를 포함
-			if (data != null) {
-				data.put("chatId", state.getChatId());
-			}
-			return createSseEvent("metadata", data, null);
+			Map<String, Object> eventData = data != null ? new HashMap<>(data) : new HashMap<>();
+			eventData.put("chatId", state.getChatId());
+
+			return createSseEvent("metadata", eventData, null);
 		} else if ("error".equals(type)) {
 			return createSseEvent("error", response.getData(), response.getMessage());
 		}
