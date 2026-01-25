@@ -71,12 +71,10 @@ public class ChatController {
 	@ApiResponses(value = {
 		@ApiResponse(responseCode = "200", description = "성공 (스트리밍 시작)",
 			content = @Content(mediaType = "text/event-stream",
-				schema = @Schema(implementation = ServerSentEvent.class))
-		),
+				schema = @Schema(implementation = ServerSentEvent.class))),
 		@ApiResponse(responseCode = "400", description = "잘못된 요청 (입력값 누락 등)"),
 		@ApiResponse(responseCode = "500", description = "서버 내부 오류")
 	})
-
 	@PostMapping
 	public Flux<ServerSentEvent<String>> chat(
 		@Parameter(description = "채팅 요청 정보 (질문, 언어 등)", required = true)
