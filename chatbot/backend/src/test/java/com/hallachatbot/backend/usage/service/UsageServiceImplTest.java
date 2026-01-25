@@ -17,8 +17,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import com.hallachatbot.backend.global.errorcode.CostErrorCode;
-import com.hallachatbot.backend.global.exception.CostException;
+import com.hallachatbot.backend.global.errorcode.UsageErrorCode;
+import com.hallachatbot.backend.global.exception.UsageException;
 import com.hallachatbot.backend.usage.entity.MonthlyLlmUsage;
 import com.hallachatbot.backend.usage.repository.MonthlyLlmUsageRepository;
 
@@ -70,8 +70,8 @@ class UsageServiceImplTest {
 
 		// when & then
 		assertThatThrownBy(() -> usageService.checkLlmUsage())
-			.isInstanceOf(CostException.class)
-			.hasFieldOrPropertyWithValue("errorCode", CostErrorCode.MONTHLY_LLM_BUDGET_EXCEEDED);
+			.isInstanceOf(UsageException.class)
+			.hasFieldOrPropertyWithValue("errorCode", UsageErrorCode.MONTHLY_LLM_BUDGET_EXCEEDED);
 	}
 
 	@Test

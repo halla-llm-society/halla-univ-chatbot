@@ -15,7 +15,7 @@ import lombok.RequiredArgsConstructor;
  */
 @Getter
 @RequiredArgsConstructor
-public enum CostErrorCode implements ErrorCode {
+public enum UsageErrorCode implements ErrorCode {
 
 	// [403] 예산 초과
 	MONTHLY_LLM_BUDGET_EXCEEDED(

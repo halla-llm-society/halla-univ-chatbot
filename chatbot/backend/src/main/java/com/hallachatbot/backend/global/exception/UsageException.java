@@ -7,6 +7,6 @@ import lombok.RequiredArgsConstructor;
 
 @Getter
 @RequiredArgsConstructor
-public class CostException extends RuntimeException {
+public class UsageException extends RuntimeException {
 	private final transient ErrorCode errorCode;
 }

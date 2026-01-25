@@ -19,14 +19,14 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 
 import com.hallachatbot.backend.global.errorcode.ErrorCode;
 import com.hallachatbot.backend.global.errorcode.GlobalErrorCode;
-import com.hallachatbot.backend.global.response.ApiResponse;
+import com.hallachatbot.backend.global.response.Response;
 
 import lombok.extern.slf4j.Slf4j;
 
 /**
  * 전역 예외 처리 핸들러 (Global Exception Handler).
  * <p>
- * 애플리케이션 전역에서 발생하는 예외를 포착하여 표준화된 {@link ApiResponse} 포맷으로 응답합니다.
+ * 애플리케이션 전역에서 발생하는 예외를 포착하여 표준화된 {@link Response} 포맷으로 응답합니다.
  * {@link ResponseEntityExceptionHandler}를 상속받아 Spring MVC 표준 예외를 커스터마이징 하여 적용합니다.
  * </p>
  *
@@ -173,6 +173,6 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
 		return ResponseEntity
 			.status(errorCode.getStatus())
-			.body(ApiResponse.fail(errorCode));
+			.body(Response.fail(errorCode));
 	}
 }
