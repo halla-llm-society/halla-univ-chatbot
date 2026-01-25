@@ -23,7 +23,7 @@ import lombok.NoArgsConstructor;
  */
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@Document(collection = "chat")
+@Document(collection = "chat#{environment.getProperty('app.mongodb-suffix')}")
 public class ChatMessage {
 
 	@Id

@@ -24,7 +24,7 @@ import lombok.NoArgsConstructor;
  */
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@Document(collection = "token")
+@Document(collection = "token#{environment.getProperty('app.mongodb-suffix')}")
 public class ChatTokenUsage {
 
 	@Id
