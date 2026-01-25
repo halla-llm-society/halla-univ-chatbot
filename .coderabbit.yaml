@@ -7,15 +7,18 @@ reviews:
 
   # 리뷰 범위 설정
   path_filters:
-    # 1. 백엔드가 아닌 다른 프로젝트 폴더 제외
-    - "!admin/**"
-    - "!chatbot/frontend/**"
-    - "!chatbot/ai/**"
+    # 1. 백엔드 지정
+    - "chatbot/backend/**"
 
     # 2. 백엔드 내부에서 리뷰가 필요 없는 파일 제외
     - "!chatbot/backend/**/dto/**"
     - "!chatbot/backend/**/errorcode/**"
     - "!**/test/**"
+
+    # 3. 백엔드가 아닌 다른 프로젝트 폴더 제외
+    - "!admin/**"
+    - "!chatbot/frontend/**"
+    - "!chatbot/ai/**"
 
   # 백엔드 공통 지시사항
   path_instructions:

@@ -13,7 +13,7 @@ spring:
 app:
   ai-service-url: ${AI_SERVICE_URL:http://localhost:3000}
 
-  mongodb-suffix: ${MONGODB_SUFFIX}
+  mongodb-suffix: ${MONGODB_SUFFIX:-stg}
 
   openai-admin-key: ${OPENAI_ADMIN_KEY:}
   openai-project-id: ${OPENAI_PROJECT_ID}
