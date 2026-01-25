@@ -50,7 +50,7 @@ public class AiServiceClient {
 		String endpoint = aiServiceUrl + "/api/chat";
 
 		AiChatRequest aiBody = AiChatRequest.builder()
-			.userInput(request.getUser_input())
+			.userInput(request.getUserInput())
 			.messageHistory(history)
 			.language(request.getLanguage())
 			.build();

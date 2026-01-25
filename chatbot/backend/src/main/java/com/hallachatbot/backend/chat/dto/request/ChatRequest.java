@@ -1,5 +1,7 @@
 package com.hallachatbot.backend.chat.dto.request;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -24,7 +26,8 @@ public class ChatRequest {
 	 */
 	@NotBlank(message = "질문은 비어있을 수 없습니다.")
 	@Size(max = 300, message = "질문은 300자를 넘을 수 없습니다.")
-	private String user_input;
+	@JsonProperty("user_input")
+	private String userInput;
 
 	/**
 	 * 답변 언어 설정
