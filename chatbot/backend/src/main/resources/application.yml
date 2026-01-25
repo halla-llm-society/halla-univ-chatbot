@@ -7,7 +7,7 @@ spring:
 
   data:
     mongodb:
-      uri: ${MONGODB_URI}
+      uri: ${MONGODB_URI:mongodb://localhost:27017/halla_chatbot_test}
       database: halla-chatbot${app.mongodb-suffix}
 
 app:
