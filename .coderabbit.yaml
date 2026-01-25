@@ -3,14 +3,18 @@ language: "ko-KR"
 
 reviews:
   profile: "chill"
+  poem: false
 
   # 리뷰 범위 설정
   path_filters:
-    - "!**"
-    - "chatbot/backend/**"
+    # 1. 백엔드가 아닌 다른 프로젝트 폴더 제외
+    - "!admin/**"
+    - "!chatbot/frontend/**"
+    - "!chatbot/ai/**"
+
+    # 2. 백엔드 내부에서 리뷰가 필요 없는 파일 제외
     - "!chatbot/backend/**/dto/**"
     - "!chatbot/backend/**/errorcode/**"
-    - "!**/build/**"
     - "!**/test/**"
 
   # 백엔드 공통 지시사항
