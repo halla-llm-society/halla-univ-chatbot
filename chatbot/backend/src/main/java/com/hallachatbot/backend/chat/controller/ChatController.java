@@ -5,9 +5,9 @@ import java.util.Collections;
 import java.util.List;
 
 import org.bson.types.ObjectId;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.codec.ServerSentEvent;
-import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -21,6 +21,7 @@ import com.hallachatbot.backend.chat.entity.ChatMessage;
 import com.hallachatbot.backend.chat.repository.ChatMessageRepository;
 import com.hallachatbot.backend.chat.service.ChatService;
 
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -62,7 +63,7 @@ public class ChatController {
 	public Flux<ServerSentEvent<String>> chat(
 		@Valid @RequestBody ChatRequest request,
 		@CookieValue(value = "chatId", required = false) String cookieChatId,
-		ServerHttpResponse response
+		HttpServletResponse response
 	) {
 		String currentChatId;
 		boolean isNewUser = false;
@@ -88,7 +89,7 @@ public class ChatController {
 				.httpOnly(false)
 				.path("/")
 				.build();
-			response.addCookie(cookie);
+			response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
 		}
 
 		// 3. 서비스 호출
