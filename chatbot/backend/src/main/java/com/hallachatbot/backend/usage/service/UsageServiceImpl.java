@@ -8,8 +8,8 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.validation.annotation.Validated;
 
-import com.hallachatbot.backend.global.errorcode.CostErrorCode;
-import com.hallachatbot.backend.global.exception.CostException;
+import com.hallachatbot.backend.global.errorcode.UsageErrorCode;
+import com.hallachatbot.backend.global.exception.UsageException;
 import com.hallachatbot.backend.usage.entity.MonthlyLlmUsage;
 import com.hallachatbot.backend.usage.repository.MonthlyLlmUsageRepository;
 
@@ -34,7 +34,7 @@ public class UsageServiceImpl implements UsageService {
 		MonthlyLlmUsage usage = getMonthlyLlmUsage();
 
 		if (usage.getTotalUsage().compareTo(monthlyLlmUsageLimit) >= 0) {
-			throw new CostException(CostErrorCode.MONTHLY_LLM_BUDGET_EXCEEDED);
+			throw new UsageException(UsageErrorCode.MONTHLY_LLM_BUDGET_EXCEEDED);
 		}
 	}
 

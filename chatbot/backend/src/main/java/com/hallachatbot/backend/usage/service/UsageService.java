@@ -2,8 +2,8 @@ package com.hallachatbot.backend.usage.service;
 
 import java.math.BigDecimal;
 
-import com.hallachatbot.backend.global.errorcode.CostErrorCode;
-import com.hallachatbot.backend.global.exception.CostException;
+import com.hallachatbot.backend.global.errorcode.UsageErrorCode;
+import com.hallachatbot.backend.global.exception.UsageException;
 import com.hallachatbot.backend.usage.entity.MonthlyLlmUsage;
 
 import jakarta.validation.constraints.NotNull;
@@ -34,10 +34,10 @@ public interface UsageService {
 	 * <ul>
 	 * <li><b>검증 대상:</b> {@link MonthlyLlmUsage#getTotalUsage()}</li>
 	 * <li><b>판단 기준:</b> 누적 사용액 >= 설정 한도</li>
-	 * <li><b>발생 에러:</b> {@link CostErrorCode#MONTHLY_LLM_BUDGET_EXCEEDED} (HTTP 403)</li>
+	 * <li><b>발생 에러:</b> {@link UsageErrorCode#MONTHLY_LLM_BUDGET_EXCEEDED} (HTTP 403)</li>
 	 * </ul>
 	 *
-	 * @throws CostException 한도 초과 상태에서 호출될 경우 발생
+	 * @throws UsageException 한도 초과 상태에서 호출될 경우 발생
 	 */
 	void checkLlmUsage();
 
