@@ -72,7 +72,8 @@ public class AiServiceClient {
 				if ("delta".equals(response.getType()) && !firstTokenReceived.get() && response.getContent() != null) {
 					firstTokenReceived.set(true);
 					double durationSeconds = (System.nanoTime() - startTime) / 1_000_000_000.0;
-					log.info("[AI 첫 응답 소요 시간]: {:.4f}초 | 첫 토큰: {}", durationSeconds, response.getContent());
+					log.info("[AI 첫 응답 소요 시간]: {}초 | 첫 토큰: {}", String.format("%.4f", durationSeconds),
+						response.getContent());
 				}
 			})
 			.doOnComplete(() -> {
