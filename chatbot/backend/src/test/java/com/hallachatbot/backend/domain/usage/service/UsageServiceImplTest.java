@@ -1,4 +1,4 @@
-package com.hallachatbot.backend.usage.service;
+package com.hallachatbot.backend.domain.usage.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -23,7 +23,6 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import com.hallachatbot.backend.domain.usage.entity.MonthlyLlmUsage;
 import com.hallachatbot.backend.domain.usage.repository.MonthlyLlmUsageRepository;
-import com.hallachatbot.backend.domain.usage.service.UsageServiceImpl;
 import com.hallachatbot.backend.global.errorcode.UsageErrorCode;
 import com.hallachatbot.backend.global.exception.UsageException;
 

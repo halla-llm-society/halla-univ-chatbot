@@ -1,4 +1,4 @@
-package com.hallachatbot.backend.chat.controller;
+package com.hallachatbot.backend.domain.chat.controller;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
@@ -22,7 +22,6 @@ import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.hallachatbot.backend.domain.chat.controller.ChatController;
 import com.hallachatbot.backend.domain.chat.dto.request.ChatRequest;
 import com.hallachatbot.backend.domain.chat.repository.ChatMessageRepository;
 import com.hallachatbot.backend.domain.chat.service.ChatService;

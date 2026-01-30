@@ -1,4 +1,4 @@
-package com.hallachatbot.backend.survey.service;
+package com.hallachatbot.backend.domain.survey.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -16,7 +16,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import com.hallachatbot.backend.domain.survey.dto.request.ChatSurveyRequest;
 import com.hallachatbot.backend.domain.survey.entity.ChatSurvey;
 import com.hallachatbot.backend.domain.survey.repository.ChatSurveyRepository;
-import com.hallachatbot.backend.domain.survey.service.SurveyServiceImpl;
 
 @ExtendWith(MockitoExtension.class)
 class SurveyServiceImplTest {

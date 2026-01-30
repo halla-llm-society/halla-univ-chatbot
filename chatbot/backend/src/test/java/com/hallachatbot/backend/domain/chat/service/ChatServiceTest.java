@@ -1,4 +1,4 @@
-package com.hallachatbot.backend.chat.service;
+package com.hallachatbot.backend.domain.chat.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -29,7 +29,6 @@ import com.hallachatbot.backend.domain.chat.entity.ChatMessage;
 import com.hallachatbot.backend.domain.chat.repository.ChatMessageRepository;
 import com.hallachatbot.backend.domain.chat.repository.ChatMetadataRepository;
 import com.hallachatbot.backend.domain.chat.repository.ChatTokenUsageRepository;
-import com.hallachatbot.backend.domain.chat.service.ChatService;
 import com.hallachatbot.backend.domain.usage.service.UsageService;
 import com.hallachatbot.backend.global.client.AiServiceClient;
 import com.hallachatbot.backend.global.client.dto.AiServiceResponse;
