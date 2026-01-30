@@ -22,9 +22,10 @@ import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.hallachatbot.backend.chat.dto.request.ChatRequest;
-import com.hallachatbot.backend.chat.repository.ChatMessageRepository;
-import com.hallachatbot.backend.chat.service.ChatService;
+import com.hallachatbot.backend.domain.chat.controller.ChatController;
+import com.hallachatbot.backend.domain.chat.dto.request.ChatRequest;
+import com.hallachatbot.backend.domain.chat.repository.ChatMessageRepository;
+import com.hallachatbot.backend.domain.chat.service.ChatService;
 
 import reactor.core.publisher.Flux;
 

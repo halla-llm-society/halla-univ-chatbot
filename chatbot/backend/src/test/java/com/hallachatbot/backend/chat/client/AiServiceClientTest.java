@@ -15,8 +15,9 @@ import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.reactive.function.client.WebClient;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.hallachatbot.backend.chat.client.dto.AiServiceResponse;
-import com.hallachatbot.backend.chat.dto.request.ChatRequest;
+import com.hallachatbot.backend.domain.chat.dto.request.ChatRequest;
+import com.hallachatbot.backend.global.client.AiServiceClient;
+import com.hallachatbot.backend.global.client.dto.AiServiceResponse;
 
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;

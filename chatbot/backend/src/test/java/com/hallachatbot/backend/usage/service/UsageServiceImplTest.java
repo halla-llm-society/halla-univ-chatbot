@@ -1,8 +1,12 @@
 package com.hallachatbot.backend.usage.service;
 
-import static org.assertj.core.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.BDDMockito.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.times;
+import static org.mockito.BDDMockito.verify;
 
 import java.math.BigDecimal;
 import java.time.YearMonth;
@@ -17,10 +21,11 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import com.hallachatbot.backend.domain.usage.entity.MonthlyLlmUsage;
+import com.hallachatbot.backend.domain.usage.repository.MonthlyLlmUsageRepository;
+import com.hallachatbot.backend.domain.usage.service.UsageServiceImpl;
 import com.hallachatbot.backend.global.errorcode.UsageErrorCode;
 import com.hallachatbot.backend.global.exception.UsageException;
-import com.hallachatbot.backend.usage.entity.MonthlyLlmUsage;
-import com.hallachatbot.backend.usage.repository.MonthlyLlmUsageRepository;
 
 @ExtendWith(MockitoExtension.class)
 class UsageServiceImplTest {

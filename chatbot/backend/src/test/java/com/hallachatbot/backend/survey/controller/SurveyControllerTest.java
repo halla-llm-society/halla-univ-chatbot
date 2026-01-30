@@ -16,8 +16,9 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.hallachatbot.backend.survey.dto.request.ChatSurveyRequest;
-import com.hallachatbot.backend.survey.service.SurveyService;
+import com.hallachatbot.backend.domain.survey.controller.SurveyController;
+import com.hallachatbot.backend.domain.survey.dto.request.ChatSurveyRequest;
+import com.hallachatbot.backend.domain.survey.service.SurveyService;
 
 @WebMvcTest(SurveyController.class)
 class SurveyControllerTest {

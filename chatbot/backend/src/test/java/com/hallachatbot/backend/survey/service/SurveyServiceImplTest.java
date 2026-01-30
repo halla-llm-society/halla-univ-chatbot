@@ -13,9 +13,10 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import com.hallachatbot.backend.survey.dto.request.ChatSurveyRequest;
-import com.hallachatbot.backend.survey.entity.ChatSurvey;
-import com.hallachatbot.backend.survey.repository.ChatSurveyRepository;
+import com.hallachatbot.backend.domain.survey.dto.request.ChatSurveyRequest;
+import com.hallachatbot.backend.domain.survey.entity.ChatSurvey;
+import com.hallachatbot.backend.domain.survey.repository.ChatSurveyRepository;
+import com.hallachatbot.backend.domain.survey.service.SurveyServiceImpl;
 
 @ExtendWith(MockitoExtension.class)
 class SurveyServiceImplTest {

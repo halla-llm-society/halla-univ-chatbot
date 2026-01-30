@@ -24,16 +24,17 @@ import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.hallachatbot.backend.chat.client.AiServiceClient;
-import com.hallachatbot.backend.chat.client.dto.AiServiceResponse;
-import com.hallachatbot.backend.chat.dto.request.ChatRequest;
-import com.hallachatbot.backend.chat.entity.ChatMessage;
-import com.hallachatbot.backend.chat.repository.ChatMessageRepository;
-import com.hallachatbot.backend.chat.repository.ChatMetadataRepository;
-import com.hallachatbot.backend.chat.repository.ChatTokenUsageRepository;
+import com.hallachatbot.backend.domain.chat.dto.request.ChatRequest;
+import com.hallachatbot.backend.domain.chat.entity.ChatMessage;
+import com.hallachatbot.backend.domain.chat.repository.ChatMessageRepository;
+import com.hallachatbot.backend.domain.chat.repository.ChatMetadataRepository;
+import com.hallachatbot.backend.domain.chat.repository.ChatTokenUsageRepository;
+import com.hallachatbot.backend.domain.chat.service.ChatService;
+import com.hallachatbot.backend.domain.usage.service.UsageService;
+import com.hallachatbot.backend.global.client.AiServiceClient;
+import com.hallachatbot.backend.global.client.dto.AiServiceResponse;
 import com.hallachatbot.backend.global.errorcode.UsageErrorCode;
 import com.hallachatbot.backend.global.exception.UsageException;
-import com.hallachatbot.backend.usage.service.UsageService;
 
 import reactor.core.publisher.Flux;
 import reactor.test.StepVerifier;
