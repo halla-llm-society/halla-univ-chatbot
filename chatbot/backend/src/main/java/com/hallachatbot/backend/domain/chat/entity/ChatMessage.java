@@ -6,6 +6,7 @@ import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
+import org.springframework.data.mongodb.core.mapping.FieldType;
 
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -23,17 +24,18 @@ import lombok.NoArgsConstructor;
  */
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@Document(collection = "chat#{environment.getProperty('app.mongodb-suffix')}")
+@Document(collection = "chat${app.mongodb-suffix}")
 public class ChatMessage {
 
 	@Id
 	private String id;
 
 	/**
-	 * 사용자 세션 ID (쿠키의 chatId)
+	 * 생성 날짜
 	 */
-	@Field("chatId")
-	private String chatId;
+	@CreatedDate
+	@Field("date")
+	private LocalDateTime createdDate;
 
 	/**
 	 * 사용자 질문
@@ -50,14 +52,17 @@ public class ChatMessage {
 	 */
 	private String decision;
 
-	@CreatedDate
-	private LocalDateTime createdDate;
+	/**
+	 * 사용자 세션 ID (쿠키의 chatId)
+	 */
+	@Field(name = "chatId", targetType = FieldType.OBJECT_ID)
+	private String chatId;
 
 	@Builder
-	public ChatMessage(String chatId, String question, String answer, String decision) {
-		this.chatId = chatId;
+	public ChatMessage(String question, String answer, String decision, String chatId) {
 		this.question = question;
 		this.answer = answer;
 		this.decision = decision;
+		this.chatId = chatId;
 	}
 }

@@ -6,6 +6,7 @@ import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
+import org.springframework.data.mongodb.core.mapping.FieldType;
 
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -24,11 +25,18 @@ import lombok.NoArgsConstructor;
  */
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@Document(collection = "token#{environment.getProperty('app.mongodb-suffix')}")
+@Document(collection = "token${app.mongodb-suffix}")
 public class ChatTokenUsage {
 
 	@Id
 	private String id;
+
+	/**
+	 * 생성 날짜
+	 */
+	@CreatedDate
+	@Field("date")
+	private LocalDateTime createdDate;
 
 	/**
 	 * 연관된 메시지 ID (ChatMessage의 _id)
@@ -36,7 +44,7 @@ public class ChatTokenUsage {
 	 * 주의: Python 코드에서 message_id를 'chatId' 필드명으로 저장했음.
 	 * </p>
 	 */
-	@Field("chatId")
+	@Field(name = "chatId", targetType = FieldType.OBJECT_ID)
 	private String messageId;
 
 	/**
@@ -48,9 +56,6 @@ public class ChatTokenUsage {
 	 * 총 사용 토큰 수
 	 */
 	private Integer totalTokens;
-
-	@CreatedDate
-	private LocalDateTime createdDate;
 
 	@Builder
 	public ChatTokenUsage(String messageId, String preset, Integer totalTokens) {
