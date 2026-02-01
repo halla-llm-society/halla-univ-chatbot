@@ -10,6 +10,10 @@ spring:
       uri: ${MONGODB_URI:mongodb://localhost:27017/halla_chatbot_test}
       database: halla-chatbot${app.mongodb-suffix}
 
+    redis:
+      host: host.docker.internal
+      port: 6379
+
 app:
   ai-service-url: ${AI_SERVICE_URL:http://localhost:3000}
 
