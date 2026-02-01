@@ -143,7 +143,7 @@ public class ChatService {
 	private void saveTokenAndMetadata(StreamState state, String messageId) {
 		// 2. TokenUsage 저장
 		ChatTokenUsage tokenUsage = ChatTokenUsage.builder()
-			.messageId(messageId) // Python 코드에서 'chatId' 필드에 message_id 저장함
+			.messageId(messageId)
 			.preset(state.getPreset())
 			.totalTokens(state.getTotalTokens())
 			.build();
