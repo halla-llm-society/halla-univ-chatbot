@@ -34,6 +34,7 @@ import com.hallachatbot.backend.global.client.dto.AiServiceResponse;
 import com.hallachatbot.backend.global.client.service.AiServiceClient;
 import com.hallachatbot.backend.global.errorcode.UsageErrorCode;
 import com.hallachatbot.backend.global.exception.UsageException;
+import com.hallachatbot.backend.global.sse.SseEventFactory;
 
 import reactor.core.publisher.Flux;
 import reactor.test.StepVerifier;
@@ -60,7 +61,7 @@ class ChatServiceTest {
 	private ChatMetadataRepository chatMetadataRepository;
 
 	@Spy
-	private ObjectMapper objectMapper = new ObjectMapper();
+	private SseEventFactory sseEventFactory = new SseEventFactory(new ObjectMapper());
 
 	@Test
 	@DisplayName("비용 한도를 초과하면 채팅을 시작하지 않고 예외가 발생한다")
@@ -69,7 +70,7 @@ class ChatServiceTest {
 		ChatRequest request = new ChatRequest();
 		String chatId = "test-chat-id";
 
-		// [수정됨] void 메서드에 대한 BDDMockito 예외 발생 설정
+		// void 메서드에 대한 BDDMockito 예외 발생 설정
 		willThrow(new UsageException(UsageErrorCode.MONTHLY_LLM_BUDGET_EXCEEDED))
 			.given(usageService).checkLlmUsage();
 

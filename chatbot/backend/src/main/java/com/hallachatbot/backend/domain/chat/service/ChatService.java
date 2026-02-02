@@ -8,8 +8,6 @@ import java.util.Map;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.stereotype.Service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hallachatbot.backend.domain.chat.dto.request.ChatRequest;
 import com.hallachatbot.backend.domain.chat.dto.response.ChatHistoryResponse;
 import com.hallachatbot.backend.domain.chat.entity.ChatMessage;
@@ -21,6 +19,7 @@ import com.hallachatbot.backend.domain.chat.repository.ChatTokenUsageRepository;
 import com.hallachatbot.backend.domain.usage.service.UsageService;
 import com.hallachatbot.backend.global.client.dto.AiServiceResponse;
 import com.hallachatbot.backend.global.client.service.AiServiceClient;
+import com.hallachatbot.backend.global.sse.SseEventFactory;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -47,7 +46,7 @@ public class ChatService {
 	private final ChatMessageRepository chatMessageRepository;
 	private final ChatTokenUsageRepository chatTokenUsageRepository;
 	private final ChatMetadataRepository chatMetadataRepository;
-	private final ObjectMapper objectMapper;
+	private final SseEventFactory sseEventFactory;
 
 	/**
 	 * 채팅 스트리밍 시작
@@ -57,7 +56,7 @@ public class ChatService {
 	 * @return SSE 스트림
 	 */
 	public Flux<ServerSentEvent<String>> startChat(ChatRequest request, String chatId) {
-		// 1. 비용 한도 확인 (예외 발생 시 GlobalExceptionHandler 처리)
+		// 1. 비용 한도 확인
 		usageService.checkLlmUsage();
 
 		// 2. 대화 히스토리 조회
@@ -95,7 +94,7 @@ public class ChatService {
 	}
 
 	/**
-	 * AI 응답 하나를 처리하고 SSE 이벤트로 변환
+	 * AI 응답 처리 및 SSeEventFactory를 이용한 이벤트 변환
 	 */
 	private ServerSentEvent<String> processAiResponse(AiServiceResponse response, StreamState state) {
 		String type = response.getType();
@@ -105,21 +104,23 @@ public class ChatService {
 			if (content != null) {
 				state.appendAnswer(content);
 			}
-			return createSseEvent("delta", null, content);
+			return sseEventFactory.createDelta(content);
+
 		} else if ("metadata".equals(type)) {
 			Map<String, Object> data = response.getData();
 			state.updateMetadata(data);
 
-			// 클라이언트에 보낼 때는 chatId를 포함
+			// 클라이언트 전송용 데이터 가공 (chatId 추가)
 			Map<String, Object> eventData = data != null ? new HashMap<>(data) : new HashMap<>();
 			eventData.put("chatId", state.getChatId());
 
-			return createSseEvent("metadata", eventData, null);
+			return sseEventFactory.createMetadata(eventData);
+
 		} else if ("error".equals(type)) {
-			return createSseEvent("error", response.getData(), response.getMessage());
+			return sseEventFactory.createError(response.getData(), response.getMessage());
 		}
 
-		return ServerSentEvent.<String>builder().comment("keep-alive").build();
+		return sseEventFactory.createKeepAlive();
 	}
 
 	/**
@@ -185,38 +186,9 @@ public class ChatService {
 			.toList();
 	}
 
-	private Flux<ServerSentEvent<String>> injectInitialEvents(
-		Flux<ServerSentEvent<String>> mainFlux,
-		String chatId
-	) {
-		// 메타데이터 이벤트 (chatId 전송용)
-		ServerSentEvent<String> metaEvent = createSseEvent("metadata", Map.of("chatId", chatId), null);
-
-		Flux<ServerSentEvent<String>> prefixFlux = Flux.just(metaEvent);
-
-		return prefixFlux.concatWith(mainFlux);
-	}
-
-	/**
-	 * SSE 이벤트 생성 유틸 (JSON 문자열 직렬화 포함)
-	 */
-	private ServerSentEvent<String> createSseEvent(String type, Map<String, Object> data, String content) {
-		Map<String, Object> jsonMap = new HashMap<>();
-		jsonMap.put("type", type);
-		if (data != null) {
-			jsonMap.put("data", data);
-		}
-		if (content != null) {
-			jsonMap.put("content", content);
-		}
-
-		try {
-			String jsonString = objectMapper.writeValueAsString(jsonMap);
-			return ServerSentEvent.builder(jsonString).build();
-		} catch (JsonProcessingException e) {
-			log.error("SSE JSON 직렬화 오류", e);
-			return ServerSentEvent.builder("").build();
-		}
+	private Flux<ServerSentEvent<String>> injectInitialEvents(Flux<ServerSentEvent<String>> mainFlux, String chatId) {
+		ServerSentEvent<String> metaEvent = sseEventFactory.createMetadata(Map.of("chatId", chatId));
+		return Flux.just(metaEvent).concatWith(mainFlux);
 	}
 
 	/**
