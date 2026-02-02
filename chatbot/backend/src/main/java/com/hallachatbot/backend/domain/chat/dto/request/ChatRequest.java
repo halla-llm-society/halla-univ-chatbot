@@ -35,11 +35,6 @@ public class ChatRequest {
 	@NotNull(message = "언어 설정은 필수입니다.")
 	private Language language;
 
-	/**
-	 * 클라이언트가 보낸 chatId, 보통 쿠키로 처리하므로 바디에서는 잘 안쓰일 수 있음
-	 */
-	private String chatId;
-
 	public enum Language {
 		KOR, ENG, VNM, CHN, UZB, MNG, IDN
 	}
