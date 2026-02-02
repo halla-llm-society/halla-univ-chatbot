@@ -61,8 +61,7 @@ public class ChatController {
 			responseCode = "200",
 			description = "성공 (스트리밍 시작)",
 			content = @Content(mediaType = "text/event-stream",
-				schema = @Schema(implementation = ServerSentEvent.class))
-		),
+				schema = @Schema(implementation = ServerSentEvent.class))),
 		@ApiResponse(responseCode = "400", description = "잘못된 요청 (입력값 누락 등)"),
 		@ApiResponse(responseCode = "429", description = "요청 한도 초과 (일일/월간 사용량 제한)"),
 		@ApiResponse(responseCode = "500", description = "서버 내부 오류")
