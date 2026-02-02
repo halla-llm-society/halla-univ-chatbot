@@ -32,7 +32,6 @@ import reactor.core.scheduler.Schedulers;
  * 챗봇 서비스 로직
  *
  * <p>
- * Python의 stream_chat_response 로직을 이식<br>
  * 비용 확인 -> 히스토리 조회 -> AI 요청 -> 스트리밍 -> DB 저장
  * </p>
  *
@@ -62,8 +61,7 @@ public class ChatService {
 		usageService.checkLlmUsage();
 
 		// 2. 대화 히스토리 조회
-		List<ChatMessage> rawHistory = chatMessageRepository.findTop6ByChatIdOrderByCreatedDateDesc(chatId);
-		List<ChatHistoryResponse> history = convertToHistoryResponse(rawHistory);
+		List<ChatHistoryResponse> history = getChatHistory(chatId);
 
 		// 스트림 동안 상태(답변, 메타데이터 등)를 누적할 객체 생성
 		StreamState state = new StreamState(chatId, request.getUserInput());
@@ -75,6 +73,25 @@ public class ChatService {
 
 		// 4. 초기 이벤트 주입 (Metadata, Warning)
 		return injectInitialEvents(eventFlux, chatId);
+	}
+
+	/**
+	 * 대화 히스토리 조회
+	 *
+	 * <p>
+	 * 주어진 chatId에 해당하는 최근 대화 내역(최대 6개)을 조회하여 반환<br>
+	 * 컨트롤러의 히스토리 조회 API와 내부 AI 요청 시 대화 문맥 제공용으로 공통 사용
+	 * </p>
+	 *
+	 * @param chatId 사용자 식별 ID (쿠키 값)
+	 * @return 시간순(과거 - > 현재)으로 정렬된 대화 내역 리스트 (User/Assistant 쌍)
+	 */
+	public List<ChatHistoryResponse> getChatHistory(String chatId) {
+		// 1. DB 조회 (최신순 6개)
+		List<ChatMessage> rawHistory = chatMessageRepository.findTop6ByChatIdOrderByCreatedDateDesc(chatId);
+
+		// 2. 변환 (역순 정렬 및 DTO 매핑)
+		return convertToHistoryResponse(rawHistory);
 	}
 
 	/**
@@ -157,8 +174,9 @@ public class ChatService {
 	}
 
 	private List<ChatHistoryResponse> convertToHistoryResponse(List<ChatMessage> rawHistory) {
-		// DB에서 최신순으로 가져온 후 역순 정렬
+		// DB에서 최신순으로 가져온 후 시간순(과거->현재)으로 역순 정렬
 		Collections.reverse(rawHistory);
+
 		return rawHistory.stream()
 			.flatMap(msg -> java.util.stream.Stream.of(
 				ChatHistoryResponse.user(msg.getQuestion()),

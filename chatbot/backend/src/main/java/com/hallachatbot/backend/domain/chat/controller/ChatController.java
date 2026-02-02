@@ -17,8 +17,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.hallachatbot.backend.domain.chat.dto.request.ChatRequest;
 import com.hallachatbot.backend.domain.chat.dto.response.ChatHistoryResponse;
-import com.hallachatbot.backend.domain.chat.entity.ChatMessage;
-import com.hallachatbot.backend.domain.chat.repository.ChatMessageRepository;
 import com.hallachatbot.backend.domain.chat.service.ChatService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -52,7 +50,6 @@ import reactor.core.publisher.Flux;
 public class ChatController {
 
 	private final ChatService chatService;
-	private final ChatMessageRepository chatMessageRepository;
 
 	/**
 	 * 채팅 스트리밍 엔드포인트
@@ -75,6 +72,7 @@ public class ChatController {
 		@ApiResponse(responseCode = "400", description = "잘못된 요청 (입력값 누락 등)"),
 		@ApiResponse(responseCode = "500", description = "서버 내부 오류")
 	})
+
 	@PostMapping
 	public Flux<ServerSentEvent<String>> chat(
 		@Parameter(description = "채팅 요청 정보 (질문, 언어 등)", required = true)
@@ -87,21 +85,16 @@ public class ChatController {
 	) {
 		String currentChatId;
 		boolean isNewUser = false;
-		boolean isTampered = false;
 
 		// 1. 쿠키 검증 및 ID 결정
 		if (cookieChatId != null && ObjectId.isValid(cookieChatId)) {
 			currentChatId = cookieChatId;
 		} else {
-			if (cookieChatId != null) {
-				log.warn("잘못된 쿠키 감지됨: {}", cookieChatId);
-				isTampered = true;
-			}
 			currentChatId = new ObjectId().toHexString();
 			isNewUser = true;
 		}
 
-		// 2. 새로운 유저(또는 변조됨)라면 쿠키 재발급
+		// 2. 새로운 유저라면 쿠키 재발급
 		if (isNewUser) {
 			ResponseCookie cookie = ResponseCookie.from("chatId", currentChatId)
 				.maxAge(Duration.ofSeconds(86400))
@@ -141,16 +134,6 @@ public class ChatController {
 		if (cookieChatId == null || !ObjectId.isValid(cookieChatId)) {
 			return Collections.emptyList();
 		}
-
-		List<ChatMessage> rawHistory = chatMessageRepository.findTop6ByChatIdOrderByCreatedDateDesc(cookieChatId);
-
-		Collections.reverse(rawHistory);
-
-		return rawHistory.stream()
-			.flatMap(msg -> java.util.stream.Stream.of(
-				ChatHistoryResponse.user(msg.getQuestion()),
-				ChatHistoryResponse.assistant(msg.getAnswer())
-			))
-			.toList();
+		return chatService.getChatHistory(cookieChatId);
 	}
 }
