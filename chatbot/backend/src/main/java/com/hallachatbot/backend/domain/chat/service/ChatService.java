@@ -19,8 +19,8 @@ import com.hallachatbot.backend.domain.chat.repository.ChatMessageRepository;
 import com.hallachatbot.backend.domain.chat.repository.ChatMetadataRepository;
 import com.hallachatbot.backend.domain.chat.repository.ChatTokenUsageRepository;
 import com.hallachatbot.backend.domain.usage.service.UsageService;
-import com.hallachatbot.backend.global.client.AiServiceClient;
 import com.hallachatbot.backend.global.client.dto.AiServiceResponse;
+import com.hallachatbot.backend.global.client.service.AiServiceClient;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;

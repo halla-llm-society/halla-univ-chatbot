@@ -1,4 +1,4 @@
-package com.hallachatbot.backend.global.client;
+package com.hallachatbot.backend.global.client.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -34,9 +34,10 @@ class AiServiceClientTest {
 		mockWebServer = new MockWebServer();
 		mockWebServer.start();
 
-		// WebClient는 실제 빌더를 사용
 		WebClient.Builder webClientBuilder = WebClient.builder();
-		aiServiceClient = new AiServiceClient(webClientBuilder);
+
+		aiServiceClient = new AiServiceClientImpl(webClientBuilder);
+
 		objectMapper = new ObjectMapper();
 
 		// 테스트용 Mock Server URL 주입
