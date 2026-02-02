@@ -57,17 +57,21 @@ public class ChatController {
 	 */
 	@Operation(summary = "채팅 답변 스트리밍", description = "사용자의 질문을 입력받아 AI 답변을 SSE(Server-Sent Events)로 실시간 스트리밍합니다.")
 	@ApiResponses(value = {
-		@ApiResponse(responseCode = "200", description = "성공 (스트리밍 시작)",
+		@ApiResponse(
+			responseCode = "200",
+			description = "성공 (스트리밍 시작)",
 			content = @Content(mediaType = "text/event-stream",
-				schema = @Schema(implementation = ServerSentEvent.class))),
+				schema = @Schema(implementation = ServerSentEvent.class))
+		),
 		@ApiResponse(responseCode = "400", description = "잘못된 요청 (입력값 누락 등)"),
+		@ApiResponse(responseCode = "429", description = "요청 한도 초과 (일일/월간 사용량 제한)"),
 		@ApiResponse(responseCode = "500", description = "서버 내부 오류")
 	})
-
 	@PostMapping
 	public Flux<ServerSentEvent<String>> chat(
-		@Parameter(description = "채팅 요청 정보", required = true)
+		@Parameter(description = "채팅 요청 정보 (질문, 모델 설정 등)", required = true)
 		@Valid @RequestBody ChatRequest request,
+		@Parameter(hidden = true)
 		@ChatSession String chatId
 	) {
 		return chatService.startChat(request, chatId);
@@ -91,6 +95,7 @@ public class ChatController {
 
 	@GetMapping("/history")
 	public List<ChatHistoryResponse> getHistory(
+		@Parameter(hidden = true)
 		@ChatSession String chatId
 	) {
 		return chatService.getChatHistory(chatId);
