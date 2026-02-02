@@ -1,7 +1,6 @@
 package com.hallachatbot.backend.domain.chat.controller;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -51,7 +50,7 @@ class ChatControllerTest {
 		ReflectionTestUtils.setField(request, "userInput", "안녕");
 		ReflectionTestUtils.setField(request, "language", ChatRequest.Language.KOR);
 
-		given(chatService.startChat(any(ChatRequest.class), any(), anyBoolean()))
+		given(chatService.startChat(any(ChatRequest.class), any()))
 			.willReturn(Flux.empty());
 
 		// when & then
@@ -71,7 +70,7 @@ class ChatControllerTest {
 		ReflectionTestUtils.setField(request, "userInput", "안녕");
 		ReflectionTestUtils.setField(request, "language", ChatRequest.Language.KOR);
 
-		given(chatService.startChat(any(ChatRequest.class), eq(existingChatId), eq(false)))
+		given(chatService.startChat(any(ChatRequest.class), eq(existingChatId)))
 			.willReturn(Flux.empty());
 
 		// when & then

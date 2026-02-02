@@ -74,7 +74,7 @@ class ChatServiceTest {
 			.given(usageService).checkLlmUsage();
 
 		// when & then
-		assertThatThrownBy(() -> chatService.startChat(request, chatId, false))
+		assertThatThrownBy(() -> chatService.startChat(request, chatId))
 			.isInstanceOf(UsageException.class)
 			.hasFieldOrPropertyWithValue("errorCode", UsageErrorCode.MONTHLY_LLM_BUDGET_EXCEEDED);
 
@@ -106,7 +106,7 @@ class ChatServiceTest {
 			.willReturn(Flux.just(deltaResponse));
 
 		// when
-		Flux<ServerSentEvent<String>> resultFlux = chatService.startChat(request, chatId, false);
+		Flux<ServerSentEvent<String>> resultFlux = chatService.startChat(request, chatId);
 
 		// then
 		StepVerifier.create(resultFlux)
@@ -124,33 +124,6 @@ class ChatServiceTest {
 
 		// 검증: 비용 체크가 호출되었는지
 		verify(usageService, times(1)).checkLlmUsage();
-	}
-
-	@Test
-	@DisplayName("쿠키가 변조된 경우 경고 메시지 이벤트가 포함된다")
-	void startChat_TamperedCookie() {
-		// given
-		String chatId = "new-chat-id";
-		ChatRequest request = new ChatRequest();
-		ReflectionTestUtils.setField(request, "userInput", "질문");
-
-		given(chatMessageRepository.findTop6ByChatIdOrderByCreatedDateDesc(chatId))
-			.willReturn(Collections.emptyList());
-
-		given(aiServiceClient.streamChat(any(), any()))
-			.willReturn(Flux.empty()); // AI 응답 없음
-
-		// when
-		Flux<ServerSentEvent<String>> resultFlux = chatService.startChat(request, chatId, true);
-
-		// then
-		StepVerifier.create(resultFlux)
-			.expectNextCount(1) // metadata
-			.assertNext(event -> {
-				// 경고 메시지 이벤트 확인
-				assertThat(event.data()).contains("유효하지 않은 쿠키가 감지되어");
-			})
-			.verifyComplete();
 	}
 
 	@Test
@@ -205,7 +178,7 @@ class ChatServiceTest {
 			.willReturn(Flux.just(delta, metadata, error));
 
 		// when
-		Flux<ServerSentEvent<String>> resultFlux = chatService.startChat(request, chatId, false);
+		Flux<ServerSentEvent<String>> resultFlux = chatService.startChat(request, chatId);
 
 		// then
 		StepVerifier.create(resultFlux)

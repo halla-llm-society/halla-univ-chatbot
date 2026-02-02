@@ -55,10 +55,9 @@ public class ChatService {
 	 *
 	 * @param request 사용자 요청 DTO
 	 * @param chatId 세션 ID (쿠키)
-	 * @param isTampered 쿠키 변조 여부
 	 * @return SSE 스트림
 	 */
-	public Flux<ServerSentEvent<String>> startChat(ChatRequest request, String chatId, boolean isTampered) {
+	public Flux<ServerSentEvent<String>> startChat(ChatRequest request, String chatId) {
 		// 1. 비용 한도 확인 (예외 발생 시 GlobalExceptionHandler 처리)
 		usageService.checkLlmUsage();
 
@@ -75,7 +74,7 @@ public class ChatService {
 			.doOnComplete(() -> saveChatData(state)); // 스트림 완료 시 DB 저장
 
 		// 4. 초기 이벤트 주입 (Metadata, Warning)
-		return injectInitialEvents(eventFlux, chatId, isTampered);
+		return injectInitialEvents(eventFlux, chatId);
 	}
 
 	/**
@@ -170,21 +169,12 @@ public class ChatService {
 
 	private Flux<ServerSentEvent<String>> injectInitialEvents(
 		Flux<ServerSentEvent<String>> mainFlux,
-		String chatId,
-		boolean isTampered
+		String chatId
 	) {
 		// 메타데이터 이벤트 (chatId 전송용)
 		ServerSentEvent<String> metaEvent = createSseEvent("metadata", Map.of("chatId", chatId), null);
 
 		Flux<ServerSentEvent<String>> prefixFlux = Flux.just(metaEvent);
-
-		// 쿠키 변조 경고 메시지
-		if (isTampered) {
-			String warningMsg = "유효하지 않은 쿠키가 감지되어 새로운 대화가 시작되었습니다. "
-				+ "쿠키를 임의로 변경하면 이전 대화를 기억하지 못해 응답 품질이 떨어질 수 있습니다.\n\n";
-			ServerSentEvent<String> warningEvent = createSseEvent("delta", null, warningMsg);
-			prefixFlux = prefixFlux.concatWith(Flux.just(warningEvent));
-		}
 
 		return prefixFlux.concatWith(mainFlux);
 	}

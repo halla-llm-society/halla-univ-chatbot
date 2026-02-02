@@ -113,7 +113,7 @@ public class ChatController {
 		}
 
 		// 3. 서비스 호출
-		return chatService.startChat(request, currentChatId, isTampered);
+		return chatService.startChat(request, currentChatId);
 	}
 
 	/**
