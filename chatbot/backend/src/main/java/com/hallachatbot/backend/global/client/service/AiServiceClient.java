@@ -11,7 +11,7 @@ import reactor.core.publisher.Flux;
 /**
  * <b>AI 서비스 연동 클라이언트</b>
  * <b><p>
- * SSE(또는 NDJSON) 스트림을 받아 처리함
+ * SSE 스트림을 받아 처리함
  * </p></b>
  *
  * @author pwk0131
