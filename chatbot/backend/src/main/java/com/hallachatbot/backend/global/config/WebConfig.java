@@ -2,6 +2,7 @@ package com.hallachatbot.backend.global.config;
 
 import java.util.List;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.method.support.HandlerMethodArgumentResolver;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
@@ -24,6 +25,9 @@ import lombok.RequiredArgsConstructor;
 @Configuration
 @RequiredArgsConstructor
 public class WebConfig implements WebMvcConfigurer {
+
+	@Value("${app.cors.allowed-origins:http://localhost:5173}")
+	private List<String> allowedOrigins;
 
 	private final ChatSessionArgumentResolver chatSessionArgumentResolver;
 
@@ -56,8 +60,8 @@ public class WebConfig implements WebMvcConfigurer {
 	@Override
 	public void addCorsMappings(CorsRegistry registry) {
 		registry.addMapping("/**")
-			.allowedOriginPatterns("http://localhost:3000", "http://localhost:5173")
-			.allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+			.allowedOriginPatterns(allowedOrigins.toArray(new String[0]))
+			.allowedMethods("GET", "POST", "OPTIONS")
 			.allowedHeaders("*")
 			.allowCredentials(true)
 			.maxAge(3600);

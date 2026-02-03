@@ -5,6 +5,7 @@ import java.util.Arrays;
 import java.util.Optional;
 
 import org.bson.types.ObjectId;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.MethodParameter;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
@@ -39,6 +40,15 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Component
 public class ChatSessionArgumentResolver implements HandlerMethodArgumentResolver {
+
+	@Value("${app.cookie.http-only}")
+	private boolean cookieHttpOnly;
+
+	@Value("${app.cookie.secure}")
+	private boolean cookieSecure;
+
+	@Value("${app.cookie.same-site}")
+	private String cookieSameSite;
 
 	/**
 	 * 파라미터 지원 여부 확인
@@ -114,8 +124,9 @@ public class ChatSessionArgumentResolver implements HandlerMethodArgumentResolve
 
 		ResponseCookie cookie = ResponseCookie.from("chatId", chatId)
 			.maxAge(Duration.ofSeconds(86400))
-			.secure(true)
-			.httpOnly(true)
+			.secure(cookieSecure)
+			.httpOnly(cookieHttpOnly)
+			.sameSite(cookieSameSite)
 			.path("/")
 			.build();
 
