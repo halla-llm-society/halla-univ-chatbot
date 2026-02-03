@@ -104,7 +104,7 @@ public class ChatSessionArgumentResolver implements HandlerMethodArgumentResolve
 	 * <ul>
 	 * <li>Max-Age: 1일 (86400초)</li>
 	 * <li>Secure: true (HTTPS 전용)</li>
-	 * <li>HttpOnly: false (JS 접근 허용)</li>
+	 * <li>HttpOnly: true (JS 접근 불가)</li>
 	 * <li>Path: / (모든 경로)</li>
 	 * </ul>
 	 */
@@ -114,9 +114,9 @@ public class ChatSessionArgumentResolver implements HandlerMethodArgumentResolve
 		}
 
 		ResponseCookie cookie = ResponseCookie.from("chatId", chatId)
-			.maxAge(Duration.ofSeconds(86400)) // 1일
-			.secure(true)     // HTTPS 적용 시 필수 (로컬 개발 환경에 따라 조정 필요)
-			.httpOnly(false)  // JS 접근 허용 여부
+			.maxAge(Duration.ofSeconds(86400))
+			.secure(true)
+			.httpOnly(true)
 			.path("/")
 			.build();
 
