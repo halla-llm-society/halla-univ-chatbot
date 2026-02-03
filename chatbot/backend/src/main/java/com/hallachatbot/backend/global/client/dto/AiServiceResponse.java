@@ -8,7 +8,6 @@ import lombok.ToString;
 
 /**
  * AI 서비스 스트리밍 응답 DTO
- * (NDJSON 라인 하나에 해당)
  */
 @Getter
 @NoArgsConstructor

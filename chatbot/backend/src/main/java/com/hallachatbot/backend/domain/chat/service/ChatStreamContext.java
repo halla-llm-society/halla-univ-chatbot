@@ -5,6 +5,22 @@ import java.util.Map;
 
 import lombok.Getter;
 
+/**
+ * <b>채팅 스트림 컨텍스트 (State Object)</b>
+ *
+ * <p>
+ * 단일 채팅 요청이 처리되는 동안(스트리밍 수명주기 내) 유지되는 상태 저장소
+ * </p>
+ *
+ * <ul>
+ * <li><b>데이터 누적:</b> 스트리밍으로 조각조각 들어오는 답변(Chunk)을 하나의 완성된 문자열로 조립</li>
+ * <li><b>메타데이터 파싱:</b> AI 서비스로부터 넘어오는 원본 맵(Map) 데이터에서 RAG 결정 사유, 토큰 사용량 등 핵심 정보를 추출하여 관리.</li>
+ * <li><b>임시 저장소:</b> 스트리밍이 끝난 후 {@link com.hallachatbot.backend.domain.chat.component.ChatWriter}가 DB에 저장할 때 이 객체를 참조
+ * </li>
+ * </ul>
+ * @author pwk0131
+ */
+
 @Getter
 public class ChatStreamContext {
 	private final String chatId;
@@ -34,6 +50,11 @@ public class ChatStreamContext {
 		return this.answerBuilder.length() > 0;
 	}
 
+	/**
+	 * 메타데이터 갱신 및 주요 정보(토큰, RAG 사유) 추출
+	 *
+	 * @param data AI 서비스 응답의 'data' 필드 맵
+	 */
 	@SuppressWarnings("unchecked")
 	public void updateMetadata(Map<String, Object> data) {
 		if (data == null) {

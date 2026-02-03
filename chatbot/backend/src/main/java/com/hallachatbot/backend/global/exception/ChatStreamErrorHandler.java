@@ -18,7 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 
 /**
- * 채팅 스트리밍 중 발생하는 예외를 처리하는 핸들러.
+ * <b>채팅 스트리밍 중 발생하는 예외를 처리하는 핸들러.</b>
  * <p>
  * GlobalExceptionHandler는 응답 헤더가 전송된 이후(스트리밍 시작 후)의 에러를 잡지 못하므로,
  * Flux 내부에서 발생하는 에러는 이 핸들러를 통해 SSE 'error' 이벤트로 변환하여 전송함.
@@ -39,7 +39,7 @@ public class ChatStreamErrorHandler {
 	public Flux<ServerSentEvent<String>> handleStreamError(Throwable error) {
 		ErrorCode errorCode = determineErrorCode(error);
 
-		// 1. 에러 로그 출력 (서버 모니터링용)
+		// 1. 에러 로그 출력
 		log.error("[Stream Error] Cause: {}, Message: {}", error.getClass().getSimpleName(), error.getMessage());
 
 		// 2. 클라이언트에 전달할 에러 데이터 구성

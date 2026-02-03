@@ -11,6 +11,18 @@ import com.hallachatbot.backend.domain.chat.repository.ChatMessageRepository;
 
 import lombok.RequiredArgsConstructor;
 
+/**
+ * <b>대화 내역 조회 컴포넌트 (Reader)</b>
+ *
+ * <p>
+ * 데이터베이스로부터 과거 대화 내역을 읽어오는 책임을 가지는 클래스
+ * {@link Transactional} (readOnly=true) 환경에서 동작하며, 조회된 데이터를
+ * {@link ChatMapper}를 통해 필요한 포맷으로 변환하여 반환
+ * </p>
+ *
+ * @author pwk0131
+ */
+
 @Component
 @RequiredArgsConstructor
 @Transactional(readOnly = true)

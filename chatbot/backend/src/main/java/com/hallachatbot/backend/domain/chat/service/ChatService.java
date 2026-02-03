@@ -22,11 +22,16 @@ import reactor.core.publisher.Flux;
 import reactor.core.scheduler.Schedulers;
 
 /**
- * 챗봇 서비스 로직
+ * <b>채팅 도메인 메인 서비스</b>
  *
  * <p>
- * 비용 확인 -> 히스토리 조회 -> AI 요청 -> 스트리밍 -> DB 저장
+ * 사용자 요청부터 AI 응답 스트리밍, 그리고 데이터 저장까지의 전체 흐름(Flow)을 조율
  * </p>
+ *
+ * <ul>
+ * <li><b>흐름 제어:</b> 비용 확인 &rarr; 히스토리 조회 &rarr; AI 요청 &rarr; 응답 핸들링 &rarr; 결과 저장</li>
+ * <li><b>비동기 처리:</b> Reactor(Flux)를 활용한 논블로킹 스트리밍을 구현하며, DB 저장은 스트림 완료 후 별도 스레드에서 수행</li>
+ * </ul>
  *
  * @author pwk0131
  */
@@ -45,11 +50,18 @@ public class ChatService {
 	private final ChatStreamErrorHandler chatStreamErrorHandler;
 
 	/**
-	 * 채팅 스트리밍 시작
+	 * 채팅 프로세스 시작 (스트리밍)
 	 *
-	 * @param request 사용자 요청 DTO
-	 * @param chatId 세션 ID (쿠키)
-	 * @return SSE 스트림
+	 * <p>
+	 * 1. 월간 사용량 한도를 체크<br>
+	 * 2. 현재 세션의 과거 대화 내역을 가져와 문맥을 형성<br>
+	 * 3. AI 서비스에 요청을 보내고 실시간 응답(SSE) 스트림을 생성<br>
+	 * 4. 스트리밍이 정상적으로 완료되면, 수집된 대화 데이터를 DB에 비동기로 저장
+	 * </p>
+	 *
+	 * @param request 사용자 질문 및 설정이 담긴 요청 객체
+	 * @param chatId 사용자 식별을 위한 세션 ID (쿠키)
+	 * @return 클라이언트로 전송될 Server-Sent Events 스트림
 	 */
 	public Flux<ServerSentEvent<String>> startChat(ChatRequest request, String chatId) {
 		// 1. 비용 한도 확인
@@ -67,7 +79,7 @@ public class ChatService {
 			.onErrorResume(chatStreamErrorHandler::handleStreamError)
 			.doOnComplete(() -> {
 				// 저장 로직 비동기 실행
-				if (context.hasAnswer()) { // 답변이 조금이라도 생성되었을 때만 저장
+				if (context.hasAnswer()) {
 					Flux.just(context)
 						.publishOn(Schedulers.boundedElastic())
 						.subscribe(chatWriter::saveChatData);
@@ -82,7 +94,7 @@ public class ChatService {
 	 * 대화 히스토리 조회
 	 *
 	 * <p>
-	 * 주어진 chatId에 해당하는 최근 대화 내역(최대 6개)을 조회하여 반환<br>
+	 * 주어진 chatId에 해당하는 최근 대화 내역(6개)을 조회하여 반환<br>
 	 * 컨트롤러의 히스토리 조회 API와 내부 AI 요청 시 대화 문맥 제공용으로 공통 사용
 	 * </p>
 	 *

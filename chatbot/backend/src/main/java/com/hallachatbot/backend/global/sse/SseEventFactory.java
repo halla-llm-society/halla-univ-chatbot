@@ -16,7 +16,7 @@ import lombok.extern.slf4j.Slf4j;
  * SSE(Server-Sent Events) 프로토콜 표준화 및 생성 팩토리
  * <p>
  * 모든 도메인에서 공통으로 사용할 수 있도록
- * 이벤트 포맷(type, data, content)과 JSON 직렬화를 담당합니다.
+ * 이벤트 포맷(type, data, content)과 JSON 직렬화를 담당
  * </p>
  *
  * @author pwk0131
