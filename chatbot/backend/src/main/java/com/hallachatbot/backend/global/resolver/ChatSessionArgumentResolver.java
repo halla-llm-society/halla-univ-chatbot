@@ -1,6 +1,8 @@
 package com.hallachatbot.backend.global.resolver;
 
 import java.time.Duration;
+import java.util.Arrays;
+import java.util.Optional;
 
 import org.bson.types.ObjectId;
 import org.springframework.core.MethodParameter;
@@ -86,16 +88,13 @@ public class ChatSessionArgumentResolver implements HandlerMethodArgumentResolve
 	}
 
 	private String resolveChatIdFromCookie(HttpServletRequest request) {
-		Cookie[] cookies = request.getCookies();
-		if (cookies == null) {
-			return null;
-		}
-		for (Cookie cookie : cookies) {
-			if ("chatId".equals(cookie.getName())) {
-				return cookie.getValue();
-			}
-		}
-		return null;
+		return Optional.ofNullable(request.getCookies())
+			.stream()
+			.flatMap(Arrays::stream)
+			.filter(cookie -> "chatId".equals(cookie.getName()))
+			.map(Cookie::getValue)
+			.findFirst()
+			.orElse(null);
 	}
 
 	/**
