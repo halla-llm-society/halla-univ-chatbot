@@ -33,9 +33,9 @@ public class AiServiceClientImpl implements AiServiceClient {
 		String endpoint = aiServiceUrl + "/api/chat";
 
 		AiChatRequest aiBody = AiChatRequest.builder()
-			.userInput(request.getUserInput())
+			.userInput(request.userInput())
 			.messageHistory(history)
-			.language(request.getLanguage())
+			.language(request.language())
 			.build();
 
 		// 성능 측정용 변수 (로그)
@@ -52,11 +52,11 @@ public class AiServiceClientImpl implements AiServiceClient {
 			.timeout(Duration.ofSeconds(120))
 			.doOnNext(response -> {
 				// 첫 번째 토큰("delta") 수신 시 시간 로깅
-				if ("delta".equals(response.getType()) && !firstTokenReceived.get() && response.getContent() != null) {
+				if ("delta".equals(response.type()) && !firstTokenReceived.get() && response.content() != null) {
 					firstTokenReceived.set(true);
 					double durationSeconds = (System.nanoTime() - startTime) / 1_000_000_000.0;
 					log.info("[AI 첫 응답 소요 시간]: {}초 | 첫 토큰: {}", String.format("%.4f", durationSeconds),
-						response.getContent());
+						response.content());
 				}
 			})
 			.doOnComplete(() -> {

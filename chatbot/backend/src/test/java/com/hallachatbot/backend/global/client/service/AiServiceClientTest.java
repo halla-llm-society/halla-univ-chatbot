@@ -54,9 +54,7 @@ class AiServiceClientTest {
 	@DisplayName("AI 서비스가 정상적으로 스트리밍 응답을 반환한다")
 	void streamChat_Success() throws Exception {
 		// given
-		ChatRequest request = new ChatRequest();
-		ReflectionTestUtils.setField(request, "userInput", "질문");
-		ReflectionTestUtils.setField(request, "language", ChatRequest.Language.KOR);
+		ChatRequest request = new ChatRequest("질문", ChatRequest.Language.KOR);
 
 		// Mock Server 응답 설정 (NDJSON 형태 시뮬레이션)
 		String responseBody = """
@@ -76,16 +74,16 @@ class AiServiceClientTest {
 		// then
 		StepVerifier.create(responseFlux)
 			.assertNext(res -> {
-				assertThat(res.getType()).isEqualTo("delta");
-				assertThat(res.getContent()).isEqualTo("안녕");
+				assertThat(res.type()).isEqualTo("delta");
+				assertThat(res.content()).isEqualTo("안녕");
 			})
 			.assertNext(res -> {
-				assertThat(res.getType()).isEqualTo("delta");
-				assertThat(res.getContent()).isEqualTo("하세요");
+				assertThat(res.type()).isEqualTo("delta");
+				assertThat(res.content()).isEqualTo("하세요");
 			})
 			.assertNext(res -> {
-				assertThat(res.getType()).isEqualTo("metadata");
-				assertThat(res.getData()).containsEntry("token_usage", java.util.Map.of("total_tokens", 10));
+				assertThat(res.type()).isEqualTo("metadata");
+				assertThat(res.data()).containsEntry("token_usage", java.util.Map.of("total_tokens", 10));
 			})
 			.verifyComplete();
 	}
@@ -99,8 +97,7 @@ class AiServiceClientTest {
 			.setHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
 			.setBody("{\"error\": \"Bad Request\"}"));
 
-		ChatRequest request = new ChatRequest();
-		ReflectionTestUtils.setField(request, "userInput", "질문");
+		ChatRequest request = new ChatRequest("질문", ChatRequest.Language.KOR);
 
 		// when
 		Flux<AiServiceResponse> responseFlux = aiServiceClient.streamChat(request, Collections.emptyList());
@@ -120,8 +117,7 @@ class AiServiceClientTest {
 			.setHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
 			.setBody("{invalid-json-body...}"));
 
-		ChatRequest request = new ChatRequest();
-		ReflectionTestUtils.setField(request, "userInput", "질문");
+		ChatRequest request = new ChatRequest("질문", ChatRequest.Language.KOR);
 
 		// when
 		Flux<AiServiceResponse> responseFlux = aiServiceClient.streamChat(request, Collections.emptyList());

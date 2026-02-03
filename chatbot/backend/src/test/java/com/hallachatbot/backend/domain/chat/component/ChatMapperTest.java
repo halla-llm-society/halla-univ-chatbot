@@ -32,9 +32,9 @@ class ChatMapperTest {
 		assertThat(responses).hasSize(4);
 
 		// 순서는 과거(질문1) -> 현재(질문2) 순이어야 함
-		assertThat(responses.get(0).getContent()).isEqualTo("질문1");
-		assertThat(responses.get(1).getContent()).isEqualTo("답변1");
-		assertThat(responses.get(2).getContent()).isEqualTo("질문2");
-		assertThat(responses.get(3).getContent()).isEqualTo("답변2");
+		assertThat(responses.get(0).content()).isEqualTo("질문1");
+		assertThat(responses.get(1).content()).isEqualTo("답변1");
+		assertThat(responses.get(2).content()).isEqualTo("질문2");
+		assertThat(responses.get(3).content()).isEqualTo("답변2");
 	}
 }

@@ -71,7 +71,7 @@ public class ChatService {
 		List<ChatHistoryResponse> history = getChatHistory(chatId);
 
 		// 스트림 동안 상태(답변, 메타데이터 등)를 누적할 객체 생성
-		ChatStreamContext context = new ChatStreamContext(chatId, request.getUserInput());
+		ChatStreamContext context = new ChatStreamContext(chatId, request.userInput());
 
 		// 3. AI 서비스 호출 및 스트리밍 변환
 		Flux<ServerSentEvent<String>> eventFlux = aiServiceClient.streamChat(request, history)

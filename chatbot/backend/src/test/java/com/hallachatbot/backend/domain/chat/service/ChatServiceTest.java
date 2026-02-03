@@ -21,7 +21,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.codec.ServerSentEvent;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import com.hallachatbot.backend.domain.chat.component.ChatReader;
 import com.hallachatbot.backend.domain.chat.component.ChatStreamHandler;
@@ -69,7 +68,7 @@ class ChatServiceTest {
 	@DisplayName("비용 한도를 초과하면 채팅을 시작하지 않고 예외가 발생한다")
 	void startChat_Fail_CostExceeded() {
 		// given
-		ChatRequest request = new ChatRequest();
+		ChatRequest request = new ChatRequest("질문", ChatRequest.Language.KOR);
 		String chatId = "test-chat-id";
 
 		// void 메서드에 대한 BDDMockito 예외 발생 설정
@@ -90,11 +89,7 @@ class ChatServiceTest {
 	void startChat_Success() {
 		// given
 		String chatId = "valid-chat-id";
-		String userInput = "안녕하세요";
-		ChatRequest request = new ChatRequest();
-
-		ReflectionTestUtils.setField(request, "userInput", userInput);
-		ReflectionTestUtils.setField(request, "language", ChatRequest.Language.KOR);
+		ChatRequest request = new ChatRequest("안녕하세요", ChatRequest.Language.KOR);
 
 		// 1. 히스토리 조회 Mock
 		given(chatReader.getChatHistory(chatId))
@@ -106,9 +101,7 @@ class ChatServiceTest {
 			.willReturn(ServerSentEvent.builder(metadataJson).build());
 
 		// 3. AI 응답 및 핸들러 Mock
-		AiServiceResponse deltaResponse = new AiServiceResponse();
-		ReflectionTestUtils.setField(deltaResponse, "type", "delta");
-		ReflectionTestUtils.setField(deltaResponse, "content", "반갑습니다.");
+		AiServiceResponse deltaResponse = new AiServiceResponse("delta", "반갑습니다.", null, null, null);
 
 		// 4. AI 클라이언트가 응답을 방출
 		given(aiServiceClient.streamChat(any(ChatRequest.class), anyList()))
@@ -122,8 +115,8 @@ class ChatServiceTest {
 				ChatStreamContext context = invocation.getArgument(1);
 
 				// Mock이지만 실제 로직처럼 context에 답변을 넣어줘야 hasAnswer()가 true가 됨
-				if ("delta".equals(response.getType())) {
-					context.appendAnswer(response.getContent());
+				if ("delta".equals(response.type())) {
+					context.appendAnswer(response.content());
 				}
 
 				return ServerSentEvent.builder(deltaJson).build();
@@ -156,8 +149,7 @@ class ChatServiceTest {
 	void startChat_WithMetadataAndError() {
 		// given
 		String chatId = "test-chat-id";
-		ChatRequest request = new ChatRequest();
-		ReflectionTestUtils.setField(request, "userInput", "질문");
+		ChatRequest request = new ChatRequest("질문", ChatRequest.Language.KOR);
 
 		given(chatReader.getChatHistory(chatId))
 			.willReturn(Collections.emptyList());
@@ -167,14 +159,9 @@ class ChatServiceTest {
 			.willReturn(ServerSentEvent.builder("{\"type\":\"metadata\"}").build());
 
 		// 다양한 타입의 AI 응답 시뮬레이션
-		AiServiceResponse delta = new AiServiceResponse();
-		ReflectionTestUtils.setField(delta, "type", "delta");
-
-		AiServiceResponse metadata = new AiServiceResponse();
-		ReflectionTestUtils.setField(metadata, "type", "metadata");
-
-		AiServiceResponse error = new AiServiceResponse();
-		ReflectionTestUtils.setField(error, "type", "error");
+		AiServiceResponse delta = new AiServiceResponse("delta", null, null, null, null);
+		AiServiceResponse metadata = new AiServiceResponse("metadata", null, null, null, null);
+		AiServiceResponse error = new AiServiceResponse("error", null, null, null, null);
 
 		// AI Client Mock
 		given(aiServiceClient.streamChat(any(), anyList()))

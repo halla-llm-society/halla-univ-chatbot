@@ -36,11 +36,7 @@ class ChatStreamHandlerTest {
 	void processAiResponse_Delta() {
 		// given
 		ChatStreamContext context = new ChatStreamContext("chat-1", "질문");
-		AiServiceResponse response = new AiServiceResponse();
-
-		// Reflection으로 private 필드 설정
-		org.springframework.test.util.ReflectionTestUtils.setField(response, "type", "delta");
-		org.springframework.test.util.ReflectionTestUtils.setField(response, "content", "안녕");
+		AiServiceResponse response = new AiServiceResponse("delta", "안녕", null, null, null);
 
 		given(sseEventFactory.createDelta(anyString()))
 			.willReturn(ServerSentEvent.builder("data").build());
@@ -63,9 +59,7 @@ class ChatStreamHandlerTest {
 		Map<String, Object> rag = Map.of("gate_reason", "search_needed");
 		Map<String, Object> data = Map.of("token_usage", usage, "rag", rag);
 
-		AiServiceResponse response = new AiServiceResponse();
-		org.springframework.test.util.ReflectionTestUtils.setField(response, "type", "metadata");
-		org.springframework.test.util.ReflectionTestUtils.setField(response, "data", data);
+		AiServiceResponse response = new AiServiceResponse("metadata", null, data, null, null);
 
 		given(sseEventFactory.createMetadata(anyMap()))
 			.willReturn(ServerSentEvent.builder("meta").build());
@@ -84,9 +78,7 @@ class ChatStreamHandlerTest {
 	void processAiResponse_Error() {
 		// given
 		ChatStreamContext context = new ChatStreamContext("chat-1", "질문");
-		AiServiceResponse response = new AiServiceResponse();
-		org.springframework.test.util.ReflectionTestUtils.setField(response, "type", "error");
-		org.springframework.test.util.ReflectionTestUtils.setField(response, "message", "문제가 발생했습니다");
+		AiServiceResponse response = new AiServiceResponse("error", null, null, "문제가 발생했습니다", null);
 
 		given(sseEventFactory.createError(any(), anyString()))
 			.willReturn(ServerSentEvent.builder("error-event").build());
@@ -104,8 +96,7 @@ class ChatStreamHandlerTest {
 	void processAiResponse_UnknownType() {
 		// given
 		ChatStreamContext context = new ChatStreamContext("chat-1", "질문");
-		AiServiceResponse response = new AiServiceResponse();
-		org.springframework.test.util.ReflectionTestUtils.setField(response, "type", "unknown_custom_type");
+		AiServiceResponse response = new AiServiceResponse("unknown_custom_type", null, null, null, null);
 
 		given(sseEventFactory.createKeepAlive())
 			.willReturn(ServerSentEvent.builder("ping").build());

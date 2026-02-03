@@ -17,7 +17,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -46,9 +45,7 @@ class ChatControllerTest {
 	@DisplayName("채팅 요청 시 쿠키가 없으면 새 chatId 쿠키를 발급한다")
 	void chat_NoCookie_GeneratesNewCookie() throws Exception {
 		// given
-		ChatRequest request = new ChatRequest();
-		ReflectionTestUtils.setField(request, "userInput", "안녕");
-		ReflectionTestUtils.setField(request, "language", ChatRequest.Language.KOR);
+		ChatRequest request = new ChatRequest("안녕", ChatRequest.Language.KOR);
 
 		given(chatService.startChat(any(ChatRequest.class), any()))
 			.willReturn(Flux.empty());
@@ -66,9 +63,7 @@ class ChatControllerTest {
 	void chat_ValidCookie_MaintainsCookie() throws Exception {
 		// given
 		String existingChatId = new ObjectId().toHexString();
-		ChatRequest request = new ChatRequest();
-		ReflectionTestUtils.setField(request, "userInput", "안녕");
-		ReflectionTestUtils.setField(request, "language", ChatRequest.Language.KOR);
+		ChatRequest request = new ChatRequest("안녕", ChatRequest.Language.KOR);
 
 		given(chatService.startChat(any(ChatRequest.class), eq(existingChatId)))
 			.willReturn(Flux.empty());
