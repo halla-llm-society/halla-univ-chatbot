@@ -1,7 +1,6 @@
 package com.hallachatbot.backend.domain.chat.component;
 
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 import com.hallachatbot.backend.domain.chat.entity.ChatMessage;
 import com.hallachatbot.backend.domain.chat.entity.ChatMetadata;
@@ -38,10 +37,9 @@ public class ChatWriter {
 	private final ChatTokenUsageRepository chatTokenUsageRepository;
 	private final ChatMetadataRepository chatMetadataRepository;
 
-	@Transactional
 	public void saveChatData(ChatStreamContext context) {
 		// 빈 응답 체크 로직 등은 여기서 수행
-		if (context.getAnswerBuilder().isEmpty()) {
+		if (context.getAnswer().isBlank()) {
 			return;
 		}
 

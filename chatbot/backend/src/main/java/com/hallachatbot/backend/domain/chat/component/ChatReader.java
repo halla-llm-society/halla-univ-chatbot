@@ -25,7 +25,6 @@ import lombok.RequiredArgsConstructor;
 
 @Component
 @RequiredArgsConstructor
-@Transactional(readOnly = true)
 public class ChatReader {
 
 	private final ChatMessageRepository chatMessageRepository;
