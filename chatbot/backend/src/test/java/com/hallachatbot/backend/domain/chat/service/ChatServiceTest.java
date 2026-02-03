@@ -31,6 +31,7 @@ import com.hallachatbot.backend.domain.usage.service.UsageService;
 import com.hallachatbot.backend.global.client.dto.AiServiceResponse;
 import com.hallachatbot.backend.global.client.service.AiServiceClient;
 import com.hallachatbot.backend.global.errorcode.UsageErrorCode;
+import com.hallachatbot.backend.global.exception.ChatStreamErrorHandler;
 import com.hallachatbot.backend.global.exception.UsageException;
 import com.hallachatbot.backend.global.sse.SseEventFactory;
 
@@ -60,6 +61,9 @@ class ChatServiceTest {
 
 	@Mock
 	private SseEventFactory sseEventFactory;
+
+	@Mock
+	private ChatStreamErrorHandler chatStreamErrorHandler;
 
 	@Test
 	@DisplayName("비용 한도를 초과하면 채팅을 시작하지 않고 예외가 발생한다")
@@ -113,7 +117,17 @@ class ChatServiceTest {
 		// 5. ChatStreamHandler가 null이 아닌 SSE 이벤트를 반환하도록 Stubbing 추가
 		String deltaJson = "{\"type\":\"delta\",\"content\":\"반갑습니다.\"}";
 		given(chatStreamHandler.processAiResponse(any(), any()))
-			.willReturn(ServerSentEvent.builder(deltaJson).build());
+			.willAnswer(invocation -> {
+				AiServiceResponse response = invocation.getArgument(0);
+				ChatStreamContext context = invocation.getArgument(1);
+
+				// Mock이지만 실제 로직처럼 context에 답변을 넣어줘야 hasAnswer()가 true가 됨
+				if ("delta".equals(response.getType())) {
+					context.appendAnswer(response.getContent());
+				}
+
+				return ServerSentEvent.builder(deltaJson).build();
+			});
 
 		// when
 		Flux<ServerSentEvent<String>> resultFlux = chatService.startChat(request, chatId);
@@ -168,7 +182,11 @@ class ChatServiceTest {
 
 		// Handler Mock - 각 응답에 대해 적절한 SSE 반환 설정
 		given(chatStreamHandler.processAiResponse(eq(delta), any()))
-			.willReturn(ServerSentEvent.builder("{\"type\":\"delta\",\"content\":\"답변내용\"}").build());
+			.willAnswer(invocation -> {
+				ChatStreamContext context = invocation.getArgument(1);
+				context.appendAnswer("답변내용"); // Context 업데이트
+				return ServerSentEvent.builder("{\"type\":\"delta\",\"content\":\"답변내용\"}").build();
+			});
 
 		given(chatStreamHandler.processAiResponse(eq(metadata), any()))
 			.willReturn(

@@ -13,6 +13,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hallachatbot.backend.domain.chat.dto.request.ChatRequest;
@@ -87,5 +88,47 @@ class AiServiceClientTest {
 				assertThat(res.getData()).containsEntry("token_usage", java.util.Map.of("total_tokens", 10));
 			})
 			.verifyComplete();
+	}
+
+	@Test
+	@DisplayName("AI 서비스가 4xx/5xx 에러를 반환하면 WebClientResponseException이 전파된다")
+	void streamChat_HttpError() {
+		// given: AI 서버가 400 Bad Request를 반환하도록 설정
+		mockWebServer.enqueue(new MockResponse()
+			.setResponseCode(400)
+			.setHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+			.setBody("{\"error\": \"Bad Request\"}"));
+
+		ChatRequest request = new ChatRequest();
+		ReflectionTestUtils.setField(request, "userInput", "질문");
+
+		// when
+		Flux<AiServiceResponse> responseFlux = aiServiceClient.streamChat(request, Collections.emptyList());
+
+		// then: 에러가 발생해야 하며, doOnError(WebClientResponseException) 로직이 타게 됨
+		StepVerifier.create(responseFlux)
+			.expectError(WebClientResponseException.class)
+			.verify();
+	}
+
+	@Test
+	@DisplayName("AI 응답이 올바른 JSON 형식이 아니면 파싱 에러가 발생한다")
+	void streamChat_ParsingError() {
+		// given: 유효하지 않은 JSON 본문 반환
+		mockWebServer.enqueue(new MockResponse()
+			.setResponseCode(200)
+			.setHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+			.setBody("{invalid-json-body...}"));
+
+		ChatRequest request = new ChatRequest();
+		ReflectionTestUtils.setField(request, "userInput", "질문");
+
+		// when
+		Flux<AiServiceResponse> responseFlux = aiServiceClient.streamChat(request, Collections.emptyList());
+
+		// then: JSON 디코딩 실패로 에러 발생 (doOnError의 '그 외 에러' 로직 커버)
+		StepVerifier.create(responseFlux)
+			.expectError()
+			.verify();
 	}
 }
