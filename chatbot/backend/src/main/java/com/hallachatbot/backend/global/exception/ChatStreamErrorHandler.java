@@ -45,8 +45,7 @@ public class ChatStreamErrorHandler {
 		// 2. 클라이언트에 전달할 에러 데이터 구성
 		Map<String, Object> errorData = Map.of(
 			"code", errorCode.name(),
-			"message", errorCode.getMessage(),
-			"cause", error.getMessage() != null ? error.getMessage() : "Unknown error"
+			"message", errorCode.getMessage()
 		);
 
 		// 3. 'error' 타입의 SSE 이벤트 생성 및 반환
