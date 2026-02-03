@@ -52,7 +52,7 @@ public class WebConfig implements WebMvcConfigurer {
 	 * </p>
 	 *
 	 * <ul>
-	 * <li><b>허용 Origin:</b> 로컬 개발 환경(3000, 5173 포트)</li>
+	 * <li><b>허용 Origin:</b> 배포: 서비스 도메인, 로컬: localhost:5173</li>
 	 * <li><b>허용 Method:</b> GET, POST, OPTIONS</li>
 	 * <li><b>Credentials:</b> 쿠키(Cookie) 기반 인증을 위해 true로 설정</li>
 	 * </ul>
