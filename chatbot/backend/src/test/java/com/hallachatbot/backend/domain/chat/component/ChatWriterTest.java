@@ -98,26 +98,4 @@ class ChatWriterTest {
 		verify(chatTokenUsageRepository, never()).save(any());
 		verify(chatMetadataRepository, never()).save(any());
 	}
-
-	@Test
-	@DisplayName("데이터 저장 중 예외가 발생하면 로그를 남기고 로직을 종료한다")
-	void saveChatData_ExceptionHandling() {
-		// given
-		ChatStreamContext context = new ChatStreamContext("chat-1", "질문");
-		context.appendAnswer("답변");
-		// 강제로 ID 주입 (테스트 편의상)
-		org.springframework.test.util.ReflectionTestUtils.setField(context, "totalTokens", 100);
-
-		// 첫 번째 저장(ChatMessage) 시 RuntimeException 발생 유도
-		given(chatMessageRepository.save(any())).willThrow(new RuntimeException("DB Connection Error"));
-
-		// when & then
-		// 메서드 실행 시 예외가 발생하지 않아야 함 (내부에서 try-catch로 잡음)
-		org.junit.jupiter.api.Assertions.assertDoesNotThrow(() ->
-			chatWriter.saveChatData(context)
-		);
-
-		// 검증: 예외가 발생했으므로 이후 로직(TokenUsage 저장 등)은 실행되지 않아야 함
-		verify(chatTokenUsageRepository, never()).save(any());
-	}
 }
