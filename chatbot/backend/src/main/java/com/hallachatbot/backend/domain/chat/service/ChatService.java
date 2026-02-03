@@ -13,6 +13,7 @@ import com.hallachatbot.backend.domain.chat.dto.request.ChatRequest;
 import com.hallachatbot.backend.domain.chat.dto.response.ChatHistoryResponse;
 import com.hallachatbot.backend.domain.usage.service.UsageService;
 import com.hallachatbot.backend.global.client.service.AiServiceClient;
+import com.hallachatbot.backend.global.exception.ChatStreamErrorHandler;
 import com.hallachatbot.backend.global.sse.SseEventFactory;
 
 import lombok.RequiredArgsConstructor;
@@ -41,6 +42,7 @@ public class ChatService {
 	private final ChatReader chatReader;
 	private final ChatWriter chatWriter;
 	private final ChatStreamHandler chatStreamHandler;
+	private final ChatStreamErrorHandler chatStreamErrorHandler;
 
 	/**
 	 * 채팅 스트리밍 시작
@@ -62,11 +64,14 @@ public class ChatService {
 		// 3. AI 서비스 호출 및 스트리밍 변환
 		Flux<ServerSentEvent<String>> eventFlux = aiServiceClient.streamChat(request, history)
 			.map(aiResponse -> chatStreamHandler.processAiResponse(aiResponse, context))
+			.onErrorResume(chatStreamErrorHandler::handleStreamError)
 			.doOnComplete(() -> {
 				// 저장 로직 비동기 실행
-				Flux.just(context)
-					.publishOn(Schedulers.boundedElastic())
-					.subscribe(chatWriter::saveChatData);
+				if (context.hasAnswer()) { // 답변이 조금이라도 생성되었을 때만 저장
+					Flux.just(context)
+						.publishOn(Schedulers.boundedElastic())
+						.subscribe(chatWriter::saveChatData);
+				}
 			});
 
 		// 4. 초기 이벤트 주입 (Metadata, Warning)

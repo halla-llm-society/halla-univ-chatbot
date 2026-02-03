@@ -30,6 +30,10 @@ public class ChatStreamContext {
 		return this.answerBuilder.toString();
 	}
 
+	public boolean hasAnswer() {
+		return this.answerBuilder.length() > 0;
+	}
+
 	@SuppressWarnings("unchecked")
 	public void updateMetadata(Map<String, Object> data) {
 		if (data == null) {
