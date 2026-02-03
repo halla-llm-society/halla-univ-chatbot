@@ -32,11 +32,11 @@ public class AiServiceClientImpl implements AiServiceClient {
 	public Flux<AiServiceResponse> streamChat(ChatRequest request, List<ChatHistoryResponse> history) {
 		String endpoint = aiServiceUrl + "/api/chat";
 
-		AiChatRequest aiBody = AiChatRequest.builder()
-			.userInput(request.userInput())
-			.messageHistory(history)
-			.language(request.language())
-			.build();
+		AiChatRequest aiBody = new AiChatRequest(
+			request.userInput(),
+			history,
+			request.language()
+		);
 
 		// 성능 측정용 변수 (로그)
 		long startTime = System.nanoTime();
