@@ -77,7 +77,11 @@ public class ChatStreamContext {
 			if (tokens instanceof Number n) {
 				this.totalTokens = n.intValue();
 			} else if (tokens instanceof String s) {
-				this.totalTokens = Integer.parseInt(s);
+				try {
+					this.totalTokens = Integer.parseInt(s);
+				} catch (NumberFormatException e) {
+					this.totalTokens = 0;
+				}
 			}
 		}
 	}
