@@ -1,9 +1,5 @@
 package com.hallachatbot.backend.domain.chat.dto.response;
 
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-
 /**
  * 채팅 히스토리 응답 DTO
  *
@@ -14,26 +10,10 @@ import lombok.NoArgsConstructor;
  *
  * @author pwk0131
  */
-@Getter
-@NoArgsConstructor
-public class ChatHistoryResponse {
-
-	/**
-	 * 역할 (user 또는 assistant)
-	 */
-	private String role;
-
-	/**
-	 * 대화 내용
-	 */
-	private String content;
-
-	@Builder
-	public ChatHistoryResponse(String role, String content) {
-		this.role = role;
-		this.content = content;
-	}
-
+public record ChatHistoryResponse(
+	String role,
+	String content
+) {
 	/**
 	 * 사용자(User) 메시지 생성 편의 메서드
 	 */
