@@ -88,7 +88,7 @@ class ChatControllerTest {
 		// given
 		String chatId = new ObjectId().toHexString();
 
-		given(chatMessageRepository.findTop6ByChatIdOrderByCreatedDateDesc(chatId))
+		given(chatService.getChatHistory(chatId))
 			.willReturn(Collections.emptyList());
 
 		// when & then
