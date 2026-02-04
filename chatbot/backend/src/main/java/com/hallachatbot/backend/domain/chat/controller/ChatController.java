@@ -97,8 +97,7 @@ public class ChatController {
 	 */
 	@Operation(summary = "대화 히스토리 조회", description = "쿠키에 저장된 chatId를 기반으로 최근 대화 내역을 조회합니다.")
 	@ApiResponses(value = {
-		@ApiResponse(responseCode = "200", description = "조회 성공"),
-		@ApiResponse(responseCode = "401", description = "인증 실패 (쿠키 없음)")
+		@ApiResponse(responseCode = "200", description = "조회 성공")
 	})
 
 	@GetMapping("/history")
