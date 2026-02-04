@@ -7,7 +7,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 /**
- * 챗봇 대화 요청 DTO
+ * <b>챗봇 대화 요청 DTO</b>
  *
  * <p>
  * 클라이언트로부터 전달받는 사용자 질문 및 설정 정보

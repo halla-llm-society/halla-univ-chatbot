@@ -6,7 +6,7 @@ import org.springframework.stereotype.Repository;
 import com.hallachatbot.backend.domain.chat.entity.ChatMetadata;
 
 /**
- * ChatMetadata 리포지토리
+ * <b>ChatMetadata 리포지토리</b>
  *
  * <p>
  * MongoDB 'metadata' 컬렉션 접근용<br>

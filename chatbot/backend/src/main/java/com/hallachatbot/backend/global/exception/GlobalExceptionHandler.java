@@ -24,7 +24,7 @@ import com.hallachatbot.backend.global.response.Response;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * 전역 예외 처리 핸들러 (Global Exception Handler).
+ * <b>전역 예외 처리 핸들러 (Global Exception Handler).</b>
  * <p>
  * 애플리케이션 전역에서 발생하는 예외를 포착하여 표준화된 {@link Response} 포맷으로 응답합니다.
  * {@link ResponseEntityExceptionHandler}를 상속받아 Spring MVC 표준 예외를 커스터마이징 하여 적용합니다.
@@ -64,10 +64,6 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 	public ResponseEntity<Object> handleAllException(Exception error) {
 		return handleExceptionInternal(GlobalErrorCode.INTERNAL_SERVER_ERROR, error.getMessage());
 	}
-
-	// =================================================================================
-	// Override ResponseEntityExceptionHandler (Spring MVC Standard Exceptions)
-	// =================================================================================
 
 	/**
 	 * [400] @Valid 유효성 검사 실패 처리.
@@ -134,10 +130,6 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 		return handleExceptionInternal(GlobalErrorCode.UNSUPPORTED_MEDIA_TYPE, ex.getMessage());
 	}
 
-	// =================================================================================
-	// Other Common Exceptions
-	// =================================================================================
-
 	/**
 	 * [400] 파라미터 타입 불일치 처리.
 	 */
@@ -156,12 +148,13 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 		return handleExceptionInternal(GlobalErrorCode.MISSING_REQUIRED_HEADER, error.getMessage());
 	}
 
-	// =================================================================================
-	// Common Handler Method (로그 및 응답 통합)
-	// =================================================================================
-
+	/**
+	 * <b>[로깅 로직 중앙화 메서드]</b>
+	 * @param errorCode
+	 * @param logDetail
+	 * @return ResponseEntity
+	 */
 	private ResponseEntity<Object> handleExceptionInternal(ErrorCode errorCode, String logDetail) {
-		// [로깅 로직 중앙화 메서드]
 		// 500번대 에러(Server Error)는 error 레벨로, 400번대(Client Error)는 warn 레벨로 로그 출력
 		if (errorCode.getStatus().is5xxServerError()) {
 			log.error("[Server Error] Code: {}, LogMsg: {}, Detail: {}",

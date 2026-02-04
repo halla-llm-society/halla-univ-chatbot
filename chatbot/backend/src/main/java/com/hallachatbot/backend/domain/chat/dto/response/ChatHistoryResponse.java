@@ -1,13 +1,15 @@
 package com.hallachatbot.backend.domain.chat.dto.response;
 
 /**
- * 채팅 히스토리 응답 DTO
+ * <b>채팅 히스토리 응답 DTO</b>
  *
  * <p>
- * 클라이언트(UI)에 과거 대화 내역을 전달하기 위한 객체<br>
- * OpenAI API 포맷과 유사하게 role(역할)과 content(내용)으로 구성됨
+ * 클라이언트(UI) 렌더링 및 AI 모델의 문맥 주입을 위해 사용되는 과거 대화 객체.
+ * OpenAI Chat Completion API의 Message 구조(role, content)를 준수함.
  * </p>
  *
+ * @param role    메시지 발화자 역할 (예: "user", "assistant")
+ * @param content 메시지 본문 내용
  * @author pwk0131
  */
 public record ChatHistoryResponse(

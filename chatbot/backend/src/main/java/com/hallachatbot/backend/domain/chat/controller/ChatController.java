@@ -27,16 +27,22 @@ import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 
 /**
- * 채팅 도메인 컨트롤러
+ * <b>채팅 도메인 API 컨트롤러</b>
  *
  * <p>
- * 엔드포인트: /api/chat
+ * 클라이언트의 채팅 요청을 처리하는 진입점.
+ * AI 모델과의 실시간 대화 스트리밍(SSE) 및 과거 대화 이력 조회 기능을 제공함.
  * </p>
+ *
+ * <ul>
+ * <li>Base URL: {@code /api/chat}</li>
+ * <li>주요 기능: 메시지 전송(Streaming), 히스토리 조회</li>
+ * </ul>
  *
  * @author pwk0131
  */
 @Slf4j
-@Tag(name = "Chat API", description = "AI 챗봇 대화 및 히스토리 관리")
+@Tag(name = "Chat API", description = "AI 챗봇 대화 수행 및 히스토리 관리")
 @RestController
 @RequestMapping("/api/chat")
 @RequiredArgsConstructor
@@ -45,15 +51,17 @@ public class ChatController {
 	private final ChatService chatService;
 
 	/**
-	 * 채팅 스트리밍 엔드포인트
+	 * <b>채팅 메시지 전송 및 답변 스트리밍</b>
 	 *
 	 * <p>
-	 * POST /api/chat<br>
-	 * 쿠키(chatId)를 확인하여 세션을 관리하고 AI 응답을 SSE로 반환
+	 * 사용자의 질문을 입력받아 AI 서비스의 답변을 Server-Sent Events(SSE) 방식으로 실시간 스트리밍함.<br>
+	 * {@link ChatSession} 어노테이션을 통해 쿠키에서 세션 ID를 추출하거나 신규 발급하여 대화 맥락을 유지함.
 	 * </p>
 	 *
-	 * @param request 사용자 요청 DTO
-	 * @return SSE 스트림
+	 * @param request 사용자 질문 및 언어 설정이 포함된 요청 DTO
+	 * @param chatId  사용자 식별 세션 ID (쿠키에서 자동 주입, Swagger 숨김 처리)
+	 * @return AI 답변 데이터 스트림 (Flux&lt;ServerSentEvent&gt;)
+	 * @see com.hallachatbot.backend.global.resolver.ChatSessionArgumentResolver
 	 */
 	@Operation(summary = "채팅 답변 스트리밍", description = "사용자의 질문을 입력받아 AI 답변을 SSE(Server-Sent Events)로 실시간 스트리밍합니다.")
 	@ApiResponses(value = {
@@ -61,10 +69,11 @@ public class ChatController {
 			responseCode = "200",
 			description = "성공 (스트리밍 시작)",
 			content = @Content(mediaType = "text/event-stream",
-				schema = @Schema(implementation = ServerSentEvent.class))),
-		@ApiResponse(responseCode = "400", description = "잘못된 요청 (입력값 누락 등)"),
-		@ApiResponse(responseCode = "429", description = "요청 한도 초과 (일일/월간 사용량 제한)"),
-		@ApiResponse(responseCode = "500", description = "서버 내부 오류")
+				schema = @Schema(implementation = ServerSentEvent.class))
+		),
+		@ApiResponse(responseCode = "400", description = "잘못된 요청 (필수 값 누락, 유효성 검증 실패)"),
+		@ApiResponse(responseCode = "429", description = "요청 한도 초과"),
+		@ApiResponse(responseCode = "500", description = "서버 내부 오류 또는 AI 서비스 연동 실패")
 	})
 	@PostMapping
 	public Flux<ServerSentEvent<String>> chat(
@@ -77,14 +86,15 @@ public class ChatController {
 	}
 
 	/**
-	 * 대화 히스토리 조회 엔드포인트
+	 * <b>대화 히스토리 조회</b>
 	 *
 	 * <p>
-	 * GET /api/chat/history<br>
-	 * 현재 쿠키의 chatId를 기반으로 최근 대화 내역 반환
+	 * 현재 세션(Cookie: chatId)에 해당하는 최근 대화 내역을 조회함.<br>
+	 * 기본적으로 최근 6건(User-Assistant 쌍)의 대화를 최신순으로 반환함.
 	 * </p>
 	 *
-	 * @return 대화 내역 리스트 (user/assistant 쌍)
+	 * @param chatId 사용자 식별 세션 ID (쿠키에서 자동 주입, Swagger 숨김 처리)
+	 * @return 대화 내역 리스트 (Role, Content 구조)
 	 */
 	@Operation(summary = "대화 히스토리 조회", description = "쿠키에 저장된 chatId를 기반으로 최근 대화 내역을 조회합니다.")
 	@ApiResponses(value = {

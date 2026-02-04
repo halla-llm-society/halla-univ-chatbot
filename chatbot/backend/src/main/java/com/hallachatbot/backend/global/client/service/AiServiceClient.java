@@ -9,21 +9,28 @@ import com.hallachatbot.backend.global.client.dto.AiServiceResponse;
 import reactor.core.publisher.Flux;
 
 /**
- * <b>AI 서비스 연동 클라이언트</b>
- * <b><p>
- * SSE 스트림을 받아 처리함
- * </p></b>
+ * <b>AI 서비스 연동 클라이언트 인터페이스</b>
+ *
+ * <p>
+ * 외부 AI 모델 서버와의 HTTP 통신을 담당.
+ * WebClient를 사용하여 논블로킹(Non-blocking) 방식의 스트리밍 응답을 처리.
+ * </p>
  *
  * @author pwk0131
  */
 public interface AiServiceClient {
 
 	/**
-	 * AI 챗봇 스트리밍 요청
+	 * <b>AI 답변 스트리밍 요청</b>
 	 *
-	 * @param request 사용자 요청 정보
-	 * @param history 대화 히스토리
-	 * @return AI 응답 스트림 (Flux)
+	 * <p>
+	 * 사용자 질문과 대화 내역을 기반으로 AI 서버에 질의하고,
+	 * 실시간으로 생성되는 답변을 Flux 스트림으로 반환.
+	 * </p>
+	 *
+	 * @param request 사용자 질문 및 설정 정보
+	 * @param history 대화 문맥 유지를 위한 과거 메시지 리스트
+	 * @return AI 응답 객체 스트림 (Flux&lt;AiServiceResponse&gt;)
 	 */
 	Flux<AiServiceResponse> streamChat(ChatRequest request, List<ChatHistoryResponse> history);
 }

@@ -14,12 +14,17 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 /**
- * 대화별 토큰 사용량 관리 엔티티
+ * <b>토큰 사용량 기록 엔티티</b>
  *
  * <p>
- * 컬렉션 : {@code token}<br>
- * 특정 대화({@link ChatMessage}) 발생 시 소모된 토큰 정보 저장
+ * 대화 생성 시 소모된 토큰(Token) 수와 사용된 모델(Preset) 정보를 저장.
+ * 비용 산정 및 사용량 통계 분석에 활용.
  * </p>
+ *
+ * <ul>
+ * <li>Collection Name: {@code token}</li>
+ * <li>Relation: {@link ChatMessage}와 1:1 대응</li>
+ * </ul>
  *
  * @author pwk0131
  */
@@ -39,21 +44,22 @@ public class ChatTokenUsage {
 	private LocalDateTime createdDate;
 
 	/**
-	 * 연관된 메시지 ID (ChatMessage의 _id)
+	 * 연관된 대화 메시지 ID
 	 * <p>
-	 * 주의: Python 코드에서 message_id를 'chatId' 필드명으로 저장했음.
+	 * {@link ChatMessage}의 PK(_id)를 참조.<br>
+	 * <b>주의:</b> 레거시 데이터와의 호환성을 위해 DB 필드명은 'chatId'로 저장됨.
 	 * </p>
 	 */
 	@Field(name = "chatId", targetType = FieldType.OBJECT_ID)
 	private String messageId;
 
 	/**
-	 * 사용된 LLM 프리셋 (모델명 등)
+	 * 사용된 LLM 모델 프리셋 (예: gpt-4o, claude-3)
 	 */
 	private String preset;
 
 	/**
-	 * 총 사용 토큰 수
+	 * 총 소모 토큰 수 (입력 + 출력)
 	 */
 	private Integer totalTokens;
 

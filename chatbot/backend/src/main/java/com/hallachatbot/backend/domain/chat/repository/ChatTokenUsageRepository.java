@@ -6,7 +6,7 @@ import org.springframework.stereotype.Repository;
 import com.hallachatbot.backend.domain.chat.entity.ChatTokenUsage;
 
 /**
- * ChatTokenUsage 리포지토리
+ * <b>ChatTokenUsage 리포지토리</b>
  *
  * <p>
  * MongoDB 'token' 컬렉션 접근용<br>
