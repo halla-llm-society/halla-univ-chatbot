@@ -16,7 +16,6 @@ spring:
 
 app:
   ai-service-url: ${AI_SERVICE_URL:http://localhost:3000}
-
   mongodb-suffix: ${MONGODB_SUFFIX:-stg}
 
   openai-admin-key: ${OPENAI_ADMIN_KEY:}
@@ -25,3 +24,13 @@ app:
   monthly-llm-usage-limit: ${MONTHLY_COST_LIMIT:1000.0}
 
   discord-webhook-url: ${DISCORD_WEBHOOK_URL:}
+
+  cookie:
+    http-only: true
+    secure: true
+    same-site: None
+
+  cors:
+    allowed-origins:
+      - "https://halla-chatbot.com"
+      - "https://www.halla-chatbot.com"

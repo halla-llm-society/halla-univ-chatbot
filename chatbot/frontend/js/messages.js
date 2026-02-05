@@ -5,6 +5,7 @@ function getCookie(name) {
     const v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
     return v ? v[2] : null;
 }
+
 // 쿠키 설정하기
 function setCookie(name, value, days) {
     let expires = "";
@@ -15,6 +16,7 @@ function setCookie(name, value, days) {
     }
     document.cookie = name + "=" + (value || "") + expires + "; path=/";
 }
+
 // 쿠키 삭제하기
 function deleteCookie(name) {
     document.cookie = name + '=; expires=Thu, 01 Jan 1970 00:00:01 GMT; path=/;';
@@ -49,15 +51,15 @@ window.addEventListener("DOMContentLoaded", async () => {
     if (storedId) {
         try {
             const res = await fetch(`${window.baseURL}/api/chat/history`, {
-                credentials: 'include' 
+                credentials: 'include'
             });
             if (res.ok) {
                 const history = await res.json();
-                
+
                 if (history && history.length > 0) {
 
                     sendDefaultMessage();
-                    
+
                     history.forEach(msg => {
                         renderMessage(msg.role, msg.content);
                     });
@@ -74,7 +76,6 @@ window.addEventListener("DOMContentLoaded", async () => {
         sendDefaultMessage();
     }
 });
-
 
 
 // 초기 메시지 생성
@@ -96,14 +97,14 @@ const sendDefaultMessage = () => {
 // user-input placeholder 처리
 const setUserInputPlaceHolder = () => {
     const input = document.getElementById("user-input");
-    if(input) input.placeholder = userInputPlaceHolderDict[language];
+    if (input) input.placeholder = userInputPlaceHolderDict[language];
 }
 
 
 // input, send etc...
 const setInputAndSend = () => {
     const userInput = document.getElementById("user-input");
-    const sendBtn = document.getElementById("send-btn"); 
+    const sendBtn = document.getElementById("send-btn");
 
     if (!userInput || !sendBtn) return;
 
@@ -141,7 +142,6 @@ const setInputAndSend = () => {
 }
 
 
-
 // 유저 메시지 추가
 const appendUserMessage = (userMsg) => {
     // 입력창 초기화
@@ -172,7 +172,7 @@ const sendMessage = async () => {
     }
 
     sendBtn.disabled = true;
-    if(langBtn) langBtn.disabled = true;
+    if (langBtn) langBtn.disabled = true;
     isBotResponding = true;
     appendUserMessage(userMsg);
 
@@ -180,7 +180,7 @@ const sendMessage = async () => {
     await appendBotMessage(userMsg);
 
     sendBtn.disabled = false;
-    if(langBtn) langBtn.disabled = false;
+    if (langBtn) langBtn.disabled = false;
     isBotResponding = false;
 }
 
@@ -194,9 +194,9 @@ const appendBotMessage = async (userMsg) => {
         // request
         const resp = await fetch(`${window.baseURL}/api/chat`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {"Content-Type": "application/json"},
             credentials: 'include',
-            body: JSON.stringify({ "user_input": userMsg, "language": language })
+            body: JSON.stringify({"user_input": userMsg, "language": language})
         });
 
         // response
@@ -206,23 +206,32 @@ const appendBotMessage = async (userMsg) => {
         let buffer = "";
 
         while (true) {
-            const { done, value } = await reader.read();
+            const {done, value} = await reader.read();
             clearInterval(waitMessageInterval);
 
             if (done) {
                 break;
             }
 
-            buffer += decoder.decode(value, { stream: true });
+            buffer += decoder.decode(value, {stream: true});
 
             const lines = buffer.split("\n");
             buffer = lines.pop();
 
             for (const line of lines) {
-                if (!line.trim()) continue;
+                const trimmedLine = line.trim();
+                if (!trimmedLine) continue;
+
+                if (trimmedLine.startsWith(":")) continue;
+
+                // 'data:' 접두어가 있으면 제거
+                let jsonStr = trimmedLine;
+                if (trimmedLine.startsWith("data:")) {
+                    jsonStr = trimmedLine.replace("data:", "").trim();
+                }
 
                 try {
-                    const json = JSON.parse(line);
+                    const json = JSON.parse(jsonStr);
 
                     // A. 답변 텍스트 (타이핑 효과)
                     if (json.type === "delta") {
@@ -233,34 +242,33 @@ const appendBotMessage = async (userMsg) => {
                             messages.scrollTop = messages.scrollHeight;
                             await new Promise(r => setTimeout(r, 10)); // 10ms 딜레이
                         }
-                    } 
+                    }
                     // B. 에러 메시지
                     else if (json.type === "error") {
                         botMsgElement.innerHTML += `<br><span class="error-msg" style="color:red;">⚠️ ${json.message}</span>`;
                     }
                     // C. 메타데이터 (ID 저장)
                     else if (json.type === "metadata") {
-                        
+
                         if (json.data && json.data.chatId) {
                             setCookie("chatId", json.data.chatId, 1);
-                            
+
                         }
                     }
                 } catch (e) {
                     console.error("Stream parse error:", e);
                 }
-            }   
+            }
 
-            
+
         }
 
-        
-    }
-    catch (error) {
+
+    } catch (error) {
         clearInterval(waitMessageInterval);
         botMsgElement.innerHTML = `❌ ${errorMsgDict[language]}:` + error.message;
     }
-    
+
     messages.scrollTop = messages.scrollHeight;
 };
 
@@ -303,7 +311,7 @@ const initWaitMessageInterval = (botMsgElement) => {
 // 설문조사 메시지 추가
 const appendSurveyMessage = (surveyMsg) => {
     let msgElement = document.createElement("div");
-    
+
     msgElement.innerHTML = `
     <div class="bot-message-container animate">
         <img class="bot-avatar" src="assets/bot-avatar.png" alt="bot" />

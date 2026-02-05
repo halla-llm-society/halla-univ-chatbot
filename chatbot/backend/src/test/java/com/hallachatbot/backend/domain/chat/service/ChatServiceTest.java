@@ -4,36 +4,35 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 
 import java.util.Collections;
-import java.util.Map;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.codec.ServerSentEvent;
-import org.springframework.test.util.ReflectionTestUtils;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.hallachatbot.backend.domain.chat.component.ChatReader;
+import com.hallachatbot.backend.domain.chat.component.ChatStreamHandler;
+import com.hallachatbot.backend.domain.chat.component.ChatWriter;
 import com.hallachatbot.backend.domain.chat.dto.request.ChatRequest;
-import com.hallachatbot.backend.domain.chat.entity.ChatMessage;
-import com.hallachatbot.backend.domain.chat.repository.ChatMessageRepository;
-import com.hallachatbot.backend.domain.chat.repository.ChatMetadataRepository;
-import com.hallachatbot.backend.domain.chat.repository.ChatTokenUsageRepository;
 import com.hallachatbot.backend.domain.usage.service.UsageService;
-import com.hallachatbot.backend.global.client.AiServiceClient;
 import com.hallachatbot.backend.global.client.dto.AiServiceResponse;
+import com.hallachatbot.backend.global.client.service.AiServiceClient;
 import com.hallachatbot.backend.global.errorcode.UsageErrorCode;
+import com.hallachatbot.backend.global.exception.ChatStreamErrorHandler;
 import com.hallachatbot.backend.global.exception.UsageException;
+import com.hallachatbot.backend.global.sse.SseEventFactory;
 
 import reactor.core.publisher.Flux;
 import reactor.test.StepVerifier;
@@ -51,30 +50,33 @@ class ChatServiceTest {
 	private AiServiceClient aiServiceClient;
 
 	@Mock
-	private ChatMessageRepository chatMessageRepository;
+	private ChatReader chatReader;
 
 	@Mock
-	private ChatTokenUsageRepository chatTokenUsageRepository;
+	private ChatWriter chatWriter;
 
 	@Mock
-	private ChatMetadataRepository chatMetadataRepository;
+	private ChatStreamHandler chatStreamHandler;
 
-	@Spy
-	private ObjectMapper objectMapper = new ObjectMapper();
+	@Mock
+	private SseEventFactory sseEventFactory;
+
+	@Mock
+	private ChatStreamErrorHandler chatStreamErrorHandler;
 
 	@Test
 	@DisplayName("비용 한도를 초과하면 채팅을 시작하지 않고 예외가 발생한다")
 	void startChat_Fail_CostExceeded() {
 		// given
-		ChatRequest request = new ChatRequest();
+		ChatRequest request = new ChatRequest("질문", ChatRequest.Language.KOR);
 		String chatId = "test-chat-id";
 
-		// [수정됨] void 메서드에 대한 BDDMockito 예외 발생 설정
+		// void 메서드에 대한 BDDMockito 예외 발생 설정
 		willThrow(new UsageException(UsageErrorCode.MONTHLY_LLM_BUDGET_EXCEEDED))
 			.given(usageService).checkLlmUsage();
 
 		// when & then
-		assertThatThrownBy(() -> chatService.startChat(request, chatId, false))
+		assertThatThrownBy(() -> chatService.startChat(request, chatId))
 			.isInstanceOf(UsageException.class)
 			.hasFieldOrPropertyWithValue("errorCode", UsageErrorCode.MONTHLY_LLM_BUDGET_EXCEEDED);
 
@@ -87,26 +89,41 @@ class ChatServiceTest {
 	void startChat_Success() {
 		// given
 		String chatId = "valid-chat-id";
-		String userInput = "안녕하세요";
-		ChatRequest request = new ChatRequest();
-
-		ReflectionTestUtils.setField(request, "userInput", userInput);
-		ReflectionTestUtils.setField(request, "language", ChatRequest.Language.KOR);
+		ChatRequest request = new ChatRequest("안녕하세요", ChatRequest.Language.KOR);
 
 		// 1. 히스토리 조회 Mock
-		given(chatMessageRepository.findTop6ByChatIdOrderByCreatedDateDesc(chatId))
+		given(chatReader.getChatHistory(chatId))
 			.willReturn(Collections.emptyList());
 
-		// 2. AI 서비스 응답 Mock (Flux)
-		AiServiceResponse deltaResponse = new AiServiceResponse();
-		ReflectionTestUtils.setField(deltaResponse, "type", "delta");
-		ReflectionTestUtils.setField(deltaResponse, "content", "반갑습니다.");
+		// 2. 초기 Metadata 이벤트 Mock (SseEventFactory)
+		String metadataJson = "{\"type\":\"metadata\",\"chatId\":\"" + chatId + "\"}";
+		given(sseEventFactory.createMetadata(anyMap()))
+			.willReturn(ServerSentEvent.builder(metadataJson).build());
 
+		// 3. AI 응답 및 핸들러 Mock
+		AiServiceResponse deltaResponse = new AiServiceResponse("delta", "반갑습니다.", null, null, null);
+
+		// 4. AI 클라이언트가 응답을 방출
 		given(aiServiceClient.streamChat(any(ChatRequest.class), anyList()))
 			.willReturn(Flux.just(deltaResponse));
 
+		// 5. ChatStreamHandler가 null이 아닌 SSE 이벤트를 반환하도록 Stubbing 추가
+		String deltaJson = "{\"type\":\"delta\",\"content\":\"반갑습니다.\"}";
+		given(chatStreamHandler.processAiResponse(any(), any()))
+			.willAnswer(invocation -> {
+				AiServiceResponse response = invocation.getArgument(0);
+				ChatStreamContext context = invocation.getArgument(1);
+
+				// Mock이지만 실제 로직처럼 context에 답변을 넣어줘야 hasAnswer()가 true가 됨
+				if ("delta".equals(response.type())) {
+					context.appendAnswer(response.content());
+				}
+
+				return ServerSentEvent.builder(deltaJson).build();
+			});
+
 		// when
-		Flux<ServerSentEvent<String>> resultFlux = chatService.startChat(request, chatId, false);
+		Flux<ServerSentEvent<String>> resultFlux = chatService.startChat(request, chatId);
 
 		// then
 		StepVerifier.create(resultFlux)
@@ -122,35 +139,9 @@ class ChatServiceTest {
 			})
 			.verifyComplete();
 
-		// 검증: 비용 체크가 호출되었는지
-		verify(usageService, times(1)).checkLlmUsage();
-	}
-
-	@Test
-	@DisplayName("쿠키가 변조된 경우 경고 메시지 이벤트가 포함된다")
-	void startChat_TamperedCookie() {
-		// given
-		String chatId = "new-chat-id";
-		ChatRequest request = new ChatRequest();
-		ReflectionTestUtils.setField(request, "userInput", "질문");
-
-		given(chatMessageRepository.findTop6ByChatIdOrderByCreatedDateDesc(chatId))
-			.willReturn(Collections.emptyList());
-
-		given(aiServiceClient.streamChat(any(), any()))
-			.willReturn(Flux.empty()); // AI 응답 없음
-
-		// when
-		Flux<ServerSentEvent<String>> resultFlux = chatService.startChat(request, chatId, true);
-
-		// then
-		StepVerifier.create(resultFlux)
-			.expectNextCount(1) // metadata
-			.assertNext(event -> {
-				// 경고 메시지 이벤트 확인
-				assertThat(event.data()).contains("유효하지 않은 쿠키가 감지되어");
-			})
-			.verifyComplete();
+		// 검증
+		verify(usageService).checkLlmUsage();
+		verify(chatWriter, timeout(1000)).saveChatData(any());
 	}
 
 	@Test
@@ -158,63 +149,51 @@ class ChatServiceTest {
 	void startChat_WithMetadataAndError() {
 		// given
 		String chatId = "test-chat-id";
-		ChatRequest request = new ChatRequest();
-		ReflectionTestUtils.setField(request, "userInput", "질문");
-		ReflectionTestUtils.setField(request, "language", ChatRequest.Language.KOR);
+		ChatRequest request = new ChatRequest("질문", ChatRequest.Language.KOR);
 
-		given(chatMessageRepository.findTop6ByChatIdOrderByCreatedDateDesc(chatId))
+		given(chatReader.getChatHistory(chatId))
 			.willReturn(Collections.emptyList());
 
-		given(chatMessageRepository.save(any(ChatMessage.class)))
-			.willAnswer(invocation -> {
-				ChatMessage sourceMsg = invocation.getArgument(0);
+		// 초기 이벤트 Mock
+		given(sseEventFactory.createMetadata(anyMap()))
+			.willReturn(ServerSentEvent.builder("{\"type\":\"metadata\"}").build());
 
-				ChatMessage savedMsg = ChatMessage.builder()
-					.chatId(sourceMsg.getChatId())
-					.question(sourceMsg.getQuestion())
-					.answer(sourceMsg.getAnswer())
-					.decision(sourceMsg.getDecision())
-					.build();
+		// 다양한 타입의 AI 응답 시뮬레이션
+		AiServiceResponse delta = new AiServiceResponse("delta", null, null, null, null);
+		AiServiceResponse metadata = new AiServiceResponse("metadata", null, null, null, null);
+		AiServiceResponse error = new AiServiceResponse("error", null, null, null, null);
 
-				ReflectionTestUtils.setField(savedMsg, "id", "generated-msg-id");
-
-				return savedMsg;
-			});
-
-		// 다양한 타입의 응답 시뮬레이션
-		AiServiceResponse delta = new AiServiceResponse();
-		ReflectionTestUtils.setField(delta, "type", "delta");
-		ReflectionTestUtils.setField(delta, "content", "답변내용");
-
-		AiServiceResponse metadata = new AiServiceResponse();
-		ReflectionTestUtils.setField(metadata, "type", "metadata");
-		// RAG 및 Token 정보가 있는 복잡한 맵 구조
-		Map<String, Object> ragMap = Map.of("gate_reason", "retrieval_needed");
-		Map<String, Object> usageMap = Map.of("preset", "gpt-4", "total_tokens", 150);
-		Map<String, Object> dataMap = new java.util.HashMap<>(); // 가변 Map
-		dataMap.put("rag", ragMap);
-		dataMap.put("token_usage", usageMap);
-		ReflectionTestUtils.setField(metadata, "data", dataMap);
-
-		AiServiceResponse error = new AiServiceResponse();
-		ReflectionTestUtils.setField(error, "type", "error");
-		ReflectionTestUtils.setField(error, "message", "일시적 오류");
-
-		// 순서대로 방출
+		// AI Client Mock
 		given(aiServiceClient.streamChat(any(), anyList()))
 			.willReturn(Flux.just(delta, metadata, error));
 
+		// Handler Mock - 각 응답에 대해 적절한 SSE 반환 설정
+		given(chatStreamHandler.processAiResponse(eq(delta), any()))
+			.willAnswer(invocation -> {
+				ChatStreamContext context = invocation.getArgument(1);
+				context.appendAnswer("답변내용"); // Context 업데이트
+				return ServerSentEvent.builder("{\"type\":\"delta\",\"content\":\"답변내용\"}").build();
+			});
+
+		given(chatStreamHandler.processAiResponse(eq(metadata), any()))
+			.willReturn(
+				ServerSentEvent.builder("{\"type\":\"metadata\",\"rag\":\"retrieval_needed\",\"preset\":\"gpt-4\"}")
+					.build());
+
+		given(chatStreamHandler.processAiResponse(eq(error), any()))
+			.willReturn(ServerSentEvent.builder("{\"type\":\"error\",\"message\":\"일시적 오류\"}").build());
+
 		// when
-		Flux<ServerSentEvent<String>> resultFlux = chatService.startChat(request, chatId, false);
+		Flux<ServerSentEvent<String>> resultFlux = chatService.startChat(request, chatId);
 
 		// then
 		StepVerifier.create(resultFlux)
-			.expectNextCount(1) // 초기 metadata(chatId)
+			.expectNextCount(1) // 초기 metadata
 			.assertNext(event -> assertThat(event.data()).contains("delta").contains("답변내용"))
 			.assertNext(event -> {
 				assertThat(event.data()).contains("metadata");
-				assertThat(event.data()).contains("retrieval_needed"); // RAG 정보 확인
-				assertThat(event.data()).contains("gpt-4"); // Token 정보 확인
+				assertThat(event.data()).contains("retrieval_needed");
+				assertThat(event.data()).contains("gpt-4");
 			})
 			.assertNext(event -> {
 				assertThat(event.data()).contains("error");
@@ -222,10 +201,7 @@ class ChatServiceTest {
 			})
 			.verifyComplete();
 
-		// 비동기 저장 로직 검증 (조금 기다렸다가 확인하거나 verify timeout 사용)
-		// 주의: Schedulers.boundedElastic() 때문에 약간의 지연이 있을 수 있음
-		verify(chatMessageRepository, org.mockito.Mockito.timeout(1000).times(1)).save(any(ChatMessage.class));
-		verify(chatTokenUsageRepository, org.mockito.Mockito.timeout(1000).times(1)).save(any());
-		verify(chatMetadataRepository, org.mockito.Mockito.timeout(1000).times(1)).save(any());
+		// ChatWriter(저장 담당)가 호출되었는지 검증
+		verify(chatWriter, timeout(1000).times(1)).saveChatData(any());
 	}
 }

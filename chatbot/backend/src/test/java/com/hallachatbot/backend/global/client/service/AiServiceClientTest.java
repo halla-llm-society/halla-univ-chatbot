@@ -1,4 +1,4 @@
-package com.hallachatbot.backend.global.client;
+package com.hallachatbot.backend.global.client.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -13,6 +13,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hallachatbot.backend.domain.chat.dto.request.ChatRequest;
@@ -34,9 +35,10 @@ class AiServiceClientTest {
 		mockWebServer = new MockWebServer();
 		mockWebServer.start();
 
-		// WebClient는 실제 빌더를 사용
 		WebClient.Builder webClientBuilder = WebClient.builder();
-		aiServiceClient = new AiServiceClient(webClientBuilder);
+
+		aiServiceClient = new AiServiceClientImpl(webClientBuilder);
+
 		objectMapper = new ObjectMapper();
 
 		// 테스트용 Mock Server URL 주입
@@ -52,9 +54,7 @@ class AiServiceClientTest {
 	@DisplayName("AI 서비스가 정상적으로 스트리밍 응답을 반환한다")
 	void streamChat_Success() throws Exception {
 		// given
-		ChatRequest request = new ChatRequest();
-		ReflectionTestUtils.setField(request, "userInput", "질문");
-		ReflectionTestUtils.setField(request, "language", ChatRequest.Language.KOR);
+		ChatRequest request = new ChatRequest("질문", ChatRequest.Language.KOR);
 
 		// Mock Server 응답 설정 (NDJSON 형태 시뮬레이션)
 		String responseBody = """
@@ -74,17 +74,57 @@ class AiServiceClientTest {
 		// then
 		StepVerifier.create(responseFlux)
 			.assertNext(res -> {
-				assertThat(res.getType()).isEqualTo("delta");
-				assertThat(res.getContent()).isEqualTo("안녕");
+				assertThat(res.type()).isEqualTo("delta");
+				assertThat(res.content()).isEqualTo("안녕");
 			})
 			.assertNext(res -> {
-				assertThat(res.getType()).isEqualTo("delta");
-				assertThat(res.getContent()).isEqualTo("하세요");
+				assertThat(res.type()).isEqualTo("delta");
+				assertThat(res.content()).isEqualTo("하세요");
 			})
 			.assertNext(res -> {
-				assertThat(res.getType()).isEqualTo("metadata");
-				assertThat(res.getData()).containsEntry("token_usage", java.util.Map.of("total_tokens", 10));
+				assertThat(res.type()).isEqualTo("metadata");
+				assertThat(res.data()).containsEntry("token_usage", java.util.Map.of("total_tokens", 10));
 			})
 			.verifyComplete();
+	}
+
+	@Test
+	@DisplayName("AI 서비스가 4xx/5xx 에러를 반환하면 WebClientResponseException이 전파된다")
+	void streamChat_HttpError() {
+		// given: AI 서버가 400 Bad Request를 반환하도록 설정
+		mockWebServer.enqueue(new MockResponse()
+			.setResponseCode(400)
+			.setHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+			.setBody("{\"error\": \"Bad Request\"}"));
+
+		ChatRequest request = new ChatRequest("질문", ChatRequest.Language.KOR);
+
+		// when
+		Flux<AiServiceResponse> responseFlux = aiServiceClient.streamChat(request, Collections.emptyList());
+
+		// then: 에러가 발생해야 하며, doOnError(WebClientResponseException) 로직이 타게 됨
+		StepVerifier.create(responseFlux)
+			.expectError(WebClientResponseException.class)
+			.verify();
+	}
+
+	@Test
+	@DisplayName("AI 응답이 올바른 JSON 형식이 아니면 파싱 에러가 발생한다")
+	void streamChat_ParsingError() {
+		// given: 유효하지 않은 JSON 본문 반환
+		mockWebServer.enqueue(new MockResponse()
+			.setResponseCode(200)
+			.setHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+			.setBody("{invalid-json-body...}"));
+
+		ChatRequest request = new ChatRequest("질문", ChatRequest.Language.KOR);
+
+		// when
+		Flux<AiServiceResponse> responseFlux = aiServiceClient.streamChat(request, Collections.emptyList());
+
+		// then: JSON 디코딩 실패로 에러 발생 (doOnError의 '그 외 에러' 로직 커버)
+		StepVerifier.create(responseFlux)
+			.expectError()
+			.verify();
 	}
 }

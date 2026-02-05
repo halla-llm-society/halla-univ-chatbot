@@ -15,12 +15,17 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 /**
- * 대화 메타데이터 엔티티
+ * <b>대화 상세 메타데이터 엔티티</b>
  *
  * <p>
- * 컬렉션 : {@code metadata}<br>
- * AI 서비스로부터 반환된 원본 메타데이터 상세 정보를 저장 (디버깅 및 분석용)
+ * AI 서비스로부터 반환된 원본 메타데이터(JSON)를 보관하는 문서.
+ * 디버깅, 품질 분석, 모델 성능 모니터링 목적으로 사용.
  * </p>
+ *
+ * <ul>
+ * <li>Collection Name: {@code metadata}</li>
+ * <li>Relation: {@link ChatMessage}와 1:1 대응</li>
+ * </ul>
  *
  * @author pwk0131
  */
@@ -40,15 +45,18 @@ public class ChatMetadata {
 	private LocalDateTime createdDate;
 
 	/**
-	 * 연관된 메시지 ID (ChatMessage의 _id)
+	 * 연관된 대화 메시지 ID
+	 * <p>
+	 * {@link ChatMessage}의 PK(_id)를 참조
+	 * </p>
 	 */
 	@Field(name = "chatId", targetType = FieldType.OBJECT_ID)
 	private String messageId;
 
 	/**
-	 * 메타데이터 원본 (JSON 객체)
+	 * 메타데이터 원본 (Key-Value)
 	 * <p>
-	 * 구조가 가변적일 수 있으므로 Map으로 매핑
+	 * AI 파이프라인의 단계별 처리 결과 및 디버그 정보를 포함
 	 * </p>
 	 */
 	private Map<String, Object> metadata;

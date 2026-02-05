@@ -1,7 +1,6 @@
 package com.hallachatbot.backend.domain.chat.controller;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -18,7 +17,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -47,11 +45,9 @@ class ChatControllerTest {
 	@DisplayName("채팅 요청 시 쿠키가 없으면 새 chatId 쿠키를 발급한다")
 	void chat_NoCookie_GeneratesNewCookie() throws Exception {
 		// given
-		ChatRequest request = new ChatRequest();
-		ReflectionTestUtils.setField(request, "userInput", "안녕");
-		ReflectionTestUtils.setField(request, "language", ChatRequest.Language.KOR);
+		ChatRequest request = new ChatRequest("안녕", ChatRequest.Language.KOR);
 
-		given(chatService.startChat(any(ChatRequest.class), any(), anyBoolean()))
+		given(chatService.startChat(any(ChatRequest.class), any()))
 			.willReturn(Flux.empty());
 
 		// when & then
@@ -67,11 +63,9 @@ class ChatControllerTest {
 	void chat_ValidCookie_MaintainsCookie() throws Exception {
 		// given
 		String existingChatId = new ObjectId().toHexString();
-		ChatRequest request = new ChatRequest();
-		ReflectionTestUtils.setField(request, "userInput", "안녕");
-		ReflectionTestUtils.setField(request, "language", ChatRequest.Language.KOR);
+		ChatRequest request = new ChatRequest("안녕", ChatRequest.Language.KOR);
 
-		given(chatService.startChat(any(ChatRequest.class), eq(existingChatId), eq(false)))
+		given(chatService.startChat(any(ChatRequest.class), eq(existingChatId)))
 			.willReturn(Flux.empty());
 
 		// when & then
@@ -89,7 +83,7 @@ class ChatControllerTest {
 		// given
 		String chatId = new ObjectId().toHexString();
 
-		given(chatMessageRepository.findTop6ByChatIdOrderByCreatedDateDesc(chatId))
+		given(chatService.getChatHistory(chatId))
 			.willReturn(Collections.emptyList());
 
 		// when & then

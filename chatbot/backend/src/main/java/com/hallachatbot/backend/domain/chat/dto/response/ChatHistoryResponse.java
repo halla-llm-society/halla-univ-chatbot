@@ -1,39 +1,21 @@
 package com.hallachatbot.backend.domain.chat.dto.response;
 
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-
 /**
- * 채팅 히스토리 응답 DTO
+ * <b>채팅 히스토리 응답 DTO</b>
  *
  * <p>
- * 클라이언트(UI)에 과거 대화 내역을 전달하기 위한 객체<br>
- * OpenAI API 포맷과 유사하게 role(역할)과 content(내용)으로 구성됨
+ * 클라이언트(UI) 렌더링 및 AI 모델의 문맥 주입을 위해 사용되는 과거 대화 객체.
+ * OpenAI Chat Completion API의 Message 구조(role, content)를 준수함.
  * </p>
  *
+ * @param role    메시지 발화자 역할 (예: "user", "assistant")
+ * @param content 메시지 본문 내용
  * @author pwk0131
  */
-@Getter
-@NoArgsConstructor
-public class ChatHistoryResponse {
-
-	/**
-	 * 역할 (user 또는 assistant)
-	 */
-	private String role;
-
-	/**
-	 * 대화 내용
-	 */
-	private String content;
-
-	@Builder
-	public ChatHistoryResponse(String role, String content) {
-		this.role = role;
-		this.content = content;
-	}
-
+public record ChatHistoryResponse(
+	String role,
+	String content
+) {
 	/**
 	 * 사용자(User) 메시지 생성 편의 메서드
 	 */

@@ -8,8 +8,7 @@ import org.springframework.stereotype.Repository;
 import com.hallachatbot.backend.domain.chat.entity.ChatMessage;
 
 /**
- * ChatMessage 리포지토리
- *
+ * <b>ChatMessage 리포지토리</b>
  * <p>
  * MongoDB 'chat' 컬렉션에 대한 CRUD 및 쿼리 메서드 제공
  * </p>

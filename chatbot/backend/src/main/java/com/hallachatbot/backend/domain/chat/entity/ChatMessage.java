@@ -14,12 +14,17 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 /**
- * 챗봇 대화 내용 저장 엔티티
+ * <b>챗봇 대화 메시지 엔티티</b>
  *
  * <p>
- * 컬렉션 : {@code chat}<br>
- * 사용자 질문, AI 답변, RAG 결정 사유 등을 저장함
+ * 사용자와 AI 간의 질의응답 내용을 저장하는 메인 문서.
+ * 질문(question), 답변(answer), 그리고 답변 생성에 대한 근거(decision)를 포함.
  * </p>
+ *
+ * <ul>
+ * <li>Collection Name: {@code chat}</li>
+ * </ul>
+ *
  * @author pwk0131
  */
 @Getter
@@ -53,7 +58,10 @@ public class ChatMessage {
 	private String decision;
 
 	/**
-	 * 사용자 세션 ID (쿠키의 chatId)
+	 * 사용자 세션 식별자 (Cookie의 chatId)
+	 * <p>
+	 * 특정 사용자의 대화 흐름을 그룹화하기 위한 외래 키 역할
+	 * </p>
 	 */
 	@Field(name = "chatId", targetType = FieldType.OBJECT_ID)
 	private String chatId;

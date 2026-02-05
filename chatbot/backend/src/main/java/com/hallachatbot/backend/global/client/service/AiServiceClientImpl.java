@@ -1,4 +1,4 @@
-package com.hallachatbot.backend.global.client;
+package com.hallachatbot.backend.global.client.service;
 
 import java.time.Duration;
 import java.util.List;
@@ -20,19 +20,24 @@ import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 
 /**
- * AI 서비스 연동 클라이언트
+ * <b>AI 서비스 연동 클라이언트 구현체</b>
  *
  * <p>
- * Python의 httpx 로직을 WebClient로 이식<br>
- * SSE(또는 NDJSON) 스트림을 받아 처리함
+ * Spring WebClient를 활용하여 외부 AI API와 비동기 통신을 수행.
  * </p>
+ *
+ * <ul>
+ * <li><b>타임아웃:</b> 120초 (응답 지연 시 연결 종료)</li>
+ * <li><b>모니터링:</b> 첫 토큰 수신 시간(TTFT) 및 전체 응답 시간 로깅</li>
+ * <li><b>에러 처리:</b> HTTP 상태 코드에 따른 예외 로깅</li>
+ * </ul>
  *
  * @author pwk0131
  */
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class AiServiceClient {
+public class AiServiceClientImpl implements AiServiceClient {
 
 	private final WebClient.Builder webClientBuilder;
 
@@ -40,20 +45,24 @@ public class AiServiceClient {
 	private String aiServiceUrl;
 
 	/**
-	 * AI 챗봇 스트리밍 요청
+	 * {@inheritDoc}
 	 *
-	 * @param request 사용자 요청 정보
-	 * @param history 대화 히스토리
-	 * @return AI 응답 스트림 (Flux)
+	 * <p>
+	 * <b>동작 과정:</b><br>
+	 * 1. 요청 DTO 생성 및 엔드포인트 설정<br>
+	 * 2. POST 요청 전송 (Content-Type: application/json)<br>
+	 * 3. 응답 본문을 {@link AiServiceResponse} 스트림으로 변환<br>
+	 * 4. 첫 번째 데이터(Delta) 수신 시점과 완료 시점의 소요 시간을 계산하여 로깅
+	 * </p>
 	 */
 	public Flux<AiServiceResponse> streamChat(ChatRequest request, List<ChatHistoryResponse> history) {
 		String endpoint = aiServiceUrl + "/api/chat";
 
-		AiChatRequest aiBody = AiChatRequest.builder()
-			.userInput(request.getUserInput())
-			.messageHistory(history)
-			.language(request.getLanguage())
-			.build();
+		AiChatRequest aiBody = new AiChatRequest(
+			request.userInput(),
+			history,
+			request.language()
+		);
 
 		// 성능 측정용 변수 (로그)
 		long startTime = System.nanoTime();
@@ -69,11 +78,11 @@ public class AiServiceClient {
 			.timeout(Duration.ofSeconds(120))
 			.doOnNext(response -> {
 				// 첫 번째 토큰("delta") 수신 시 시간 로깅
-				if ("delta".equals(response.getType()) && !firstTokenReceived.get() && response.getContent() != null) {
+				if ("delta".equals(response.type()) && !firstTokenReceived.get() && response.content() != null) {
 					firstTokenReceived.set(true);
 					double durationSeconds = (System.nanoTime() - startTime) / 1_000_000_000.0;
 					log.info("[AI 첫 응답 소요 시간]: {}초 | 첫 토큰: {}", String.format("%.4f", durationSeconds),
-						response.getContent());
+						response.content());
 				}
 			})
 			.doOnComplete(() -> {

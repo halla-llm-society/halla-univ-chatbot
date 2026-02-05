@@ -2,38 +2,26 @@ package com.hallachatbot.backend.global.client.dto;
 
 import java.util.Map;
 
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.ToString;
-
 /**
- * AI 서비스 스트리밍 응답 DTO
- * (NDJSON 라인 하나에 해당)
+ * <b>AI 서비스 응답 DTO</b>
+ *
+ * <p>
+ * AI 모델 서버로부터 수신되는 SSE(Server-Sent Events) 스트림의 데이터 단위.<br>
+ * 스트리밍 특성상 완성된 문장이 아닌 조각(Delta) 또는 메타데이터 형태로 전달됨.
+ * </p>
+ *
+ * @param type    응답 유형 (예: "delta", "metadata", "error")
+ * @param content 답변 텍스트 조각 (type="delta"일 경우 존재)
+ * @param data    추가 메타데이터 또는 에러 상세 정보 (Map 구조)
+ * @param message 에러 메시지 (type="error"일 경우 존재)
+ * @param code    에러 코드
+ * @author pwk0131
  */
-@Getter
-@NoArgsConstructor
-@ToString
-public class AiServiceResponse {
-
-	/**
-	 * 이벤트 타입 (delta, metadata, error)
-	 */
-	private String type;
-
-	/**
-	 * 채팅 내용 (type="delta" 일 때)
-	 */
-	private String content;
-
-	/**
-	 * 메타데이터 또는 에러 상세 (type="metadata" or "error" 일 때)
-	 */
-	private Map<String, Object> data;
-
-	/**
-	 * 에러 메시지 (type="error" 일 때 간혹 사용됨)
-	 */
-	private String message;
-
-	private String code;
+public record AiServiceResponse(
+	String type,
+	String content,
+	Map<String, Object> data,
+	String message,
+	String code
+) {
 }
