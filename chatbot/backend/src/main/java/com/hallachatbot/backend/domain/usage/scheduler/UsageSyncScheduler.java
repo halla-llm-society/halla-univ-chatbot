@@ -3,6 +3,7 @@ package com.hallachatbot.backend.domain.usage.scheduler;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.time.ZoneId;
 
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -33,14 +34,12 @@ public class UsageSyncScheduler {
 	 */
 	@Scheduled(cron = "0 0 0 * * *", zone = "Asia/Seoul")
 	public void syncMonthlyLlmUsage() {
-		LocalDate syncDate = LocalDate.now();
+		LocalDate syncDate = LocalDate.now(ZoneId.of("Asia/Seoul"));
+		String currentPeriod = getCurrentPeriod();
 
 		try {
 			// OpenAI 서버에서 누적 비용 조회
 			BigDecimal exactUsage = openAiUsageClient.fetchMonthlyTotalUsageAmount();
-
-			// 현재 연월 문자열 생성
-			String currentPeriod = YearMonth.now().toString();
 
 			// Redis에 저장된 기존 추정치를 정확한 값으로 갱신
 			llmUsageRedisDao.setUsage(currentPeriod, exactUsage);
@@ -52,5 +51,10 @@ public class UsageSyncScheduler {
 			log.error("[UsageSync] OpenAI LLM 비용 동기화 실패 (Date: {}) - {}",
 				syncDate, e.getMessage(), e);
 		}
+	}
+
+	private String getCurrentPeriod() {
+		YearMonth currentMonth = YearMonth.now(ZoneId.of("Asia/Seoul"));
+		return currentMonth.toString();
 	}
 }
