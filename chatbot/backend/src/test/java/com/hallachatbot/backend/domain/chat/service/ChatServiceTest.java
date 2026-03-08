@@ -73,7 +73,7 @@ class ChatServiceTest {
 
 		// void 메서드에 대한 BDDMockito 예외 발생 설정
 		willThrow(new UsageException(UsageErrorCode.MONTHLY_LLM_BUDGET_EXCEEDED))
-			.given(usageService).checkLlmUsage();
+			.given(usageService).checkMonthlyLlmUsage();
 
 		// when & then
 		assertThatThrownBy(() -> chatService.startChat(request, chatId))
@@ -140,7 +140,7 @@ class ChatServiceTest {
 			.verifyComplete();
 
 		// 검증
-		verify(usageService).checkLlmUsage();
+		verify(usageService).checkMonthlyLlmUsage();
 		verify(chatWriter, timeout(1000)).saveChatData(any());
 	}
 

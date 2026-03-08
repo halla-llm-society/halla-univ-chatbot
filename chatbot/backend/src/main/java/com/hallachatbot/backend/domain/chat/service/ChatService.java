@@ -65,7 +65,7 @@ public class ChatService {
 	 */
 	public Flux<ServerSentEvent<String>> startChat(ChatRequest request, String chatId) {
 		// 1. 비용 한도 확인
-		usageService.checkLlmUsage();
+		usageService.checkMonthlyLlmUsage();
 
 		// 2. 대화 히스토리 조회
 		List<ChatHistoryResponse> history = getChatHistory(chatId);

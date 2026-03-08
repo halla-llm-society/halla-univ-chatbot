@@ -1,16 +1,10 @@
 package com.hallachatbot.backend.domain.usage.service;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatCode;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.BDDMockito.given;
-import static org.mockito.BDDMockito.times;
-import static org.mockito.BDDMockito.verify;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 import java.math.BigDecimal;
 import java.time.YearMonth;
-import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -21,8 +15,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import com.hallachatbot.backend.domain.usage.entity.MonthlyLlmUsage;
-import com.hallachatbot.backend.domain.usage.repository.MonthlyLlmUsageRepository;
+import com.hallachatbot.backend.domain.usage.dao.LlmUsageRedisDao;
 import com.hallachatbot.backend.global.errorcode.UsageErrorCode;
 import com.hallachatbot.backend.global.exception.UsageException;
 
@@ -33,86 +26,82 @@ class UsageServiceImplTest {
 	private UsageServiceImpl usageService;
 
 	@Mock
-	private MonthlyLlmUsageRepository usageRepository;
+	private LlmUsageRedisDao llmUsageRedisDao;
 
-	private static final BigDecimal LIMIT_AMOUNT = new BigDecimal("100.0"); // 100달러 한도
+	private final BigDecimal limitAmount = new BigDecimal("100.00");
+	private String currentPeriod;
 
 	@BeforeEach
 	void setUp() {
-		// @Value 값을 Mock 객체에 주입
-		ReflectionTestUtils.setField(usageService, "monthlyLlmUsageLimit", LIMIT_AMOUNT);
+		// 테스트 실행 시점의 현재 연월 세팅
+		currentPeriod = YearMonth.now().toString();
+
+		// @Value로 주입받는 한도 값을 ReflectionTestUtils를 통해 강제 주입
+		ReflectionTestUtils.setField(usageService, "monthlyLlmUsageLimit", limitAmount);
 	}
 
 	@Test
-	@DisplayName("예산 한도 내라면 검증을 통과한다")
-	void checkLlmUsage_Success() {
+	@DisplayName("한도 체크: 현재 사용량이 한도 미만일 경우 예외가 발생하지 않는다")
+	void checkMonthlyLlmUsage_UnderLimit_DoesNotThrow() {
 		// given
-		String period = YearMonth.now().toString();
-		MonthlyLlmUsage safeUsage = MonthlyLlmUsage.builder()
-			.period(period)
-			.totalUsage(new BigDecimal("50.0")) // 한도(100)보다 적음
-			.build();
-
-		given(usageRepository.findById(period)).willReturn(Optional.of(safeUsage));
-
-		// when & then (예외가 발생하지 않아야 함)
-		assertThatCode(() -> usageService.checkLlmUsage())
-			.doesNotThrowAnyException();
-	}
-
-	@Test
-	@DisplayName("예산 한도를 초과하면 예외를 발생시킨다")
-	void checkLlmUsage_Fail_Exceed() {
-		// given
-		String period = YearMonth.now().toString();
-		MonthlyLlmUsage exceededUsage = MonthlyLlmUsage.builder()
-			.period(period)
-			.totalUsage(new BigDecimal("100.1")) // 한도(100) 초과
-			.build();
-
-		given(usageRepository.findById(period)).willReturn(Optional.of(exceededUsage));
+		BigDecimal currentUsage = new BigDecimal("99.99");
+		when(llmUsageRedisDao.getUsage(currentPeriod)).thenReturn(currentUsage);
 
 		// when & then
-		assertThatThrownBy(() -> usageService.checkLlmUsage())
-			.isInstanceOf(UsageException.class)
-			.hasFieldOrPropertyWithValue("errorCode", UsageErrorCode.MONTHLY_LLM_BUDGET_EXCEEDED);
+		assertDoesNotThrow(() -> usageService.checkMonthlyLlmUsage());
 	}
 
 	@Test
-	@DisplayName("이번 달 기록이 없으면(월초) 0원으로 간주하여 통과한다")
-	void checkLlmUsage_NewMonth() {
+	@DisplayName("한도 체크: 현재 사용량이 한도와 정확히 같을 경우 예외가 발생한다")
+	void checkMonthlyLlmUsage_EqualToLimit_ThrowsException() {
 		// given
-		String period = YearMonth.now().toString();
-		given(usageRepository.findById(period)).willReturn(Optional.empty()); // 데이터 없음
+		BigDecimal currentUsage = new BigDecimal("100.00");
+		when(llmUsageRedisDao.getUsage(currentPeriod)).thenReturn(currentUsage);
 
 		// when & then
-		assertThatCode(() -> usageService.checkLlmUsage())
-			.doesNotThrowAnyException();
+		UsageException exception = assertThrows(UsageException.class, () -> usageService.checkMonthlyLlmUsage());
+		assertEquals(UsageErrorCode.MONTHLY_LLM_BUDGET_EXCEEDED, exception.getErrorCode());
 	}
 
 	@Test
-	@DisplayName("비용 추가 시 Repository save가 호출되어야 한다")
-	void addLlmUsage() {
+	@DisplayName("한도 체크: 현재 사용량이 한도를 초과했을 경우 예외가 발생한다")
+	void checkMonthlyLlmUsage_OverLimit_ThrowsException() {
 		// given
-		String period = YearMonth.now().toString();
-		BigDecimal newCost = new BigDecimal("0.5");
+		BigDecimal currentUsage = new BigDecimal("100.01");
+		when(llmUsageRedisDao.getUsage(currentPeriod)).thenReturn(currentUsage);
 
-		// Mock: 기존에 10달러 썼던 기록이 있다고 가정
-		MonthlyLlmUsage existingUsage = MonthlyLlmUsage.builder()
-			.period(period)
-			.totalUsage(new BigDecimal("10.0"))
-			.build();
+		// when & then
+		UsageException exception = assertThrows(UsageException.class, () -> usageService.checkMonthlyLlmUsage());
+		assertEquals(UsageErrorCode.MONTHLY_LLM_BUDGET_EXCEEDED, exception.getErrorCode());
+	}
 
-		given(usageRepository.findById(period)).willReturn(Optional.of(existingUsage));
+	@Test
+	@DisplayName("비용 누적: 정상적으로 DAO의 increment 메서드를 호출한다")
+	void addMonthlyLlmUsage_Success() {
+		// given
+		BigDecimal cost = new BigDecimal("1.50");
 
 		// when
-		usageService.addLlmUsage(newCost);
+		usageService.addMonthlyLlmUsage(cost);
 
 		// then
-		// 1. save 메서드가 호출되었는지 검증
-		verify(usageRepository, times(1)).save(any(MonthlyLlmUsage.class));
+		// 현재 월을 기준으로 정확히 1번 호출되었는지 검증
+		verify(llmUsageRedisDao, times(1)).incrementUsage(currentPeriod, cost);
+	}
 
-		// 2. 값이 제대로 더해졌는지 검증 (10.0 + 0.5 = 10.5)
-		assertThat(existingUsage.getTotalUsage()).isEqualTo(new BigDecimal("10.5"));
+	@Test
+	@DisplayName("비용 누적: DAO에서 예외가 발생해도 로직이 중단되지 않고 catch 블록을 타며 정상 종료된다")
+	void addMonthlyLlmUsage_DaoThrowsException_CatchesGracefully() {
+		// given
+		BigDecimal cost = new BigDecimal("1.50");
+
+		// 레디스 통신 장애 등 예외가 발생한 상황을 가정 (catch 블록 커버리지 확보용)
+		doThrow(new RuntimeException("Redis Connection Error"))
+			.when(llmUsageRedisDao).incrementUsage(currentPeriod, cost);
+
+		// when & then
+		// 메서드 밖으로 예외가 던져지지 않고 내부에서 로깅 후 안전하게 삼켜지는지(catch) 확인
+		assertDoesNotThrow(() -> usageService.addMonthlyLlmUsage(cost));
+		verify(llmUsageRedisDao, times(1)).incrementUsage(currentPeriod, cost);
 	}
 }
