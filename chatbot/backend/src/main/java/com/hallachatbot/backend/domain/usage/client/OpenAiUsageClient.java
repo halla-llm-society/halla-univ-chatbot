@@ -43,8 +43,8 @@ public class OpenAiUsageClient {
 
 	public OpenAiUsageClient(
 		RestTemplateBuilder restTemplateBuilder,
-		@Value("${app.openai-admin-key}") String openAiAdminKey,
-		@Value("${app.costs-api-url}") String costsApiUrl) {
+		@Value("${app.openai-admin-key:}") String openAiAdminKey,
+		@Value("${app.costs-api-url:}") String costsApiUrl) {
 		this.restTemplate = restTemplateBuilder.build();
 		this.openAiAdminKey = openAiAdminKey;
 		this.costsApiUrl = costsApiUrl;
