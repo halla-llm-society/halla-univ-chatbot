@@ -148,6 +148,16 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 		return handleExceptionInternal(GlobalErrorCode.MISSING_REQUIRED_HEADER, error.getMessage());
 	}
 
+	@ExceptionHandler(UsageException.class)
+	public ResponseEntity<Object> handleUsageException(UsageException error) {
+		return handleExceptionInternal(error.getErrorCode(), error.getMessage());
+	}
+
+	@ExceptionHandler(GlobalException.class)
+	public ResponseEntity<Object> handleGlobalException(GlobalException error) {
+		return handleExceptionInternal(error.getErrorCode(), error.getMessage());
+	}
+
 	/**
 	 * <b>[로깅 로직 중앙화 메서드]</b>
 	 * @param errorCode
