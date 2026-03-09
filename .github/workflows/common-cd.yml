@@ -79,7 +79,7 @@ jobs:
       - name: Prepare Task Definition
         id: prepare-task-def
         run: |
-          TASK_DEF_SRC="chatbot/${{ inputs.service }}/task-def.json"
+          TASK_DEF_SRC="chatbot/${{ inputs.service }}/${{ inputs.service }}-task-def.json"
           TASK_DEF_DEST="chatbot/${{ inputs.service }}/task-def-rendered.json"
 
           # AWS 콘솔에서 Task Definition ARN 조회
