@@ -79,24 +79,31 @@ public class ChatService {
 		// 3. AI 서비스 호출 및 스트리밍 변환
 		Flux<ServerSentEvent<String>> eventFlux = aiServiceClient.streamChat(request, history)
 			.map(aiResponse -> chatStreamHandler.processAiResponse(aiResponse, context))
-			.onErrorResume(chatStreamErrorHandler::handleStreamError).doOnComplete(() -> {
-
+			.doOnComplete(() -> {
 				// 저장 로직 비동기 실행
 				// @formatter:off
 				if (context.hasAnswer()) {
 					Mono.fromRunnable(() -> {
-						chatWriter.saveChatData(context);
+						try {
+							chatWriter.saveChatData(context);
+						} catch (Exception e) {
+							log.error("채팅 대화 내역 DB 저장 실패: chatId={}", context.getChatId(), e);
+						}
 
-						if (context.getCost() != null && context.getCost().compareTo(BigDecimal.ZERO) > 0) {
-							usageService.addMonthlyLlmUsage(context.getCost());
+						try {
+							if (context.getCost() != null && context.getCost().compareTo(BigDecimal.ZERO) > 0) {
+								usageService.addMonthlyLlmUsage(context.getCost());
+							}
+						} catch (Exception e) {
+							log.error("월간 LLM 비용 누적 실패: chatId={}", context.getChatId(), e);
 						}
 					})
 						.subscribeOn(Schedulers.boundedElastic())
-						.subscribe(null, e -> log.error("채팅 후처리 실패: chatId={}", context.getChatId(), e)
-						);
+						.subscribe();
 				}
 				// @formatter:on
-			});
+			})
+			.onErrorResume(chatStreamErrorHandler::handleStreamError);
 
 		// 4. 초기 이벤트 주입 (Metadata, Warning)
 		return injectInitialEvents(eventFlux, chatId);
