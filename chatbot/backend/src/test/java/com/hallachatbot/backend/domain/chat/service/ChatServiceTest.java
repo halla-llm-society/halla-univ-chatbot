@@ -8,11 +8,15 @@ import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
+import java.math.BigDecimal;
 import java.util.Collections;
+import java.util.Map;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -203,5 +207,51 @@ class ChatServiceTest {
 
 		// ChatWriter(저장 담당)가 호출되었는지 검증
 		verify(chatWriter, timeout(1000).times(1)).saveChatData(any());
+	}
+
+	@Test
+	@DisplayName("스트리밍이 정상 종료되고 비용이 0보다 크면 UsageService가 비동기로 호출되어야 한다.")
+	void startChat_CallsUsageService_WhenCostIsGreaterThanZero() {
+		// given
+		String chatId = "test-chat-session";
+		ChatRequest request = new ChatRequest("안녕", ChatRequest.Language.KOR);
+
+		// 의존성 Mocking 세팅
+		doNothing().when(usageService).checkMonthlyLlmUsage();
+		when(chatReader.getChatHistory(chatId)).thenReturn(Collections.emptyList());
+		when(sseEventFactory.createMetadata(any())).thenReturn(
+			ServerSentEvent.<String>builder().event("metadata").build());
+
+		// AI 서비스 응답 조작 (비용이 포함된 메타데이터 응답을 시뮬레이션)
+		AiServiceResponse fakeDelta = new AiServiceResponse("delta", "반가워요", null, null, null);
+		AiServiceResponse fakeMeta = new AiServiceResponse("metadata", null,
+			Map.of("token_usage", Map.of("total_cost_usd", "0.0055")), null, null);
+
+		when(aiServiceClient.streamChat(eq(request), anyList())).thenReturn(Flux.just(fakeDelta, fakeMeta));
+
+		// Handler가 Context를 업데이트 하도록 조작
+		when(chatStreamHandler.processAiResponse(any(), any())).thenAnswer(invocation -> {
+			AiServiceResponse resp = invocation.getArgument(0);
+			ChatStreamContext ctx = invocation.getArgument(1);
+			if ("delta".equals(resp.type())) {
+				ctx.appendAnswer(resp.content());
+			}
+			if ("metadata".equals(resp.type())) {
+				ctx.updateMetadata(resp.data());
+			}
+			return ServerSentEvent.<String>builder().build();
+		});
+
+		// when
+		Flux<ServerSentEvent<String>> resultFlux = chatService.startChat(request, chatId);
+
+		// then
+		StepVerifier.create(resultFlux)
+			.expectNextCount(3) // 초기 메타데이터 1개 + delta 1개 + meta 1개
+			.verifyComplete();
+
+		// Schedulers.boundedElastic()을 타고 비동기로 실행되므로 timeout으로 대기 후 검증
+		verify(chatWriter, timeout(1000).times(1)).saveChatData(any(ChatStreamContext.class));
+		verify(usageService, timeout(1000).times(1)).addMonthlyLlmUsage(any(BigDecimal.class));
 	}
 }
