@@ -77,7 +77,7 @@ public class ChatService {
 		ChatStreamContext context = new ChatStreamContext(chatId, request.userInput());
 
 		// 3. AI 서비스 호출 및 스트리밍 변환
-		Flux<ServerSentEvent<String>> eventFlux = aiServiceClient.streamChat(request, history)
+		Flux<ServerSentEvent<String>> eventFlux = aiServiceClient.streamChat(chatId, request, history)
 			.map(aiResponse -> chatStreamHandler.processAiResponse(aiResponse, context))
 			.doOnComplete(() -> {
 				// 저장 로직 비동기 실행
