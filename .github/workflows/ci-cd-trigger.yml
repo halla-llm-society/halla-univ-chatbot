@@ -79,17 +79,17 @@ jobs:
       service: frontend
     secrets: inherit
 
-  #  stg-cd-backend:
-  #    needs: [ check-changes, ci-backend ]
-  #    if: |
-  #      github.event_name == 'push' &&
-  #      github.ref == 'refs/heads/stg' &&
-  #      needs.check-changes.outputs.backend == 'true'
-  #    uses: ./.github/workflows/common-cd.yml
-  #    with:
-  #      environment: stg
-  #      service: backend
-  #    secrets: inherit
+  stg-cd-backend:
+    needs: [ check-changes, ci-backend ]
+    if: |
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/stg' &&
+      needs.check-changes.outputs.backend == 'true'
+    uses: ./.github/workflows/common-cd.yml
+    with:
+      environment: stg
+      service: backend
+    secrets: inherit
 
   stg-cd-ai:
     needs: [ check-changes, ci-ai ]
