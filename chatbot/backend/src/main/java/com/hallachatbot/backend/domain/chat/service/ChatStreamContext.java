@@ -90,7 +90,9 @@ public class ChatStreamContext {
 				}
 			}
 
+			this.cost = BigDecimal.ZERO;
 			Object costObj = null;
+
 			for (Map.Entry<?, ?> entry : usage.entrySet()) {
 				String key = String.valueOf(entry.getKey()).trim();
 				if ("total_cost_usd".equals(key)) {
