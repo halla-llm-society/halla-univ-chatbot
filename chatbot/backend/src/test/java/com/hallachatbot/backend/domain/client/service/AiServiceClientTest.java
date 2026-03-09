@@ -1,4 +1,4 @@
-package com.hallachatbot.backend.global.client.service;
+package com.hallachatbot.backend.domain.client.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
