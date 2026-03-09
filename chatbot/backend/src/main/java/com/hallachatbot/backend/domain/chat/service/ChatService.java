@@ -20,6 +20,7 @@ import com.hallachatbot.backend.global.sse.SseEventFactory;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
 /**
@@ -64,6 +65,7 @@ public class ChatService {
 	 * @param chatId 사용자 식별을 위한 세션 ID (쿠키)
 	 * @return 클라이언트로 전송될 Server-Sent Events 스트림
 	 */
+	@SuppressWarnings("checkstyle:Indentation")
 	public Flux<ServerSentEvent<String>> startChat(ChatRequest request, String chatId) {
 		// 1. 비용 한도 확인
 		usageService.checkMonthlyLlmUsage();
@@ -77,22 +79,22 @@ public class ChatService {
 		// 3. AI 서비스 호출 및 스트리밍 변환
 		Flux<ServerSentEvent<String>> eventFlux = aiServiceClient.streamChat(request, history)
 			.map(aiResponse -> chatStreamHandler.processAiResponse(aiResponse, context))
-			.onErrorResume(chatStreamErrorHandler::handleStreamError)
-			.doOnComplete(() -> {
-				// 저장 로직 비동기 실행
-				if (context.hasAnswer()) {
-					Flux.just(context)
-						.publishOn(Schedulers.boundedElastic())
-						.subscribe(ctx -> {
-							// 대화 데이터 DB 저장
-							chatWriter.saveChatData(ctx);
+			.onErrorResume(chatStreamErrorHandler::handleStreamError).doOnComplete(() -> {
 
-							// 메타데이터에서 추출한 달러 비용이 0보다 크면 사용량 누적
-							if (ctx.getCost() != null && ctx.getCost().compareTo(BigDecimal.ZERO) > 0) {
-								usageService.addMonthlyLlmUsage(ctx.getCost());
-							}
-						});
+				// 저장 로직 비동기 실행
+				// @formatter:off
+				if (context.hasAnswer()) {
+					Mono.fromRunnable(() -> {
+						chatWriter.saveChatData(context);
+
+						if (context.getCost() != null && context.getCost().compareTo(BigDecimal.ZERO) > 0) {
+							usageService.addMonthlyLlmUsage(context.getCost());
+						}
+					})
+					.subscribeOn(Schedulers.boundedElastic())
+					.doOnError(e -> log.error("채팅 후처리 실패: chatId={}", context.getChatId(), e)).subscribe();
 				}
+				// @formatter:on
 			});
 
 		// 4. 초기 이벤트 주입 (Metadata, Warning)
