@@ -67,12 +67,14 @@ public class UsageServiceImpl implements UsageService {
 	@Override
 	@Async
 	public void addMonthlyLlmUsage(@NotNull @PositiveOrZero BigDecimal cost) {
-		try {
-			String currentPeriod = YearMonth.now().toString();
-			llmUsageRedisDao.incrementUsage(currentPeriod, cost);
+		String currentPeriod = YearMonth.now().toString();
 
+		try {
+			llmUsageRedisDao.incrementUsage(currentPeriod, cost);
+			log.info("[Usage] LLM 월간 사용량 누적 성공 (Period: {}, AddedCost: {}, Total: {})",
+				currentPeriod, cost, llmUsageRedisDao.getUsage(currentPeriod));
 		} catch (Exception e) {
-			log.error("LLM 비용 저장 실패 (Cost: {})", cost, e);
+			log.error("[Usage] LLM 월간 사용량 누적 실패 (Period: {}, AddedCost: {})", currentPeriod, cost, e);
 		}
 	}
 }
