@@ -1,5 +1,6 @@
 package com.hallachatbot.backend.domain.chat.service;
 
+import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -27,6 +28,7 @@ public class ChatStreamContext {
 	private final String question;
 	private final StringBuilder answerBuilder = new StringBuilder();
 	private Map<String, Object> metadataMap = new HashMap<>();
+	private BigDecimal cost = BigDecimal.ZERO;
 
 	// 추출된 주요 메타데이터
 	private String decision = "";
@@ -50,6 +52,10 @@ public class ChatStreamContext {
 		return this.answerBuilder.length() > 0;
 	}
 
+	public BigDecimal getCost() {
+		return this.cost;
+	}
+
 	/**
 	 * 메타데이터 갱신 및 주요 정보(토큰, RAG 사유) 추출
 	 *
@@ -68,7 +74,7 @@ public class ChatStreamContext {
 			this.decision = gateReason != null ? gateReason.toString() : "";
 		}
 
-		// Token Usage 추출
+		// Token Usage & total_cost_usd 추출
 		if (data.get("token_usage") instanceof Map<?, ?> usage) {
 			Object presetObj = usage.get("preset");
 			this.preset = presetObj != null ? presetObj.toString() : "";
@@ -81,6 +87,23 @@ public class ChatStreamContext {
 					this.totalTokens = Integer.parseInt(s);
 				} catch (NumberFormatException e) {
 					this.totalTokens = 0;
+				}
+			}
+
+			Object costObj = null;
+			for (Map.Entry<?, ?> entry : usage.entrySet()) {
+				String key = String.valueOf(entry.getKey()).trim();
+				if ("total_cost_usd".equals(key)) {
+					costObj = entry.getValue();
+					break;
+				}
+			}
+
+			if (costObj != null) {
+				try {
+					this.cost = new BigDecimal(costObj.toString());
+				} catch (NumberFormatException e) {
+					this.cost = BigDecimal.ZERO;
 				}
 			}
 		}
