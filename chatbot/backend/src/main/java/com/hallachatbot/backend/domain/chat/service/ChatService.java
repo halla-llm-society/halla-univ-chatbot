@@ -91,8 +91,9 @@ public class ChatService {
 							usageService.addMonthlyLlmUsage(context.getCost());
 						}
 					})
-					.subscribeOn(Schedulers.boundedElastic())
-					.doOnError(e -> log.error("채팅 후처리 실패: chatId={}", context.getChatId(), e)).subscribe();
+						.subscribeOn(Schedulers.boundedElastic())
+						.subscribe(null, e -> log.error("채팅 후처리 실패: chatId={}", context.getChatId(), e)
+						);
 				}
 				// @formatter:on
 			});
