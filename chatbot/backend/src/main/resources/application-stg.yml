@@ -6,7 +6,7 @@ spring:
       ssl:
         enabled: true
   config:
-    import: "aws-parameterstore:/stg/"
+    import: "aws-parameterstore:/chatbot/stg/"
 
 springdoc:
   api-docs:
