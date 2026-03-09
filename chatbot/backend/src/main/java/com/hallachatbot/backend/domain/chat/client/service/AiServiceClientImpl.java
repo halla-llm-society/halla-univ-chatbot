@@ -1,4 +1,4 @@
-package com.hallachatbot.backend.global.client.service;
+package com.hallachatbot.backend.domain.chat.client.service;
 
 import java.time.Duration;
 import java.util.List;
@@ -12,8 +12,8 @@ import org.springframework.web.reactive.function.client.WebClientResponseExcepti
 
 import com.hallachatbot.backend.domain.chat.dto.request.ChatRequest;
 import com.hallachatbot.backend.domain.chat.dto.response.ChatHistoryResponse;
-import com.hallachatbot.backend.global.client.dto.AiChatRequest;
-import com.hallachatbot.backend.global.client.dto.AiServiceResponse;
+import com.hallachatbot.backend.domain.chat.client.dto.AiChatRequest;
+import com.hallachatbot.backend.domain.chat.client.dto.AiServiceResponse;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
