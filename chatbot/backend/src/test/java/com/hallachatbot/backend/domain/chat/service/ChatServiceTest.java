@@ -26,13 +26,13 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.codec.ServerSentEvent;
 
+import com.hallachatbot.backend.domain.chat.client.dto.AiServiceResponse;
+import com.hallachatbot.backend.domain.chat.client.service.AiServiceClient;
 import com.hallachatbot.backend.domain.chat.component.ChatReader;
 import com.hallachatbot.backend.domain.chat.component.ChatStreamHandler;
 import com.hallachatbot.backend.domain.chat.component.ChatWriter;
 import com.hallachatbot.backend.domain.chat.dto.request.ChatRequest;
 import com.hallachatbot.backend.domain.usage.service.UsageService;
-import com.hallachatbot.backend.global.client.dto.AiServiceResponse;
-import com.hallachatbot.backend.global.client.service.AiServiceClient;
 import com.hallachatbot.backend.global.errorcode.UsageErrorCode;
 import com.hallachatbot.backend.global.exception.ChatStreamErrorHandler;
 import com.hallachatbot.backend.global.exception.UsageException;

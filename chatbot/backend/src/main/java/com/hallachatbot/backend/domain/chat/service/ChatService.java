@@ -7,13 +7,13 @@ import java.util.Map;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.stereotype.Service;
 
+import com.hallachatbot.backend.domain.chat.client.service.AiServiceClient;
 import com.hallachatbot.backend.domain.chat.component.ChatReader;
 import com.hallachatbot.backend.domain.chat.component.ChatStreamHandler;
 import com.hallachatbot.backend.domain.chat.component.ChatWriter;
 import com.hallachatbot.backend.domain.chat.dto.request.ChatRequest;
 import com.hallachatbot.backend.domain.chat.dto.response.ChatHistoryResponse;
 import com.hallachatbot.backend.domain.usage.service.UsageService;
-import com.hallachatbot.backend.global.client.service.AiServiceClient;
 import com.hallachatbot.backend.global.exception.ChatStreamErrorHandler;
 import com.hallachatbot.backend.global.sse.SseEventFactory;
 

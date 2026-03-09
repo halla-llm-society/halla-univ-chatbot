@@ -18,8 +18,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.codec.ServerSentEvent;
 
+import com.hallachatbot.backend.domain.chat.client.dto.AiServiceResponse;
 import com.hallachatbot.backend.domain.chat.service.ChatStreamContext;
-import com.hallachatbot.backend.global.client.dto.AiServiceResponse;
 import com.hallachatbot.backend.global.sse.SseEventFactory;
 
 @ExtendWith(MockitoExtension.class)

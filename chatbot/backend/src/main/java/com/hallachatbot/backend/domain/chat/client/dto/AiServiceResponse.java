@@ -1,4 +1,4 @@
-package com.hallachatbot.backend.global.client.dto;
+package com.hallachatbot.backend.domain.chat.client.dto;
 
 import java.util.Map;
 

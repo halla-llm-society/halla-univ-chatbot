@@ -1,4 +1,4 @@
-package com.hallachatbot.backend.global.client.service;
+package com.hallachatbot.backend.domain.chat.client.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -16,8 +16,8 @@ import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.hallachatbot.backend.domain.chat.client.dto.AiServiceResponse;
 import com.hallachatbot.backend.domain.chat.dto.request.ChatRequest;
-import com.hallachatbot.backend.global.client.dto.AiServiceResponse;
 
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
