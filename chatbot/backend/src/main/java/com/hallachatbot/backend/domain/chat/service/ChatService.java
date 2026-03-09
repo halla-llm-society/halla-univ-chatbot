@@ -1,5 +1,6 @@
 package com.hallachatbot.backend.domain.chat.service;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 
@@ -82,7 +83,15 @@ public class ChatService {
 				if (context.hasAnswer()) {
 					Flux.just(context)
 						.publishOn(Schedulers.boundedElastic())
-						.subscribe(chatWriter::saveChatData);
+						.subscribe(ctx -> {
+							// 대화 데이터 DB 저장
+							chatWriter.saveChatData(ctx);
+
+							// 메타데이터에서 추출한 달러 비용이 0보다 크면 사용량 누적
+							if (ctx.getCost() != null && ctx.getCost().compareTo(BigDecimal.ZERO) > 0) {
+								usageService.addMonthlyLlmUsage(ctx.getCost());
+							}
+						});
 				}
 			});
 
