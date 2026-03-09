@@ -47,11 +47,22 @@ public class ChatSurvey {
 	private LocalDateTime date;
 
 	@Builder
-	public ChatSurvey(String userCategory, int rating, String responseSpeed, String responseQuality, String comment) {
+	private ChatSurvey(String userCategory, int rating, String responseSpeed, String responseQuality, String comment) {
 		this.userCategory = userCategory;
 		this.rating = rating;
 		this.responseSpeed = responseSpeed;
 		this.responseQuality = responseQuality;
 		this.comment = comment;
+	}
+
+	public static ChatSurvey of(String userCategory, int rating, String responseSpeed,
+		String responseQuality, String comment) {
+		return ChatSurvey.builder()
+			.userCategory(userCategory)
+			.rating(rating)
+			.responseSpeed(responseSpeed)
+			.responseQuality(responseQuality)
+			.comment(comment)
+			.build();
 	}
 }

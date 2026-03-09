@@ -44,12 +44,12 @@ public record ChatSurveyRequest(
 	String comment
 ) {
 	public ChatSurvey toEntity() {
-		return ChatSurvey.builder()
-			.userCategory(this.userCategory)
-			.rating(this.rating)
-			.responseSpeed(this.responseSpeed)
-			.responseQuality(this.responseQuality)
-			.comment(this.comment)
-			.build();
+		return ChatSurvey.of(
+			userCategory(),
+			rating(),
+			responseSpeed(),
+			responseQuality(),
+			comment()
+		);
 	}
 }

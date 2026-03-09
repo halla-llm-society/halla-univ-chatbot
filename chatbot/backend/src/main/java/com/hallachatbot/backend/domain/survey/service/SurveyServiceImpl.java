@@ -1,7 +1,5 @@
 package com.hallachatbot.backend.domain.survey.service;
 
-import java.time.LocalDateTime;
-
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,7 +20,6 @@ public class SurveyServiceImpl implements SurveyService {
 	@Transactional
 	public void submitChatSurvey(ChatSurveyRequest request) {
 		chatSurveyRepository.save(request.toEntity());
-		log.info("설문조사 저장 완료: {}", LocalDateTime.now()
-		);
+		log.info("[Survey] 챗봇 만족도 설문 저장 성공");
 	}
 }
