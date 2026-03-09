@@ -52,10 +52,6 @@ public class ChatStreamContext {
 		return this.answerBuilder.length() > 0;
 	}
 
-	public BigDecimal getCost() {
-		return this.cost;
-	}
-
 	/**
 	 * 메타데이터 갱신 및 주요 정보(토큰, RAG 사유) 추출
 	 *
