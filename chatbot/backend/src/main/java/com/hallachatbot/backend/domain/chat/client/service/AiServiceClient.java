@@ -2,9 +2,9 @@ package com.hallachatbot.backend.domain.chat.client.service;
 
 import java.util.List;
 
+import com.hallachatbot.backend.domain.chat.client.dto.AiServiceResponse;
 import com.hallachatbot.backend.domain.chat.dto.request.ChatRequest;
 import com.hallachatbot.backend.domain.chat.dto.response.ChatHistoryResponse;
-import com.hallachatbot.backend.domain.chat.client.dto.AiServiceResponse;
 
 import reactor.core.publisher.Flux;
 

@@ -10,10 +10,10 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
-import com.hallachatbot.backend.domain.chat.dto.request.ChatRequest;
-import com.hallachatbot.backend.domain.chat.dto.response.ChatHistoryResponse;
 import com.hallachatbot.backend.domain.chat.client.dto.AiChatRequest;
 import com.hallachatbot.backend.domain.chat.client.dto.AiServiceResponse;
+import com.hallachatbot.backend.domain.chat.dto.request.ChatRequest;
+import com.hallachatbot.backend.domain.chat.dto.response.ChatHistoryResponse;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -81,8 +81,8 @@ public class AiServiceClientImpl implements AiServiceClient {
 				if ("delta".equals(response.type()) && !firstTokenReceived.get() && response.content() != null) {
 					firstTokenReceived.set(true);
 					double durationSeconds = (System.nanoTime() - startTime) / 1_000_000_000.0;
-					log.info("[AI] 첫 응답(TTFT) 수신 성공 (Duration: {}초, FirstToken: {})", String.format("%.4f", durationSeconds),
-						response.content());
+					log.info("[AI] 첫 응답(TTFT) 수신 성공 (Duration: {}초, FirstToken: {})",
+						String.format("%.4f", durationSeconds), response.content());
 				}
 			})
 			.doOnComplete(() -> {
@@ -91,7 +91,8 @@ public class AiServiceClientImpl implements AiServiceClient {
 				log.info("[AI] 스트리밍 응답 완료 (TotalDuration: {}초)", String.format("%.4f", totalDuration));
 			})
 			.doOnError(WebClientResponseException.class, e -> {
-				log.error("[AI] HTTP 통신 에러 발생 (Status: {}, ResponseBody: {})", e.getStatusCode(), e.getResponseBodyAsString());
+				log.error("[AI] HTTP 통신 에러 발생 (Status: {}, ResponseBody: {})",
+					e.getStatusCode(), e.getResponseBodyAsString());
 			})
 			.doOnError(e -> {
 				if (!(e instanceof WebClientResponseException)) {
