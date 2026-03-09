@@ -84,8 +84,8 @@ class ChatServiceTest {
 			.isInstanceOf(UsageException.class)
 			.hasFieldOrPropertyWithValue("errorCode", UsageErrorCode.MONTHLY_LLM_BUDGET_EXCEEDED);
 
-		// AI 서비스는 호출되지 않아야 함
-		verify(aiServiceClient, never()).streamChat(any(), any());
+		// AI 서비스는 호출되지 않아야 함 (매개변수 3개로 수정)
+		verify(aiServiceClient, never()).streamChat(any(), any(), any());
 	}
 
 	@Test
@@ -107,8 +107,8 @@ class ChatServiceTest {
 		// 3. AI 응답 및 핸들러 Mock
 		AiServiceResponse deltaResponse = new AiServiceResponse("delta", "반갑습니다.", null, null, null);
 
-		// 4. AI 클라이언트가 응답을 방출
-		given(aiServiceClient.streamChat(any(ChatRequest.class), anyList()))
+		// 4. AI 클라이언트가 응답을 방출 (chatId 매개변수 추가)
+		given(aiServiceClient.streamChat(any(), any(ChatRequest.class), anyList()))
 			.willReturn(Flux.just(deltaResponse));
 
 		// 5. ChatStreamHandler가 null이 아닌 SSE 이벤트를 반환하도록 Stubbing 추가
@@ -167,8 +167,8 @@ class ChatServiceTest {
 		AiServiceResponse metadata = new AiServiceResponse("metadata", null, null, null, null);
 		AiServiceResponse error = new AiServiceResponse("error", null, null, null, null);
 
-		// AI Client Mock
-		given(aiServiceClient.streamChat(any(), anyList()))
+		// AI Client Mock (chatId 매개변수 추가)
+		given(aiServiceClient.streamChat(any(), any(), anyList()))
 			.willReturn(Flux.just(delta, metadata, error));
 
 		// Handler Mock - 각 응답에 대해 적절한 SSE 반환 설정
@@ -227,7 +227,8 @@ class ChatServiceTest {
 		AiServiceResponse fakeMeta = new AiServiceResponse("metadata", null,
 			Map.of("token_usage", Map.of("total_cost_usd", "0.0055")), null, null);
 
-		when(aiServiceClient.streamChat(eq(request), anyList())).thenReturn(Flux.just(fakeDelta, fakeMeta));
+		// chatId 매개변수 추가
+		when(aiServiceClient.streamChat(eq(chatId), eq(request), anyList())).thenReturn(Flux.just(fakeDelta, fakeMeta));
 
 		// Handler가 Context를 업데이트 하도록 조작
 		when(chatStreamHandler.processAiResponse(any(), any())).thenAnswer(invocation -> {
@@ -252,6 +253,7 @@ class ChatServiceTest {
 
 		// Schedulers.boundedElastic()을 타고 비동기로 실행되므로 timeout으로 대기 후 검증
 		verify(chatWriter, timeout(1000).times(1)).saveChatData(any(ChatStreamContext.class));
-		verify(usageService, timeout(1000).times(1)).addMonthlyLlmUsage(any(BigDecimal.class));
+		// UsageService에
+		verify(usageService, timeout(1000).times(1)).addMonthlyLlmUsage( any(BigDecimal.class));
 	}
 }

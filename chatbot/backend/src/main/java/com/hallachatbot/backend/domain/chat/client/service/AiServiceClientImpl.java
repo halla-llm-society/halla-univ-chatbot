@@ -55,7 +55,7 @@ public class AiServiceClientImpl implements AiServiceClient {
 	 * 4. 첫 번째 데이터(Delta) 수신 시점과 완료 시점의 소요 시간을 계산하여 로깅
 	 * </p>
 	 */
-	public Flux<AiServiceResponse> streamChat(ChatRequest request, List<ChatHistoryResponse> history) {
+	public Flux<AiServiceResponse> streamChat(String chatId, ChatRequest request, List<ChatHistoryResponse> history) {
 		String endpoint = aiServiceUrl + "/api/chat";
 
 		AiChatRequest aiBody = new AiChatRequest(
@@ -81,22 +81,24 @@ public class AiServiceClientImpl implements AiServiceClient {
 				if ("delta".equals(response.type()) && !firstTokenReceived.get() && response.content() != null) {
 					firstTokenReceived.set(true);
 					double durationSeconds = (System.nanoTime() - startTime) / 1_000_000_000.0;
-					log.info("[AI] 첫 응답(TTFT) 수신 성공 (Duration: {}초, FirstToken: {})",
-						String.format("%.4f", durationSeconds), response.content());
+					log.info("[AI] 스트리밍 첫 응답 수신 성공 (ChatId: {}, Duration: {}초)",
+						chatId, String.format("%.4f", durationSeconds));
 				}
 			})
 			.doOnComplete(() -> {
 				// 전체 완료 시간 로깅
 				double totalDuration = (System.nanoTime() - startTime) / 1_000_000_000.0;
-				log.info("[AI] 스트리밍 응답 완료 (TotalDuration: {}초)", String.format("%.4f", totalDuration));
+				log.info("[AI] 스트리밍 응답 완료 (ChatId: {}, TotalDuration: {}초, HistorySize: {})",
+					chatId, String.format("%.4f", totalDuration), history.size());
 			})
 			.doOnError(WebClientResponseException.class, e -> {
-				log.error("[AI] HTTP 통신 에러 발생 (Status: {}, ResponseBody: {})",
-					e.getStatusCode(), e.getResponseBodyAsString());
+				log.error("[AI] HTTP 통신 에러 발생 (ChatId: {}, Status: {}, ResponseBody: {})",
+					chatId, e.getStatusCode(), e.getResponseBodyAsString());
 			})
 			.doOnError(e -> {
 				if (!(e instanceof WebClientResponseException)) {
-					log.error("[AI] 스트리밍 중 예상치 못한 오류 발생 (Message: {})", e.getMessage(), e);
+					log.error("[AI] 스트리밍 중 예상치 못한 오류 발생 (ChatId: {}, Message: {})",
+						chatId, e.getMessage(), e);
 				}
 			});
 	}

@@ -54,6 +54,7 @@ class AiServiceClientTest {
 	@DisplayName("AI 서비스가 정상적으로 스트리밍 응답을 반환한다")
 	void streamChat_Success() throws Exception {
 		// given
+		String chatId = "test-chat-id";
 		ChatRequest request = new ChatRequest("질문", ChatRequest.Language.KOR);
 
 		// Mock Server 응답 설정 (NDJSON 형태 시뮬레이션)
@@ -68,8 +69,8 @@ class AiServiceClientTest {
 			.setHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
 			.setBody(responseBody));
 
-		// when
-		Flux<AiServiceResponse> responseFlux = aiServiceClient.streamChat(request, Collections.emptyList());
+		// when (chatId 매개변수 추가)
+		Flux<AiServiceResponse> responseFlux = aiServiceClient.streamChat(chatId, request, Collections.emptyList());
 
 		// then
 		StepVerifier.create(responseFlux)
@@ -97,10 +98,11 @@ class AiServiceClientTest {
 			.setHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
 			.setBody("{\"error\": \"Bad Request\"}"));
 
+		String chatId = "test-chat-id";
 		ChatRequest request = new ChatRequest("질문", ChatRequest.Language.KOR);
 
-		// when
-		Flux<AiServiceResponse> responseFlux = aiServiceClient.streamChat(request, Collections.emptyList());
+		// when (chatId 매개변수 추가)
+		Flux<AiServiceResponse> responseFlux = aiServiceClient.streamChat(chatId, request, Collections.emptyList());
 
 		// then: 에러가 발생해야 하며, doOnError(WebClientResponseException) 로직이 타게 됨
 		StepVerifier.create(responseFlux)
@@ -117,10 +119,11 @@ class AiServiceClientTest {
 			.setHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
 			.setBody("{invalid-json-body...}"));
 
+		String chatId = "test-chat-id";
 		ChatRequest request = new ChatRequest("질문", ChatRequest.Language.KOR);
 
-		// when
-		Flux<AiServiceResponse> responseFlux = aiServiceClient.streamChat(request, Collections.emptyList());
+		// when (chatId 매개변수 추가)
+		Flux<AiServiceResponse> responseFlux = aiServiceClient.streamChat(chatId, request, Collections.emptyList());
 
 		// then: JSON 디코딩 실패로 에러 발생 (doOnError의 '그 외 에러' 로직 커버)
 		StepVerifier.create(responseFlux)

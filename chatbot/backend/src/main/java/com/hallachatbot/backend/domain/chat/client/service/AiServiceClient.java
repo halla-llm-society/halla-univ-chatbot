@@ -32,5 +32,5 @@ public interface AiServiceClient {
 	 * @param history 대화 문맥 유지를 위한 과거 메시지 리스트
 	 * @return AI 응답 객체 스트림 (Flux&lt;AiServiceResponse&gt;)
 	 */
-	Flux<AiServiceResponse> streamChat(ChatRequest request, List<ChatHistoryResponse> history);
+	Flux<AiServiceResponse> streamChat(String chatId, ChatRequest request, List<ChatHistoryResponse> history);
 }
