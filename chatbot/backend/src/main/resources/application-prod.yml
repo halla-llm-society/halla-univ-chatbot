@@ -5,6 +5,8 @@ spring:
         nodes: ${REDIS_CLUSTER_NODES}
       ssl:
         enabled: true
+  config:
+    import: "aws-parameterstore:/"
 
 springdoc:
   api-docs:
