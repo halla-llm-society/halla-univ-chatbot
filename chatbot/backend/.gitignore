@@ -37,7 +37,7 @@ out/
 .vscode/
 
 # ===============================추가 내용=================================
-src/main/resources/application-secret.yml
+src/main/resources/application-local.yml
 .env
 .env.*
 *.key
