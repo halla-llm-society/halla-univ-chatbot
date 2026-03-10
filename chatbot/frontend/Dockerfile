@@ -1,4 +1,4 @@
-# Prod Frontend Dockerfile
+# Frontend Dockerfile
 
 # 베이스 이미지
 FROM nginx:stable-alpine
