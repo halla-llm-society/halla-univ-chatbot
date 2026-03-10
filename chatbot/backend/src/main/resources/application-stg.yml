@@ -1,8 +1,7 @@
 spring:
   data:
     redis:
-      cluster:
-        nodes: ${REDIS_CLUSTER_NODES}
+      host: ${REDIS_HOST}
       ssl:
         enabled: true
   config:

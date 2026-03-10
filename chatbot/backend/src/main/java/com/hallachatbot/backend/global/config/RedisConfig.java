@@ -37,7 +37,7 @@ public class RedisConfig {
 	@Bean
 	@Profile({"stg", "prod"})
 	public RedisConnectionFactory awsRedisConnectionFactory(
-		@Value("${REDIS_CLUSTER_NODES}") String redisHostString) {
+		@Value("${REDIS_HOST}") String redisHostString) {
 
 		String host = redisHostString;
 		int port = 6379;
