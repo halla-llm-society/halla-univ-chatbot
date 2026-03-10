@@ -1,13 +1,9 @@
 package com.hallachatbot.backend.global.config;
 
-import java.time.Duration;
-import java.util.List;
-
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
-import org.springframework.data.redis.connection.RedisClusterConfiguration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceClientConfiguration;
@@ -15,9 +11,6 @@ import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactor
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
-
-import io.lettuce.core.cluster.ClusterClientOptions;
-import io.lettuce.core.cluster.ClusterTopologyRefreshOptions;
 
 /**
  * <b>Redis (AWS ElastiCache 호환) 전역 설정 클래스</b>
@@ -32,43 +25,45 @@ import io.lettuce.core.cluster.ClusterTopologyRefreshOptions;
 public class RedisConfig {
 
 	/**
-	 * 운영 및 스테이징 환경용 Redis Cluster 커넥션 팩토리 빈을 생성.
+	 * 운영 및 스테이징 환경용 AWS Redis 커넥션 팩토리 빈을 생성.
 	 * <p>
 	 * <b>주요 설정 요소:</b>
 	 * <ul>
-	 * <li><b>Topology Refresh:</b> AWS ElastiCache(Valkey/Redis)의 노드 장애나 스케일 아웃 등으로 인한
-	 * Failover 발생 시, 애플리케이션 재시작 없이 클러스터 맵을 자동으로 갱신.</li>
-	 * <li><b>SSL 적용:</b> AWS 인프라의 '전송 중 암호화' 설정에 대응하기 위해 TLS 통신을 활성화.</li>
+	 * <li><b>Standalone 모드:</b> AWS ElastiCache 단일 연결 사용.</li>
+	 * <li><b>SSL 적용:</b> AWS 인프라의 '전송 중 암호화' 필수 설정에 대응하기 위해 TLS 통신을 활성화.</li>
 	 * </ul>
 	 * </p>
-	 *
-	 * @param clusterNodes 환경변수 또는 Parameter Store를 통해 주입받은 클러스터 구성 엔드포인트 목록
-	 * @return 자동 갱신 및 SSL 옵션이 적용된 {@link LettuceConnectionFactory} 객체
 	 */
 	@Bean
 	@Profile({"stg", "prod"})
-	public RedisConnectionFactory clusterRedisConnectionFactory(
-		@Value("${spring.data.redis.cluster.nodes}") List<String> clusterNodes) {
+	public RedisConnectionFactory awsRedisConnectionFactory(
+		@Value("${REDIS_HOST}") String redisHostString) {
 
-		RedisClusterConfiguration clusterConfig = new RedisClusterConfiguration(clusterNodes);
+		String host = redisHostString;
+		int port = 6379;
 
-		// AWS 클러스터 노드 변경 시 자동으로 연결을 갱신
-		ClusterTopologyRefreshOptions refreshOptions = ClusterTopologyRefreshOptions.builder()
-			.enablePeriodicRefresh(Duration.ofMinutes(10))
-			.enableAllAdaptiveRefreshTriggers()
-			.build();
+		// 호스트/포트 분리
+		if (host.startsWith("rediss://")) {
+			host = host.substring(9);
+		} else if (host.startsWith("redis://")) {
+			host = host.substring(8);
+		}
 
-		ClusterClientOptions clientOptions = ClusterClientOptions.builder()
-			.topologyRefreshOptions(refreshOptions)
-			.build();
+		if (host.contains(":")) {
+			String[] parts = host.split(":");
+			host = parts[0];
+			port = Integer.parseInt(parts[1]);
+		}
 
-		// 클라이언트 설정에 Refresh Options와 SSL 보안 적용
+		// 단일 노드 설정 구성
+		RedisStandaloneConfiguration config = new RedisStandaloneConfiguration(host, port);
+
+		// SSL 적용
 		LettuceClientConfiguration clientConfig = LettuceClientConfiguration.builder()
-			.clientOptions(clientOptions)
 			.useSsl()
 			.build();
 
-		return new LettuceConnectionFactory(clusterConfig, clientConfig);
+		return new LettuceConnectionFactory(config, clientConfig);
 	}
 
 	/**
