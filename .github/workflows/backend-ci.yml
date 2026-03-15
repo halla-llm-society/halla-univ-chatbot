@@ -68,9 +68,13 @@ jobs:
           title: 'Test Code Coverage'
           update-comment: true
 
-      # 8. Qodana 설정 파일 루트로 복사
-      - name: Copy Qodana Config
-        run: cp chatbot/backend/qodana.yaml ./qodana.yaml
+      # 8. Qodana가 Git 정보를 찾을 수 있게 루트의 .git을 백엔드 폴더로 연결
+      - name: Fix Git VCS Mapping
+        run: |
+          # 루트의 .git 폴더를 backend 폴더 안에서도 볼 수 있게 연결
+          ln -s $(pwd)/.git chatbot/backend/.git
+          # 도커 환경에서 발생할 수 있는 소유권 문제를 방지하기 위해 모든 디렉토리를 안전한 곳으로 설정
+          git config --global --add safe.directory '*'
       
       # 9. Qodana 정적 분석
       - name: Qodana Scan
