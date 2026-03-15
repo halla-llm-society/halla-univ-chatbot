@@ -1,8 +1,6 @@
 version: "1.0"
 linter: jetbrains/qodana-jvm-community:latest
 
-bootstrap: ./gradlew clean build -x test
-
 exclude:
   - name: All
     paths:
