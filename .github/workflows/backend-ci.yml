@@ -67,16 +67,10 @@ jobs:
           min-coverage-changed-files: 60
           title: 'Test Code Coverage'
           update-comment: true
-
-      # 8. Qodana가 Git 정보를 찾을 수 있게 루트의 .git을 백엔드 폴더로 연결
-      - name: Fix Git VCS Mapping
-        run: |
-          echo "gitdir: ../../.git" > chatbot/backend/.git
-          git config --global --add safe.directory '*'
       
-      # 9. Qodana 정적 분석
+      # 8. Qodana 정적 분석
       - name: Qodana Scan
-        uses: jetbrains/qodana-action@v2023.3
+        uses: jetbrains/qodana-action@v2025.3
         env:
           QODANA_TOKEN: ${{ secrets.QODANA_TOKEN }}
         with:
