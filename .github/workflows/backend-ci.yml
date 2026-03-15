@@ -78,4 +78,5 @@ jobs:
         env:
           QODANA_TOKEN: ${{ secrets.QODANA_TOKEN }}
         with:
+          args: --project-dir,chatbot/backend
           upload-result: true
