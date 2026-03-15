@@ -1,3 +1,13 @@
 app:
-  costs-api-url: ${COSTS_API_URL:https://api.openai.com/v1/organization/costs}
-  openai-admin-key: ${OPENAI_ADMIN_KEY:dummy-key}
+  costs-api-url: test-costs-api-url
+  openai-admin-key: test-openai-admin-key
+  ai-service-url: test-ai-service-url
+  mongodb-suffix: test-mongodb-suffix
+  monthly-llm-usage-limit: 1000.0
+  discord-webhook-url: test-discord-webhook-url
+
+spring:
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017/chatbot
+      database: test-mongodb-database
