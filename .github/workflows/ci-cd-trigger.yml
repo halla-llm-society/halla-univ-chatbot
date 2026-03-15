@@ -119,17 +119,17 @@ jobs:
       service: frontend
     secrets: inherit
 
-  #  prod-cd-backend:
-  #    needs: [ check-changes, ci-backend ]
-  #    if: |
-  #      github.event_name == 'push' &&
-  #      github.ref == 'refs/heads/main' &&
-  #      needs.check-changes.outputs.backend == 'true'
-  #    uses: ./.github/workflows/common-cd.yml
-  #    with:
-  #      environment: prod
-  #      service: backend
-  #    secrets: inherit
+  prod-cd-backend:
+    needs: [ check-changes, ci-backend ]
+    if: |
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      needs.check-changes.outputs.backend == 'true'
+    uses: ./.github/workflows/common-cd.yml
+    with:
+      environment: prod
+      service: backend
+    secrets: inherit
 
   prod-cd-ai:
     needs: [ check-changes, ci-ai ]
