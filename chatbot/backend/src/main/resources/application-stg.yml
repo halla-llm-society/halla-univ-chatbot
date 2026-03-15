@@ -1,0 +1,18 @@
+spring:
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      ssl:
+        enabled: true
+  config:
+    import: "aws-parameterstore:/chatbot/stg/"
+
+server:
+  servlet:
+    context-path: /stg
+
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false

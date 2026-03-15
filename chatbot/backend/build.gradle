@@ -1,0 +1,92 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.5.8'
+    id 'io.spring.dependency-management' version '1.1.7'
+    id 'checkstyle'
+    id 'jacoco'
+}
+
+group = 'com.hallachatbot'
+version = '0.0.1-SNAPSHOT'
+description = 'backend'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+configurations {
+    compileOnly {
+        extendsFrom annotationProcessor
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+checkstyle {
+    toolVersion = "10.12.5"
+    configFile = file("config/checkstyle/naver-checkstyle-rules.xml")
+    ignoreFailures = false
+    maxWarnings = 0
+}
+
+test {
+    useJUnitPlatform()
+    finalizedBy jacocoTestReport
+}
+
+jacocoTestReport {
+    dependsOn test
+    reports {
+        xml.required = true
+        html.required = true
+    }
+
+    afterEvaluate {
+        classDirectories.setFrom(files(classDirectories.files.collect {
+            fileTree(dir: it, exclude: [
+                    "**/dto/**",                // DTO 패키지 제외
+                    "**/event/**",              // Event 객체 제외
+                    "**/global/errorcode/**",   // 에러 처리 관련 패키지 제외
+                    "**/*ErrorCode.*",          // ErrorCode Enum 제외
+                    "**/config/**",             // 설정 파일 제외
+                    "**/*Application.*",        // 메인 애플리케이션 클래스 제외
+                    "**/entity/**",             // Entity 제외
+                    "**/repository/**",         // Repository 제외
+            ])
+        }))
+    }
+}
+
+dependencies {
+    // Web and API Documentation
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-webflux'
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.15'
+
+    // Database and Cache
+    implementation 'org.springframework.boot:spring-boot-starter-data-mongodb'
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+
+    // Validation and Tools
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+    developmentOnly 'org.springframework.boot:spring-boot-devtools'
+
+    // Test
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'io.projectreactor:reactor-test'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    testImplementation 'com.squareup.okhttp3:mockwebserver:4.12.0'
+
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'io.awspring.cloud:spring-cloud-aws-starter-parameter-store:3.1.1'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}

@@ -1,0 +1,40 @@
+{
+  "family": "chatbot-{{ENV}}-backend-task",
+  "executionRoleArn": "arn:aws:iam::855738538544:role/ecsTaskExecutionRole",
+  "taskRoleArn": "arn:aws:iam::855738538544:role/ecsTaskExecutionRole",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": [
+    "FARGATE"
+  ],
+  "containerDefinitions": [
+    {
+      "name": "chatbot-{{ENV}}-backend",
+      "image": "<IMAGE_URI>",
+      "essential": true,
+      "cpu": 0,
+      "portMappings": [
+        {
+          "containerPort": 8000,
+          "protocol": "tcp",
+          "appProtocol": "http"
+        }
+      ],
+      "environment": [
+        {
+          "name": "SPRING_PROFILES_ACTIVE",
+          "value": "{{ENV}}"
+        }
+      ],
+      "secrets": [],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/chatbot-{{ENV}}-backend-task",
+          "awslogs-region": "ap-northeast-2",
+          "awslogs-stream-prefix": "ecs",
+          "awslogs-create-group": "true"
+        }
+      }
+    }
+  ]
+}

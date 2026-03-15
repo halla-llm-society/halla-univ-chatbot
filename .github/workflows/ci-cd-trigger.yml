@@ -1,0 +1,144 @@
+# todo: 백엔드 CI, CD 완성 후 주석 제거
+
+name: CI CD TRIGGER
+
+on:
+  push:
+    branches: [ main, stg ]
+  pull_request:
+    branches: [ main, stg ]
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  # ====================================================
+  # 1. 변경된 파일 기준으로 애플리케이션 영역별 변경 여부 판단
+  # ====================================================
+  check-changes:
+    name: Check for changed services
+    runs-on: ubuntu-latest
+    outputs:
+      frontend: ${{ steps.changed-frontend.outputs.any_changed }}
+      backend: ${{ steps.changed-backend.outputs.any_changed }}
+      ai: ${{ steps.changed-ai.outputs.any_changed }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      # 각 영역별 변경 사항 확인
+      - name: Check frontend
+        id: changed-frontend
+        uses: tj-actions/changed-files@v44
+        with: { files: "chatbot/frontend/**" }
+      - name: Check backend
+        id: changed-backend
+        uses: tj-actions/changed-files@v44
+        with: { files: "chatbot/backend/**" }
+      - name: Check ai
+        id: changed-ai
+        uses: tj-actions/changed-files@v44
+        with: { files: "chatbot/ai/**" }
+
+  # ============================
+  # 2. 변경된 영역 기준으로 CI 실행
+  # ============================
+  ci-frontend:
+    needs: check-changes
+    if: needs.check-changes.outputs.frontend == 'true'
+    uses: ./.github/workflows/frontend-ci.yml
+
+  ci-backend:
+    needs: check-changes
+    if: needs.check-changes.outputs.backend == 'true'
+    uses: ./.github/workflows/backend-ci.yml
+    secrets: inherit
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
+      security-events: write
+
+  ci-ai:
+    needs: check-changes
+    if: needs.check-changes.outputs.ai == 'true'
+    uses: ./.github/workflows/ai-ci.yml
+
+  # ===============================================
+  # 3.1. stg branch에 push된 경우, stg 서버 CD 실행
+  # ===============================================
+  stg-cd-frontend:
+    needs: [ check-changes, ci-frontend ]
+    if: |
+      github.event_name == 'push' && 
+      github.ref == 'refs/heads/stg' && 
+      needs.check-changes.outputs.frontend == 'true'
+    uses: ./.github/workflows/common-cd.yml
+    with:
+      environment: stg
+      service: frontend
+    secrets: inherit
+
+  stg-cd-backend:
+    needs: [ check-changes, ci-backend ]
+    if: |
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/stg' &&
+      needs.check-changes.outputs.backend == 'true'
+    uses: ./.github/workflows/common-cd.yml
+    with:
+      environment: stg
+      service: backend
+    secrets: inherit
+
+  stg-cd-ai:
+    needs: [ check-changes, ci-ai ]
+    if: |
+      github.event_name == 'push' && 
+      github.ref == 'refs/heads/stg' && 
+      needs.check-changes.outputs.ai == 'true'
+    uses: ./.github/workflows/common-cd.yml
+    with:
+      environment: stg
+      service: ai
+      ignore_secrets: "MONGO_DB_NAME"
+    secrets: inherit
+
+  # =================================================
+  # 3.2. main branch에 push된 경우, prod 서버 CD 실행
+  # =================================================
+  prod-cd-frontend:
+    needs: [ check-changes, ci-frontend ]
+    if: |
+      github.event_name == 'push' && 
+      github.ref == 'refs/heads/main' && 
+      needs.check-changes.outputs.frontend == 'true'
+    uses: ./.github/workflows/common-cd.yml
+    with:
+      environment: prod
+      service: frontend
+    secrets: inherit
+
+  prod-cd-backend:
+    needs: [ check-changes, ci-backend ]
+    if: |
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      needs.check-changes.outputs.backend == 'true'
+    uses: ./.github/workflows/common-cd.yml
+    with:
+      environment: prod
+      service: backend
+    secrets: inherit
+
+  prod-cd-ai:
+    needs: [ check-changes, ci-ai ]
+    if: |
+      github.event_name == 'push' && 
+      github.ref == 'refs/heads/main' && 
+      needs.check-changes.outputs.ai == 'true'
+    uses: ./.github/workflows/common-cd.yml
+    with:
+      environment: prod
+      service: ai
+    secrets: inherit

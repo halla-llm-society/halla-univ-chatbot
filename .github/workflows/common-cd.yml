@@ -12,31 +12,40 @@ on:
     # 매개 변수
     inputs:
       environment:
-        required: true 
-        type: string   
+        required: true
+        type: string
 
       service:
-        required: true 
-        type: string   
+        required: true
+        type: string
+
+      ignore_secrets:
+        required: false
+        type: string
+        default: ''
 
 # 환경 변수
 env:
   AWS_REGION: ap-northeast-2
-  ECR_REGISTRY: 855738538544.dkr.ecr.ap-northeast-2.amazonaws.com 
+  ECR_REGISTRY: 855738538544.dkr.ecr.ap-northeast-2.amazonaws.com
 
 # 배포
 jobs:
   deploy:
     runs-on: ubuntu-latest
     permissions:
-      id-token: write   
-      contents: read    
+      id-token: write
+      contents: read
     steps:
+      # =====================
       # 1. 소스 코드 체크아웃
+      # =====================
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      # ======================
       # 2. AWS 자격 증명 설정
+      # ======================
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -44,32 +53,89 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
+      # =====================
       # 3. Amazon ECR 로그인
+      # =====================
       - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v2
 
+      # ========================================
       # 4. Docker 이미지 빌드 후 Amazon ECR에 푸시
+      # ========================================
       - name: Build, tag, and push image to Amazon ECR
-        id: build-image 
+        id: build-image
         env:
           ECR_REPOSITORY: chatbot-${{ inputs.environment }}-${{ inputs.service }}-rep
           IMAGE_TAG: ${{ github.sha }}
-          SOURCE_PATH: ./${{ inputs.environment }}/${{ inputs.service }}
+          SOURCE_PATH: ./chatbot/${{ inputs.service }}
         run: |
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $SOURCE_PATH
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          echo "image_uri=$ECR_REGISTRY/$ECR_REPOSITORY@$(docker inspect --format='{{index .RepoDigests 0}}' $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG | cut -d'@' -f2)" >> $GITHUB_OUTPUT
+          echo "image_uri=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
-      # 5. Amazon ECS task definition에 새 이미지 ID 채우기
+      # ==========================
+      # 5. Task Definition 준비
+      # ==========================
+      - name: Prepare Task Definition
+        id: prepare-task-def
+        run: |
+          TASK_DEF_SRC="chatbot/${{ inputs.service }}/${{ inputs.service }}-task-def.json"
+          TASK_DEF_DEST="chatbot/${{ inputs.service }}/task-def-rendered.json"
+
+          # AWS 콘솔에서 Task Definition ARN 조회
+          CURRENT_TASK_DEF_ARN=$(aws ecs describe-services \
+            --cluster halla-chatbot-${{ inputs.environment }}-cluster \
+            --services chatbot-${{ inputs.environment }}-${{ inputs.service }}-service \
+            --query "services[0].taskDefinition" --output text)
+
+          # CPU, MEMORY 스펙 추출
+          CURRENT_SPECS=$(aws ecs describe-task-definition \
+            --task-definition $CURRENT_TASK_DEF_ARN \
+            --query "taskDefinition.{cpu:cpu, memory:memory}" --output json)
+
+          CPU=$(echo $CURRENT_SPECS | jq -r '.cpu')
+          MEMORY=$(echo $CURRENT_SPECS | jq -r '.memory')
+
+          # 환경별 SSM 경로 접두사 설정
+          if [ "${{ inputs.environment }}" == "prod" ]; then
+            SSM_ENV=""
+          else
+            SSM_ENV="stg/"
+          fi
+
+          echo "Inheriting specs from AWS GUI -> CPU: $CPU, MEMORY: $MEMORY"
+
+          # 템플릿 치환 및 현재 사양 동적 주입
+          sed -e "s/{{ENV}}/${{ inputs.environment }}/g" \
+              -e "s|{{SSM_ENV}}|$SSM_ENV|g" \
+              $TASK_DEF_SRC | \
+          jq --arg cpu "$CPU" --arg mem "$MEMORY" '. + {cpu: $cpu, memory: $mem}' > $TASK_DEF_DEST
+
+          # 특정 Secrets 삭제 로직
+          if [ -n "${{ inputs.ignore_secrets }}" ]; then
+            echo "Removing secrets: ${{ inputs.ignore_secrets }}"
+            for secret in $(echo "${{ inputs.ignore_secrets }}" | tr ',' ' '); do
+              tmp=$(mktemp)
+              jq --arg name "$secret" 'del(.containerDefinitions[0].secrets[] | select(.name == $name))' $TASK_DEF_DEST > $tmp && mv $tmp $TASK_DEF_DEST
+            done
+          fi
+
+          echo "task_def_path=$TASK_DEF_DEST" >> $GITHUB_OUTPUT
+
+      # ======================================
+      # 6. Task definition에 새 이미지 ID 채우기
+      # ======================================
       - name: Fill in the new image ID in the Amazon ECS task definition
         id: task-def
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
-          task-definition: ./${{ inputs.environment }}/${{ inputs.service }}/${{ inputs.environment }}-${{ inputs.service }}-task-def.json
+          task-definition: ${{ steps.prepare-task-def.outputs.task_def_path }}
           container-name: chatbot-${{ inputs.environment }}-${{ inputs.service }}
           image: ${{ steps.build-image.outputs.image_uri }}
 
-      # 6. Amazon ECS task definition 배포
+      # ====================================
+      # 7. Amazon ECS task definition 배포
+      # ====================================
       - name: Deploy Amazon ECS task definition
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
         with:

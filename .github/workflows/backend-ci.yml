@@ -1,0 +1,78 @@
+name: Backend CI (Quality Check)
+
+on:
+  workflow_call:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+  security-events: write
+
+jobs:
+  quality-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. 코드 체크아웃
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # 2. JDK 21 설정
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'corretto'
+          cache: 'gradle'
+
+      # 3. Gradle 실행 권한 부여
+      - name: Grant execute permission for gradlew
+        run: chmod +x chatbot/backend/gradlew
+
+      # 4. Gradle 빌드 & 분석
+      - name: Build and Analyze with Gradle
+        working-directory: ./chatbot/backend
+        run: ./gradlew clean build
+
+      # 5. 테스트 결과 리포트
+      - name: Publish Test Report
+        uses: mikepenz/action-junit-report@v4
+        if: always()
+        with:
+          report_paths: '**/build/test-results/test/TEST-*.xml'
+
+      # 6. Jacoco 커버리지 리포트 업로드
+      - name: Upload Jacoco Report
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-report
+          path: chatbot/backend/build/reports/jacoco/test/html/
+
+      # 7. Jacoco 커버리지 댓글 추가
+      - name: Add Coverage Comment
+        uses: Madrapps/jacoco-report@v1.7.1
+        if: success()
+        with:
+          paths: chatbot/backend/build/reports/jacoco/test/jacocoTestReport.xml
+          token: ${{ secrets.GITHUB_TOKEN }}
+          min-coverage-overall: 40
+          min-coverage-changed-files: 60
+          title: 'Test Code Coverage'
+          update-comment: true
+      
+      # 8. Qodana 정적 분석
+      - name: Qodana Scan
+        uses: jetbrains/qodana-action@v2025.3
+        env:
+          QODANA_TOKEN: ${{ secrets.QODANA_TOKEN }}
+        with:
+          args: --project-dir,chatbot/backend
+          upload-result: true

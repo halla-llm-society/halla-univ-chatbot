@@ -1,0 +1,8 @@
+version: "1.0"
+linter: jetbrains/qodana-jvm-community:latest
+
+exclude:
+  - name: All
+    paths:
+      - "chatbot/backend/src/test/**"
+      - "chatbot/backend/build/**"

@@ -1,0 +1,29 @@
+spring:
+  application:
+    name: halla-univ-chatbot-backend
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:local}
+  data:
+    mongodb:
+      uri: ${MONGODB_URI:mongodb://localhost:27017/halla_chatbot_test}
+      database: halla-chatbot${app.mongodb-suffix}
+    redis:
+      host: host.docker.internal
+      port: 6379
+
+app:
+  ai-service-url: ${AI_SERVICE_URL}
+  mongodb-suffix: ${MONGODB_SUFFIX:-stg}
+  openai-admin-key: ${OPENAI_ADMIN_KEY}
+  openai-project-id: ${OPENAI_PROJECT_ID}
+  costs-api-url: ${COSTS_API_URL}
+  monthly-llm-usage-limit: ${MONTHLY_COST_LIMIT:1000.0}
+  discord-webhook-url: ${DISCORD_WEBHOOK_URL}
+
+  cookie:
+    http-only: true
+    secure: true
+    same-site: None
+
+  cors:
+    allowed-origins: "https://halla-chatbot.com, https://www.halla-chatbot.com"
