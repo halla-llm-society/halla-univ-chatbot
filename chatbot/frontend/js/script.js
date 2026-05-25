@@ -38,4 +38,6 @@ window.addEventListener('DOMContentLoaded', () => {
 
     setBaseURL();
     setUserInfo();
+
+    setTooltips(); // 말풍선 툴팁 설정
 });

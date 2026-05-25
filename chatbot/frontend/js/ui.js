@@ -127,3 +127,27 @@ const setLangDropdown = () => {
 
     langBtn.addEventListener('click', toggleLangDropdown);   // lang-btn 클릭 시 드롭다운 토글
 }
+
+// 말풍선 툴팁 설정
+const setTooltips = () => {
+    const tooltipContainer = document.getElementById("tooltip-container");
+    if (!tooltipContainer) return;
+
+    // 세션 스토리지를 확인해 이미 본 사용자는 띄우지 않음 (테스트 시엔 이 줄을 주석 처리하세요)
+    if (sessionStorage.getItem("hasSeenTooltip") === "true") return;
+
+    // 말풍선 띄우기
+    tooltipContainer.classList.add("show");
+
+    // 아무 곳이나 클릭하면 말풍선 숨기기
+    const hideTooltip = () => {
+        tooltipContainer.classList.remove("show");
+        sessionStorage.setItem("hasSeenTooltip", "true"); // 봤다는 기록 저장
+        document.removeEventListener("click", hideTooltip); // 이벤트 리스너 해제
+    };
+
+    // 툴팁이 뜨자마자 클릭 이벤트가 트리거되어 바로 닫히는 것을 방지하기 위해 딜레이 추가
+    setTimeout(() => {
+        document.addEventListener("click", hideTooltip);
+    }, 300);
+}
