@@ -193,7 +193,28 @@ except ImportError as e:
                 "additionalProperties": False
             }
             },
+            {
+            "type": "function",
+            "name": "get_department_phone_number",
+            "description": """한라대학교 학과(단과대학) 사무실의 전화번호를 조회하는 전용 함수입니다.
 
+            ⚠️ 이 함수를 반드시 사용해야 하는 경우:
+            - 특정 학과/학부의 '전화번호', '연락처', '전화', '몇 번' 등을 묻는 질문
+            - 학과 행정실/사무실 연락처 문의
+
+            ⚠️ 학과 전화번호 관련 질문은 인터넷 검색이 아닌 이 함수만 사용하세요.""",
+            "parameters": {
+                "type": "object",
+                "required": ["department_query"],
+                "properties": {
+                    "department_query": {
+                        "type": "string",
+                        "description": "사용자가 언급한 학과명 또는 질문 원문. 예: '컴퓨터공학과', '경영학과 전화번호'"
+                    }
+                },
+                "additionalProperties": False
+            }
+            },
 
 
     ]
@@ -994,6 +1015,71 @@ async def get_shuttle_bus_info(user_query: str, chat_context=None, token_counter
         return f"❌ 통학버스 정보 조회 중 오류가 발생했습니다: {str(e)}"
 
 
+_department_phone_data: Optional[str] = None
+
+
+def _load_department_phone_data() -> str:
+    """department_phone_numbers.md 파일을 캐싱하여 로드"""
+    global _department_phone_data
+    if _department_phone_data is None:
+        path = Path(__file__).parent / "department_phone_numbers.md"
+        with open(path, "r", encoding="utf-8") as f:
+            _department_phone_data = f.read()
+    return _department_phone_data
+
+
+def get_department_phone_number(department_query: str) -> str:
+    """한라대학교 학과별 전화번호 조회
+
+    department_phone_numbers.md의 표를 파싱하여 질문에 포함된 학과명과
+    일치(부분 포함)하는 행을 찾아 반환합니다.
+
+    Args:
+        department_query: 사용자가 언급한 학과명 또는 질문 원문
+
+    Returns:
+        학과 전화번호 정보 문자열
+    """
+    logger.debug(f"[DEPT_PHONE][START] query='{department_query}'")
+    try:
+        content = _load_department_phone_data()
+    except Exception as e:
+        logger.debug(f"[DEPT_PHONE][ERROR] ❌ 파일 로드 실패: {e}")
+        return f"❌ 학과 전화번호 데이터를 불러오지 못했습니다: {e}"
+
+    query = re.sub(r"\s+", "", department_query)
+    matches = []
+
+    for line in content.splitlines():
+        line = line.strip()
+        if not line.startswith("|") or not line.endswith("|"):
+            continue
+        # 헤더 구분선(|---|---|) 스킵
+        if set(line.replace("|", "").strip()) <= {"-"}:
+            continue
+
+        cols = [c.strip() for c in line.strip("|").split("|")]
+        if len(cols) < 2:
+            continue
+
+        dept_col, phone_col = cols[0], cols[1]
+        dept_col_normalized = re.sub(r"\s+", "", dept_col)
+
+        if dept_col_normalized in ("학과", ""):
+            continue
+
+        if query and (query in dept_col_normalized or dept_col_normalized in query):
+            matches.append(f"{dept_col}: {phone_col}")
+
+    if matches:
+        result = "(지역번호 033 공통 / 대표전화 033-760-1114)\n" + "\n".join(matches)
+        logger.debug(f"[DEPT_PHONE][END] matches={len(matches)}")
+        return result
+
+    logger.debug(f"[DEPT_PHONE][END] no match found for query='{department_query}'")
+    return "일치하는 학과를 찾지 못했습니다. 학과명을 다시 확인해주세요.\n\n" + content
+
+
 class FunctionCalling:
     def __init__(self, model, available_functions=None, token_counter=None):
         self.model = model
@@ -1003,6 +1089,7 @@ class FunctionCalling:
             "get_halla_cafeteria_menu": get_halla_cafeteria_menu,
             "get_halla_academic_calendar": get_halla_academic_calendar,
             "get_shuttle_bus_info": get_shuttle_bus_info,
+            "get_department_phone_number": get_department_phone_number,
         }
 
         if available_functions:

@@ -16,9 +16,10 @@ SEARCH_INTERNET_DESCRIPTION = """인터넷에서 최신 정보를 검색하는 �
 - 통학버스, 셔틀버스 시간표 → get_shuttle_bus_info 사용
 - 학생식당, 교직원식당 메뉴 → get_halla_cafeteria_menu 사용
 - 학사일정, 개강일, 종강일, 시험기간 → get_academic_calendar 사용
+- 학과 전화번호, 연락처 → get_department_phone_number 사용
 
-⚠️ 중요: 위 4가지 경우는 전용 시스템/함수가 있으므로 절대 웹 검색 금지!
-규정/통학버스/식당/학사일정 질문에는 이 함수를 선택하지 마세요."""
+⚠️ 중요: 위 5가지 경우는 전용 시스템/함수가 있으므로 절대 웹 검색 금지!
+규정/통학버스/식당/학사일정/학과 전화번호 질문에는 이 함수를 선택하지 마세요."""
 
 SEARCH_INTERNET_USER_INPUT = "User's search query input(conversation context will be automatically added)"
 
@@ -69,6 +70,17 @@ SHUTTLE_BUS_DESCRIPTION = """한라대학교 통학버스(셔틀버스) 정보�
 - 이용안내: 예약방법, 취소방법, 요금, 적립금"""
 
 SHUTTLE_BUS_QUERY_DESCRIPTION = "사용자의 통학버스 관련 질문 원문. 예: '수원 하교시간', '원주역 등교 버스', '서울 통학버스 예약'"
+
+# 학과 전화번호 조회 함수
+DEPARTMENT_PHONE_DESCRIPTION = """한라대학교 학과(단과대학) 사무실의 전화번호를 조회하는 전용 함수입니다.
+
+⚠️ 이 함수를 반드시 사용해야 하는 경우:
+- 특정 학과/학부의 '전화번호', '연락처', '전화', '몇 번' 등을 묻는 질문
+- 학과 행정실/사무실 연락처 문의
+
+⚠️ 학과 전화번호 관련 질문은 인터넷 검색이 아닌 이 함수만 사용하세요."""
+
+DEPARTMENT_PHONE_QUERY_DESCRIPTION = "사용자가 언급한 학과명 또는 질문 원문. 예: '컴퓨터공학과', '경영학과 전화번호', '사회복지학과 연락처'"
 
 # 함수 정의 리스트 (analyzer.py에서 사용)
 def get_function_definitions():
@@ -143,6 +155,22 @@ def get_function_definitions():
                     "user_query": {
                         "type": "string",
                         "description": SHUTTLE_BUS_QUERY_DESCRIPTION
+                    }
+                },
+                "additionalProperties": False
+            }
+        },
+        {
+            "type": "function",
+            "name": "get_department_phone_number",
+            "description": DEPARTMENT_PHONE_DESCRIPTION,
+            "parameters": {
+                "type": "object",
+                "required": ["department_query"],
+                "properties": {
+                    "department_query": {
+                        "type": "string",
+                        "description": DEPARTMENT_PHONE_QUERY_DESCRIPTION
                     }
                 },
                 "additionalProperties": False
