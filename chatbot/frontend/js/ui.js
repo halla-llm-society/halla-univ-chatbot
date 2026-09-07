@@ -116,6 +116,7 @@ const setLangDropdown = () => {
             if (preLang !== language) {
                 if (!document.querySelector('.message.user')) {
                     document.querySelector('.bot-message-container').remove();
+                    document.getElementById('quick-buttons')?.remove();
                 }
 
                 sendDefaultMessage();
