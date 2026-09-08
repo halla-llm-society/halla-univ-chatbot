@@ -10,6 +10,7 @@ from pathlib import Path
 from .base import BaseLLMProvider
 from .openai_provider import OpenAIProvider
 from .gemini_provider import GeminiProvider
+from .claude_provider import ClaudeProvider
 from .preset_manager import PresetManager
 
 
@@ -112,10 +113,12 @@ class LLMManager:
             return OpenAIProvider(model_name=model_name)
         elif provider_name == "gemini":
             return GeminiProvider(model_name=model_name)
+        elif provider_name == "claude":
+            return ClaudeProvider(model_name=model_name)
         else:
             raise NotImplementedError(
                 f"Provider '{provider_name}' is not implemented. "
-                f"Supported providers: openai, gemini"
+                f"Supported providers: openai, gemini, claude"
             )
     
     def clear_cache(self) -> None:

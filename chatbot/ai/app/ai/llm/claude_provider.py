@@ -26,7 +26,7 @@ except ImportError:
     print("[WARNING] anthropic not installed. Claude Provider will not work.")
 
 from .base import BaseLLMProvider
-from .openai_to_claude_request import ContextConverter
+from .context_converter import ContextConverter
 
 
 class ClaudeProvider(BaseLLMProvider):
@@ -155,7 +155,7 @@ class ClaudeProvider(BaseLLMProvider):
         try:
             response = self.client.messages.count_tokens(
                 model=self.model_name,
-                messages=[{"role": "user", "content": text],
+                messages=[{"role": "user", "content": text}],
             )
             return response.input_tokens
         except Exception as error:
@@ -171,7 +171,13 @@ class ClaudeProvider(BaseLLMProvider):
         output_config: Optional[Dict[str, Any]] = None,
         **kwargs: Any,
     ) -> tuple[str, Dict[str, int]]:
-        """동기 Claude Messages API 호출과 응답 정리를 수행합니다."""
+        """동기 Claude Messages API 호출과 응답 정리를 수행합니다.
+
+        주의: 현재 Claude Messages API(및 설치된 anthropic SDK)는
+        temperature/top_p/top_k 같은 샘플링 파라미터를 더 이상 받지 않습니다.
+        BaseLLMProvider 인터페이스 호환을 위해 temperature 인자는 유지하되,
+        실제 요청에는 실어 보내지 않습니다(전달 시 SDK가 TypeError를 던짐).
+        """
         request = self.converter.openai_to_claude_request(messages)
         request.update(
             {
@@ -179,12 +185,11 @@ class ClaudeProvider(BaseLLMProvider):
                 "max_tokens": (
                     max_tokens if max_tokens is not None else self.default_max_tokens
                 ),
-                "temperature": temperature,
             }
         )
 
         # Claude Messages API가 지원하는 생성 옵션만 전달한다.
-        for option in ("top_p", "top_k", "stop_sequences", "service_tier"):
+        for option in ("stop_sequences", "service_tier"):
             if option in kwargs and kwargs[option] is not None:
                 request[option] = kwargs[option]
 

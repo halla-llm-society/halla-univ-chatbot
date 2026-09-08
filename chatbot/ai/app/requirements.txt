@@ -6,6 +6,7 @@ pinecone-client
 python-dotenv  
 tqdm
 google-generativeai
+anthropic
 tiktoken
 pyyaml
 fastapi

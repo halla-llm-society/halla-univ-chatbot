@@ -6,7 +6,7 @@ import re
 import time
 import logging
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, Dict, Any
 from bs4 import BeautifulSoup
 import os
 from pathlib import Path
@@ -537,6 +537,99 @@ async def search_internet(user_input: str, chat_context=None, token_counter=None
         import traceback
         traceback.print_exc()
         return f"🚨 웹검색 오류: {str(e)}"
+
+
+def _search_result_looks_unusable(search_result: str) -> bool:
+    """검증을 돌릴 가치가 없는 웹검색 결과(오류/빈 결과)인지 간단히 판별"""
+    text = (search_result or "").strip()
+    if not text:
+        return True
+    err_keywords = ["🚨", "❌", "오류", "did_call=False"]
+    return any(k in text for k in err_keywords)
+
+
+async def verify_search_result(
+    user_query: str,
+    search_result: str,
+    token_counter=None,
+) -> Optional[Dict[str, Any]]:
+    """웹 검색 결과를 OpenAI(1차) → Claude(2차) 순으로 교차 검증
+
+    두 모델 계열을 순차적으로 사용해 한쪽 모델의 환각/오판을 다른 모델이
+    잡아낼 수 있도록 합니다. 각 단계는 독립적으로 실패해도 전체 검증이
+    중단되지 않고, 성공한 단계의 결과만으로 최종 is_valid를 판단합니다.
+
+    Args:
+        user_query: 사용자의 원 질문
+        search_result: search_internet() 함수의 실행 결과
+        token_counter: 토큰 사용량 기록용
+
+    Returns:
+        {"is_valid": bool, "openai": dict|None, "claude": dict|None}
+        검증 자체를 시도할 수 없는 상태(빈 결과/오류 결과)면 None
+    """
+    if _search_result_looks_unusable(search_result):
+        return None
+
+    from app.ai.chatbot.character import get_search_verification_prompt
+
+    schema = {
+        "type": "object",
+        "properties": {
+            "is_valid": {"type": "boolean"},
+            "reason": {"type": "string"},
+            "concerns": {"type": "array", "items": {"type": "string"}},
+        },
+        "required": ["is_valid", "reason", "concerns"],
+        "additionalProperties": False,
+    }
+
+    prompt_text = get_search_verification_prompt(user_query, search_result)
+    messages = [{"role": "user", "content": [{"type": "input_text", "text": prompt_text}]}]
+
+    result: Dict[str, Any] = {"is_valid": True, "openai": None, "claude": None}
+
+    # 1차 검증: OpenAI
+    try:
+        provider1 = get_provider("search_verify_openai")
+        raw1, usage1 = await provider1.structured_completion(messages, schema)
+        result["openai"] = json.loads(raw1)
+        if token_counter and usage1:
+            token_counter.update_from_api_usage(
+                usage=usage1,
+                role="search_verify_openai",
+                model=provider1.get_model_name(),
+                category="function",
+            )
+        logger.debug(f"[SEARCH_VERIFY] 1차(OpenAI) 결과: {result['openai']}")
+    except Exception as e:
+        logger.debug(f"[SEARCH_VERIFY] 1차(OpenAI) 검증 실패: {e}")
+
+    # 2차 검증: Claude (다른 모델 계열로 교차검증)
+    try:
+        provider2 = get_provider("search_verify_claude")
+        raw2, usage2 = await provider2.structured_completion(messages, schema)
+        result["claude"] = json.loads(raw2)
+        if token_counter and usage2:
+            token_counter.update_from_api_usage(
+                usage=usage2,
+                role="search_verify_claude",
+                model=provider2.get_model_name(),
+                category="function",
+            )
+        logger.debug(f"[SEARCH_VERIFY] 2차(Claude) 결과: {result['claude']}")
+    except Exception as e:
+        logger.debug(f"[SEARCH_VERIFY] 2차(Claude) 검증 실패: {e}")
+
+    verdicts = [v for v in (result["openai"], result["claude"]) if v is not None]
+    if verdicts:
+        # 둘 중 하나라도 invalid로 판단하면 전체를 invalid 처리 (보수적 판단)
+        result["is_valid"] = all(v.get("is_valid", True) for v in verdicts)
+    else:
+        # 두 단계 모두 실패했으면 검증 불가 상태로 취급 (원본은 그대로 사용)
+        return None
+
+    return result
 
 
 def _parse_date_input(date_text: Optional[str]) -> datetime.date:

@@ -213,6 +213,47 @@ decide_function='''
 ```
 '''
 
+# 웹 검색 결과 교차검증 프롬프트 (1차: OpenAI / 2차: Claude 공용)
+def get_search_verification_prompt(user_question: str, search_result: str) -> str:
+    from datetime import datetime
+    current_date = datetime.now().strftime("%Y년 %m월 %d일")
+    return f"""
+# 웹 검색 결과 검증 프롬프트
+## 역할
+당신은 웹 검색 결과가 사용자 질문에 대한 답변 근거로 신뢰할 수 있는지 검증하는 팩트체크 에이전트입니다.
+
+## 현재 날짜
+{current_date}
+⚠️ 이 날짜가 "오늘"입니다. 검색 결과에 이 날짜와 같거나 이전인 연도/날짜가 있다고 해서 "미래 정보"로 오판하지 마세요.
+
+## 검증 기준
+1. 관련성: 검색 결과가 사용자 질문에 실제로 답하고 있는가 (엉뚱한 주제/무관한 내용이면 invalid)
+2. 근거 충실성: 검색 결과에 명시된 내용만으로 판단하세요. 검색 결과에 없는 사실을 스스로 추측하거나 지어내지 마세요.
+3. 일관성: 검색 결과 내에 서로 명백히 모순되는 정보가 섞여 있지 않은가
+4. 출처 신뢰성: 검색 결과가 오류 메시지, 접근 차단, "검색 결과 없음" 등 실질적 내용이 없는 경우 invalid
+
+## 애매한 경우 처리
+- 부분적으로만 관련된 내용이 있으면 valid로 판단하되 concerns에 어떤 부분이 부족한지 명시
+- 확신이 서지 않으면 보수적으로 valid=false 선택
+
+## 출력 형식 (JSON, 반드시 한 개 객체만)
+- 반드시 JSON 객체 하나만 출력하세요. 기타 텍스트/설명/따옴표 금지.
+- 스키마:
+```
+{{ "is_valid": boolean, "reason": string, "concerns": string[] }}
+```
+- 필드 의미:
+  - is_valid: 검색 결과를 답변 근거로 신뢰할 수 있는지 여부
+  - reason: 판단 근거를 한국어 1~2문장으로 설명
+  - concerns: 발견된 문제점 목록 (없으면 빈 배열)
+
+## 검증 대상
+사용자 질문: {user_question}
+
+검색 결과:
+{search_result}
+"""
+
 # RAG 컨덴스 프롬프트 (1차: 좁은 맥락)
 def get_condense_prompt_narrow(user_question: str, sanitized_rag: str) -> str:
     return f"""

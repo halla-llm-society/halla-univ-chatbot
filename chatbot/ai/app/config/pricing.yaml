@@ -102,8 +102,24 @@ models:
     output_per_1m_tokens_usd: 10.00  # 정정: $5.00 → $10.00
     currency: USD
     note: "컨텍스트 ≤200k 토큰 기준, 200k 초과 시 입력 $2.50/출력 $15.00"
-  
- 
+
+  # ===== Anthropic Claude 모델 =====
+  # 출처: Anthropic 공식 문서 (docs.anthropic.com)
+
+  - id: claude-haiku-4-5
+    provider: claude
+    input_per_1m_tokens_usd: 1.00
+    output_per_1m_tokens_usd: 5.00
+    currency: USD
+    note: "웹 검색 결과 2차 교차검증용 경량 모델"
+
+  - id: claude-sonnet-5
+    provider: claude
+    input_per_1m_tokens_usd: 2.00
+    output_per_1m_tokens_usd: 10.00
+    currency: USD
+    note: "필요 시 더 고품질 검증/생성용으로 교체 가능"
+
 # 폴백 기본값 (미등록 모델)
 default:
   provider: unknown

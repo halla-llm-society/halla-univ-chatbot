@@ -165,6 +165,14 @@ fixed_roles:
     provider: openai
     model: gpt-4.1-mini
     reason: 스트리밍 응답 파싱 로직이 OpenAI API에 종속 (속도 최적화로 mini 사용)
+  search_verify_openai:
+    provider: openai
+    model: gpt-4.1-mini
+    reason: 웹 검색 결과 1차 검증 (프리셋과 무관하게 항상 OpenAI로 고정해 2차 Claude 검증과 모델 계열을 분리)
+  search_verify_claude:
+    provider: claude
+    model: claude-haiku-4-5
+    reason: 웹 검색 결과 2차 교차검증. OpenAI(1차)와 다른 모델 계열을 사용해 한쪽 모델의 환각/오판을 서로 잡아냄
 role_descriptions:
   category: 공지 카테고리 분류 (학사공지/비교과공지/장학공지/일반공지/해당없음)
   search_rewrite: 검색어 재작성 (사용자 질문 + 문맥 → 최적화된 검색어)
@@ -174,6 +182,8 @@ role_descriptions:
   function_calling: 함수 호출 판단 및 실행 (OpenAI 전용)
   web_search: 웹 검색 실행 (OpenAI web_search_preview 전용)
   streaming: 스트리밍 응답 생성 (OpenAI 전용)
+  search_verify_openai: 웹 검색 결과 1차 검증 (OpenAI 전용)
+  search_verify_claude: 웹 검색 결과 2차 교차검증 (Claude 전용)
 provider_config:
   openai:
     message_overhead: 3

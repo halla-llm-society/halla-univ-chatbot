@@ -106,6 +106,16 @@ class FunctionCallMetadata:
     reasoning: Optional[str] = None
     """함수 선택 근거 (LLM이 생성한 판단 이유)"""
 
+    verification: Optional[Dict[str, Any]] = None
+    """웹 검색 결과 교차검증 결과 (search_internet 함수에서만 사용)
+
+    {
+        "is_valid": bool,           # 1차/2차 검증 모두 통과했는지
+        "openai": {...} | None,     # 1차(OpenAI) 검증 결과
+        "claude": {...} | None,     # 2차(Claude) 검증 결과
+    }
+    """
+
     def to_dict(self) -> Dict[str, Any]:
         """JSON 직렬화용 딕셔너리 변환
         
@@ -129,7 +139,11 @@ class FunctionCallMetadata:
         # reasoning이 있으면 추가
         if self.reasoning:
             result["reasoning"] = self.reasoning
-        
+
+        # verification이 있으면 추가 (웹 검색 결과 교차검증)
+        if self.verification:
+            result["verification"] = self.verification
+
         return result
 
 
