@@ -1,3 +1,4 @@
+import asyncio
 import json
 import requests
 import httpx
@@ -312,6 +313,125 @@ async def _prefer_halla_site_query(user_input: str, context_info: str | None = N
     # 미매칭 시 라우팅 없음
     return None
 
+
+# --- Claude 웹 검색 설정 ---
+# 검색(web_search)과 페이지 열람(web_fetch) 모두 이 도메인 안에서만 허용한다.
+# 하위 경로(/kr/..., /VR360/... 등)는 모두 포함되고, 다른 하위 도메인(hlus.halla.ac.kr 등)은 제외된다.
+HALLA_WEB_DOMAINS = ["www.halla.ac.kr"]
+HALLA_HOME_URL = "https://www.halla.ac.kr/kr/index.do"
+WEB_SEARCH_MAX_USES = 3
+WEB_FETCH_MAX_USES = 3
+# 서버 측 도구 루프가 길어지면 pause_turn으로 멈추므로, 이어서 요청할 최대 횟수
+WEB_SEARCH_MAX_CONTINUATIONS = 3
+_WEB_TOOL_RESULT_TYPES = {"server_tool_use", "web_search_tool_result", "web_fetch_tool_result"}
+
+
+def _build_claude_web_tools() -> list:
+    return [
+        {
+            "type": "web_search_20260209",
+            "name": "web_search",
+            "max_uses": WEB_SEARCH_MAX_USES,
+            "allowed_domains": HALLA_WEB_DOMAINS,
+            "user_location": {"type": "approximate", "country": "KR", "timezone": "Asia/Seoul"},
+        },
+        {
+            "type": "web_fetch_20260209",
+            "name": "web_fetch",
+            "max_uses": WEB_FETCH_MAX_USES,
+            "allowed_domains": HALLA_WEB_DOMAINS,
+            "citations": {"enabled": True},
+        },
+    ]
+
+
+def _build_claude_web_system_prompt(date_str: str) -> str:
+    return (
+        "당신은 한라대학교 홈페이지 검색 도우미입니다.\n"
+        f"오늘 날짜는 {date_str}입니다.\n"
+        f"검색과 페이지 열람은 한라대학교 홈페이지({HALLA_HOME_URL})와 그 안의 페이지에서만 할 수 있습니다.\n"
+        "web_search로 관련 페이지를 찾고, 필요하면 web_fetch로 그 페이지를 열어 내용을 확인하세요.\n"
+        "찾은 페이지에 적힌 사실만 한국어로 간결하게 정리하세요. 추측하거나 지어내지 마세요.\n"
+        "날짜, 기간, 장소, 대상, 신청 방법처럼 질문에 필요한 정보가 있으면 빠짐없이 적으세요.\n"
+        "관련 정보를 찾지 못했으면 찾지 못했다고 분명히 쓰세요."
+    )
+
+
+def _create_claude_web_search(claude_client, model_name: str, system_prompt: str, messages: list):
+    """Claude 웹 검색 요청 1회 (동기 호출, asyncio.to_thread로 실행)"""
+    return claude_client.beta.messages.create(
+        model=model_name,
+        max_tokens=16000,
+        system=system_prompt,
+        messages=messages,
+        tools=_build_claude_web_tools(),
+        output_config={"effort": "medium"},
+        # 안전 분류기가 요청을 거절하면 서버가 다른 모델로 자동 재시도한다.
+        betas=["server-side-fallback-2026-07-01"],
+        fallbacks="default",
+    )
+
+
+def _is_halla_url(url: str) -> bool:
+    try:
+        from urllib.parse import urlparse
+        return (urlparse(url).hostname or "").lower() in HALLA_WEB_DOMAINS
+    except Exception:
+        return False
+
+
+def _collect_claude_web_sources(blocks: list) -> list:
+    """Claude 응답 블록에서 출처 링크를 [제목](URL) 형식으로 모은다.
+
+    1순위: 답변 문장에 붙은 citations
+    2순위(인용이 없을 때): 검색/열람한 페이지 목록
+    """
+    seen = set()
+    links = []
+
+    def _add(url, title):
+        if url and url not in seen and _is_halla_url(url):
+            seen.add(url)
+            links.append(f"[{title or url}]({url})")
+
+    for block in blocks:
+        if getattr(block, "type", None) != "text":
+            continue
+        for c in getattr(block, "citations", None) or []:
+            url = getattr(c, "url", None)
+            title = getattr(c, "title", None) or getattr(c, "document_title", None)
+            _add(url, title)
+
+    if links:
+        return links
+
+    for block in blocks:
+        block_type = getattr(block, "type", None)
+        content = getattr(block, "content", None)
+        if block_type == "web_search_tool_result" and isinstance(content, list):
+            for item in content[:5]:
+                _add(getattr(item, "url", None), getattr(item, "title", None))
+        elif block_type == "web_fetch_tool_result" and content is not None:
+            _add(getattr(content, "url", None), None)
+    return links
+
+
+def _extract_claude_answer_text(blocks: list) -> str:
+    """마지막 검색/열람 이후의 text 블록만 답변으로 사용한다 (중간 진행 멘트 제외)."""
+    last_tool_idx = -1
+    for idx, block in enumerate(blocks):
+        if getattr(block, "type", None) in _WEB_TOOL_RESULT_TYPES:
+            last_tool_idx = idx
+    texts = [
+        getattr(b, "text", "")
+        for b in blocks[last_tool_idx + 1:]
+        if getattr(b, "type", None) == "text"
+    ]
+    if not any(t.strip() for t in texts):
+        texts = [getattr(b, "text", "") for b in blocks if getattr(b, "type", None) == "text"]
+    return "".join(texts).strip()
+
+
 async def search_internet(user_input: str, chat_context=None, token_counter=None) -> str:
     start_ts = time.time()
     logger.debug(f"[WEB][START] query='{user_input}' chat_ctx={'Y' if chat_context else 'N'}")
@@ -359,21 +479,21 @@ async def search_internet(user_input: str, chat_context=None, token_counter=None
             f"[대화 문맥] {context_info or '없음'}\n\n"
             "**중요**: 검색 엔진에 직접 입력할 순수한 검색어만 출력하세요. 설명, 안내문, 추가 설명 절대 금지.\n\n"
             "검색어 작성 규칙:\n"
-            "1. site:halla.ac.kr 필수 포함\n"
+            "1. 검색 범위는 이미 한라대학교 홈페이지로 제한되어 있으므로 site: 연산자는 쓰지 마세요\n"
         )
-        
+
         # 공지사항 검색이면 항상 현재 연도 포함
         if is_notice_query:
             rewrite_prompt += (
                 f"2. 반드시 현재 연도({year_str}년) 포함\n"
                 "3. 간결하고 핵심적인 검색어로만 구성 (한 줄)\n"
-                "4. 출력 예시: 'site:halla.ac.kr 2025년 학사공지'\n"
+                f"4. 출력 예시: '한라대 {year_str}년 학사공지'\n"
             )
         else:
             rewrite_prompt += (
                 f"2. '최신', '최근' 키워드 발견 시 현재 연도({year_str}년) 포함\n"
                 "3. 간결하고 핵심적인 검색어로만 구성 (한 줄)\n"
-                "4. 출력 예시: 'site:halla.ac.kr 키워드'\n"
+                "4. 출력 예시: '한라대 키워드'\n"
             )
         
         # preferred가 있으면 추가 정보로 활용
@@ -395,141 +515,113 @@ async def search_internet(user_input: str, chat_context=None, token_counter=None
                 model=provider.get_model_name(),
                 category="function"
             )
-        logger.debug(f"[WEB] final_search_text='{search_text}'")
         logger.debug(f"[WEB][🔍 실제 검색어] '{search_text}'")
-        logger.debug(f"[WEB][DEBUG] 이 검색어로 OpenAI web_search_preview API를 호출합니다")
 
-        context_input = [{
-            "role": "user",
-            "content": [{"type": "input_text", "text": search_text}]
-        }]
-        
-        logger.debug(f"[WEB][DEBUG] Request payload - model: {model.advanced}")
-        logger.debug(f"[WEB][DEBUG] Request payload - search_text: '{search_text}'")
-        logger.debug(f"[WEB][DEBUG] Request payload - tools: web_search_preview")
+        # Claude에게 넘길 요청 구성
+        # web_fetch는 대화에 이미 나온 URL만 열 수 있으므로, 참고할 홈페이지/게시판 주소를 함께 적어준다.
+        reference_urls = [HALLA_HOME_URL]
+        if preferred:
+            reference_urls += [u for u in re.findall(r"https?://\S+", preferred) if _is_halla_url(u)]
+        user_prompt = (
+            f"[사용자 질문]\n{user_input}\n\n"
+            f"[최근 대화]\n{context_info or '없음'}\n\n"
+            f"[추천 검색어]\n{search_text}\n\n"
+            "[참고 페이지]\n" + "\n".join(dict.fromkeys(reference_urls))
+        )
+        messages = [{"role": "user", "content": user_prompt}]
+
+        web_provider = get_provider("web_search")  # ClaudeProvider (llm_config.yaml fixed_roles.web_search)
+        claude_client = web_provider.client
+        model_name = web_provider.get_model_name()
+        system_prompt = _build_claude_web_system_prompt(date_str)
 
         call_ts = time.time()
-        response = client.responses.create(
-            model=model.advanced,
-            input=context_input,
-            text={"format": {"type": "text"}},
-            reasoning={},
-            tools=[{
-                "type": "web_search_preview",
-                "user_location": {"type": "approximate", "country": "KR"},
-                "search_context_size": "medium"
-            }],
-            tool_choice={"type": "web_search_preview"},
-            temperature=1,
-            max_output_tokens=2048,
-            top_p=1,
-            store=True
+        all_blocks = []
+        usage_totals = {"input_tokens": 0, "output_tokens": 0}
+        search_requests = 0
+        response = None
+        for _ in range(WEB_SEARCH_MAX_CONTINUATIONS + 1):
+            response = await asyncio.to_thread(
+                _create_claude_web_search, claude_client, model_name, system_prompt, messages
+            )
+            all_blocks.extend(response.content)
+
+            usage = getattr(response, "usage", None)
+            if usage is not None:
+                usage_totals["input_tokens"] += (
+                    (getattr(usage, "input_tokens", 0) or 0)
+                    + (getattr(usage, "cache_creation_input_tokens", 0) or 0)
+                    + (getattr(usage, "cache_read_input_tokens", 0) or 0)
+                )
+                usage_totals["output_tokens"] += getattr(usage, "output_tokens", 0) or 0
+                server_tool_use = getattr(usage, "server_tool_use", None)
+                search_requests += getattr(server_tool_use, "web_search_requests", 0) or 0
+
+            if response.stop_reason != "pause_turn":
+                break
+            # 서버 측 도구 루프가 멈춘 경우: 지금까지의 응답을 그대로 붙여서 다시 보내면 이어서 진행된다.
+            messages = [
+                {"role": "user", "content": user_prompt},
+                {"role": "assistant", "content": list(all_blocks)},
+            ]
+
+        logger.debug(
+            f"[WEB] claude web search elapsed={time.time()-call_ts:.2f}s "
+            f"stop_reason={getattr(response, 'stop_reason', None)} searches={search_requests}"
         )
-        logger.debug(f"[WEB] openai.responses.create elapsed={time.time()-call_ts:.2f}s total={time.time()-start_ts:.2f}s")
-        logger.debug(f"[WEB][DEBUG] Response object type: {type(response)}")
-        logger.debug(f"[WEB][DEBUG] Response has output: {hasattr(response, 'output')}")
-        if hasattr(response, 'output'):
-            logger.debug(f"[WEB][DEBUG] Output length: {len(response.output) if response.output else 0}")
-            logger.debug(f"[WEB][DEBUG] Output types: {[getattr(item, 'type', 'unknown') for item in response.output] if response.output else []}")
 
         # ✅ API usage 추적 (web_search 역할)
-        if token_counter:
-            if hasattr(response, 'usage') and response.usage:
-                # API usage 정보 추출
-                input_tok = getattr(response.usage, "input_tokens", 0)
-                output_tok = getattr(response.usage, "output_tokens", 0)
+        if token_counter and (usage_totals["input_tokens"] or usage_totals["output_tokens"]):
+            usage_data = {
+                "input_tokens": usage_totals["input_tokens"],
+                "output_tokens": usage_totals["output_tokens"],
+                # Claude는 thinking 토큰이 output_tokens에 포함되어 옴
+                "reasoning_tokens": 0,
+                "total_tokens": usage_totals["input_tokens"] + usage_totals["output_tokens"],
+            }
+            token_counter.update_from_api_usage(
+                usage=usage_data,
+                role="web_search",
+                # 거절 시 다른 모델로 자동 재시도되면 실제 응답 모델로 기록
+                model=getattr(response, "model", None) or model_name,
+                category="function",
+                replace=False
+            )
 
-                # reasoning_tokens 추출 (필요시)
-                reasoning_tok = 0
-                if hasattr(response.usage, 'output_tokens_details') and response.usage.output_tokens_details:
-                    reasoning_tok = getattr(response.usage.output_tokens_details, 'reasoning_tokens', 0)
+        if response is not None and response.stop_reason == "refusal":
+            logger.debug(f"[WEB][ERROR] ❌ refusal: {getattr(response, 'stop_details', None)}")
+            return "❌ 웹 검색 요청이 거절되었습니다."
 
-                # total_tokens 계산
-                total_tok = getattr(response.usage, "total_tokens", input_tok + output_tok)
+        # 검색 도구 오류(결과 대신 error_code가 옴)는 예외가 아니라 결과 블록으로 들어온다.
+        for block in all_blocks:
+            if getattr(block, "type", None) in ("web_search_tool_result", "web_fetch_tool_result"):
+                content = getattr(block, "content", None)
+                if content is not None and not isinstance(content, list) and getattr(content, "error_code", None):
+                    logger.debug(f"[WEB][WARN] {block.type} error_code={content.error_code}")
 
-                usage_data = {
-                    "input_tokens": input_tok,
-                    "output_tokens": output_tok,
-                    "reasoning_tokens": reasoning_tok,
-                    "total_tokens": total_tok,
-                }
-
-                token_counter.update_from_api_usage(
-                    usage=usage_data,
-                    role="web_search",
-                    model=model.advanced,  # gpt-4.1
-                    category="function",
-                    replace=False
-                )
-                logger.debug(f"[TokenTrack][web_search] ✅ API usage tracked: input={input_tok}, output={output_tok}, reasoning={reasoning_tok}")
-            else:
-                logger.debug(f"[TokenTrack][web_search] ⚠️ No API usage available")
-
-        did_call = any(getattr(item, "type", None) == "web_search_call" for item in getattr(response, "output", []))
+        did_call = any(
+            getattr(b, "type", None) == "server_tool_use" and getattr(b, "name", None) in ("web_search", "web_fetch")
+            for b in all_blocks
+        )
         logger.debug(f"[WEB] search_call_performed={did_call}")
-        
-        # 📊 Output 아이템 상세 디버깅
-        if hasattr(response, 'output') and response.output:
-            logger.debug(f"[WEB][DEBUG] === Output Items Detail ===")
-            for idx, item in enumerate(response.output):
-                item_type = getattr(item, 'type', 'unknown')
-                logger.debug(f"[WEB][DEBUG] Item[{idx}]: type={item_type}")
-                if item_type == "web_search_call":
-                    logger.debug(f"[WEB][DEBUG]   - web_search_call detected")
-                elif item_type == "message":
-                    content_count = len(getattr(item, 'content', [])) if hasattr(item, 'content') else 0
-                    logger.debug(f"[WEB][DEBUG]   - message with {content_count} content blocks")
 
-        message = next((item for item in response.output if getattr(item, "type", None) == "message"), None)
-        logger.debug(f"[WEB][DEBUG] Message found: {message is not None}")
-        if not message:
-            logger.debug(f"[WEB][ERROR] ❌ No message in output")
-            return "❌ GPT 응답 메시지를 찾을 수 없습니다."
-        
-        # Content blocks 디버깅
-        content_blocks = getattr(message, 'content', [])
-        logger.debug(f"[WEB][DEBUG] Content blocks count: {len(content_blocks)}")
-        for idx, block in enumerate(content_blocks):
-            block_type = getattr(block, 'type', 'unknown')
-            logger.debug(f"[WEB][DEBUG] Content[{idx}]: type={block_type}")
-        
-        content_block = next((block for block in message.content if getattr(block, "type", None) == "output_text"), None)
-        logger.debug(f"[WEB][DEBUG] Output_text block found: {content_block is not None}")
-        if not content_block:
-            logger.debug(f"[WEB][ERROR] ❌ No output_text in content blocks")
-            return "❌ GPT 응답 내 output_text 항목을 찾을 수 없습니다."
-        
-        output_text = getattr(content_block, "text", "").strip()
-        logger.debug(f"[WEB][DEBUG] Output text length: {len(output_text)}")
-        logger.debug(f"[WEB][DEBUG] Output text preview: {output_text[:200] if output_text else '(empty)'}...")
-        
-        annotations = getattr(content_block, "annotations", [])
-        logger.debug(f"[WEB][DEBUG] Annotations count: {len(annotations)}")
-        logger.debug(f"[WEB][DEBUG] Annotations count: {len(annotations)}")
-        
-        citations = []
-        for idx, a in enumerate(annotations):
-            ann_type = getattr(a, "type", None)
-            logger.debug(f"[WEB][DEBUG] Annotation[{idx}]: type={ann_type}")
-            if ann_type == "url_citation":
-                title = getattr(a, "title", "출처")
-                url = getattr(a, "url", "")
-                logger.debug(f"[WEB][DEBUG]   - Citation: title='{title}', url='{url}'")
-                if url:
-                    citations.append(f"[{title}]({url})")
-        
-        logger.debug(f"[WEB][DEBUG] Total citations extracted: {len(citations)}")
-        
+        output_text = _extract_claude_answer_text(all_blocks)
+        if not output_text:
+            logger.debug(f"[WEB][ERROR] ❌ No text in Claude response")
+            return "❌ 웹 검색 응답에서 답변 텍스트를 찾을 수 없습니다."
+
+        citations = _collect_claude_web_sources(all_blocks)
+
         result = output_text
         if citations:
             result += "\n\n📎 출처:\n" + "\n".join(citations)
-            logger.debug(f"[WEB][DEBUG] Citations added to result")
         else:
             logger.debug(f"[WEB][DEBUG] ⚠️ No citations found")
-        
-        logger.debug(f"[WEB][DEBUG] Final result length: {len(result)}")
+
         logger.debug(f"[WEB][END] ✅ success total_elapsed={time.time()-start_ts:.2f}s")
-        return result + "\n[WEB_METADATA]elapsed={:.2f}s did_call={}".format(time.time()-start_ts, did_call)
+        return result + "\n[WEB_METADATA]elapsed={:.2f}s did_call={} searches={}".format(
+            time.time()-start_ts, did_call, search_requests
+        )
     except Exception as e:
         logger.debug(f"[WEB][ERROR] ❌ Exception occurred: {e} total_elapsed={time.time()-start_ts:.2f}s")
         logger.debug(f"[WEB][ERROR] user_input: {user_input}")
@@ -553,11 +645,10 @@ async def verify_search_result(
     search_result: str,
     token_counter=None,
 ) -> Optional[Dict[str, Any]]:
-    """웹 검색 결과를 OpenAI(1차) → Claude(2차) 순으로 교차 검증
+    """Claude가 찾은 웹 검색 결과를 OpenAI로 교차 검증
 
-    두 모델 계열을 순차적으로 사용해 한쪽 모델의 환각/오판을 다른 모델이
-    잡아낼 수 있도록 합니다. 각 단계는 독립적으로 실패해도 전체 검증이
-    중단되지 않고, 성공한 단계의 결과만으로 최종 is_valid를 판단합니다.
+    검색(Claude)과 검증(OpenAI)에 서로 다른 모델 계열을 써서, 한쪽 모델의
+    환각/오판을 다른 모델이 잡아낼 수 있도록 합니다.
 
     Args:
         user_query: 사용자의 원 질문
@@ -565,8 +656,8 @@ async def verify_search_result(
         token_counter: 토큰 사용량 기록용
 
     Returns:
-        {"is_valid": bool, "openai": dict|None, "claude": dict|None}
-        검증 자체를 시도할 수 없는 상태(빈 결과/오류 결과)면 None
+        {"is_valid": bool, "openai": dict}
+        검증 자체를 시도할 수 없는 상태(빈 결과/오류 결과/검증 실패)면 None
     """
     if _search_result_looks_unusable(search_result):
         return None
@@ -587,49 +678,24 @@ async def verify_search_result(
     prompt_text = get_search_verification_prompt(user_query, search_result)
     messages = [{"role": "user", "content": [{"type": "input_text", "text": prompt_text}]}]
 
-    result: Dict[str, Any] = {"is_valid": True, "openai": None, "claude": None}
-
-    # 1차 검증: OpenAI
     try:
-        provider1 = get_provider("search_verify_openai")
-        raw1, usage1 = await provider1.structured_completion(messages, schema)
-        result["openai"] = json.loads(raw1)
-        if token_counter and usage1:
+        provider = get_provider("search_verify_openai")
+        raw, usage = await provider.structured_completion(messages, schema)
+        verdict = json.loads(raw)
+        if token_counter and usage:
             token_counter.update_from_api_usage(
-                usage=usage1,
+                usage=usage,
                 role="search_verify_openai",
-                model=provider1.get_model_name(),
+                model=provider.get_model_name(),
                 category="function",
             )
-        logger.debug(f"[SEARCH_VERIFY] 1차(OpenAI) 결과: {result['openai']}")
+        logger.debug(f"[SEARCH_VERIFY] OpenAI 검증 결과: {verdict}")
     except Exception as e:
-        logger.debug(f"[SEARCH_VERIFY] 1차(OpenAI) 검증 실패: {e}")
-
-    # 2차 검증: Claude (다른 모델 계열로 교차검증)
-    try:
-        provider2 = get_provider("search_verify_claude")
-        raw2, usage2 = await provider2.structured_completion(messages, schema)
-        result["claude"] = json.loads(raw2)
-        if token_counter and usage2:
-            token_counter.update_from_api_usage(
-                usage=usage2,
-                role="search_verify_claude",
-                model=provider2.get_model_name(),
-                category="function",
-            )
-        logger.debug(f"[SEARCH_VERIFY] 2차(Claude) 결과: {result['claude']}")
-    except Exception as e:
-        logger.debug(f"[SEARCH_VERIFY] 2차(Claude) 검증 실패: {e}")
-
-    verdicts = [v for v in (result["openai"], result["claude"]) if v is not None]
-    if verdicts:
-        # 둘 중 하나라도 invalid로 판단하면 전체를 invalid 처리 (보수적 판단)
-        result["is_valid"] = all(v.get("is_valid", True) for v in verdicts)
-    else:
-        # 두 단계 모두 실패했으면 검증 불가 상태로 취급 (원본은 그대로 사용)
+        # 검증에 실패하면 검증 불가 상태로 취급 (원본은 그대로 사용)
+        logger.debug(f"[SEARCH_VERIFY] OpenAI 검증 실패: {e}")
         return None
 
-    return result
+    return {"is_valid": bool(verdict.get("is_valid", True)), "openai": verdict}
 
 
 def _parse_date_input(date_text: Optional[str]) -> datetime.date:
