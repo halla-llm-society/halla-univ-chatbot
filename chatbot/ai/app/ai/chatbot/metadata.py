@@ -110,9 +110,8 @@ class FunctionCallMetadata:
     """웹 검색 결과 교차검증 결과 (search_internet 함수에서만 사용)
 
     {
-        "is_valid": bool,           # 1차/2차 검증 모두 통과했는지
-        "openai": {...} | None,     # 1차(OpenAI) 검증 결과
-        "claude": {...} | None,     # 2차(Claude) 검증 결과
+        "is_valid": bool,           # OpenAI 검증 통과 여부
+        "openai": {...},            # OpenAI 검증 결과 (is_valid, reason, concerns)
     }
     """
 

@@ -3,7 +3,6 @@
 
 provider별 실제 토큰 계산 방식을 사용하여 토큰 수를 추적합니다.
 - OpenAI: tiktoken
-- Gemini: model.count_tokens()
 입력/출력/함수/RAG 토큰을 분리하여 집계합니다.
 """
 
@@ -37,8 +36,8 @@ class TokenCounter:
         """토큰 카운터 초기화
 
         Args:
-            model: 모델 ID (예: "gpt-4", "gemini-2.0-flash")
-                   OpenAI 모델은 tiktoken, Gemini는 폴백
+            model: 모델 ID (예: "gpt-4")
+                   tiktoken에 없는 모델은 기본 인코딩으로 폴백
         """
         try:
             self.encoding = tiktoken.encoding_for_model(model)
@@ -73,7 +72,7 @@ class TokenCounter:
 
         logger.debug(f"[TokenCounter] 토큰 추적 모드: {self._tracking_mode}")
 
-        # Provider별 실제 토큰 수 추적 (Gemini 등)
+        # Provider별 실제 토큰 수 추적
         self._provider_tokens = {
             "input": {},    # {role: actual_tokens}
             "output": {},   # {role: actual_tokens}
@@ -219,7 +218,7 @@ class TokenCounter:
         
         Args:
             context: RAG 검색 결과 텍스트
-            actual_tokens: Provider에서 제공한 실제 토큰 수 (Gemini 등)
+            actual_tokens: Provider에서 제공한 실제 토큰 수
             role: 토큰을 사용한 역할 (예: "condense", "gate")
         
         Returns:
@@ -250,7 +249,6 @@ class TokenCounter:
         Provider를 사용하여 RAG 토큰 계산
         
         Provider의 타입에 따라 자동으로 적절한 토큰 계산 방식을 선택합니다.
-        - Gemini: model.count_tokens() 사용 (실제값)
         - OpenAI: tiktoken 사용 (추정값)
         - 기타: tiktoken 폴백
         
@@ -268,23 +266,6 @@ class TokenCounter:
             
             # Provider별 토큰 계산 방식 선택
             match provider_name:
-                case "gemini":
-                    # Gemini 실제 토큰 계산
-                    try:
-                        output_tokens = provider.count_tokens(output_text)
-                        input_tokens = provider.count_tokens(input_text) if input_text else 0
-                        total_tokens = input_tokens + output_tokens
-                        
-                        logger.debug(f"[TokenCounter] {role} (Gemini 실제): "
-                              f"입력 {input_tokens} + 출력 {output_tokens} = {total_tokens}")
-                        
-                        self._provider_tokens["rag"][role] = total_tokens
-                        self.rag_tokens += total_tokens
-                        return total_tokens
-                    except Exception as e:
-                        logger.debug(f"[TokenCounter] Gemini 토큰 계산 실패: {e}, tiktoken 폴백")
-                        # 폴백으로 계속 진행
-                
                 case "openai":
                     # OpenAI tiktoken 사용
                     output_tokens = len(self.encoding.encode(output_text))
@@ -392,11 +373,6 @@ class TokenCounter:
                         "message_overhead": 3,
                         "reply_priming_overhead": 3,
                         "name_field_overhead": 1
-                    },
-                    "gemini": {
-                        "message_overhead": 0,
-                        "reply_priming_overhead": 0,
-                        "name_field_overhead": 0
                     }
                 },
                 "token_tracking": {

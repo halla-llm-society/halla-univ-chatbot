@@ -213,7 +213,7 @@ decide_function='''
 ```
 '''
 
-# 웹 검색 결과 교차검증 프롬프트 (1차: OpenAI / 2차: Claude 공용)
+# 웹 검색 결과 교차검증 프롬프트 (OpenAI 검증용)
 def get_search_verification_prompt(user_question: str, search_result: str) -> str:
     from datetime import datetime
     current_date = datetime.now().strftime("%Y년 %m월 %d일")

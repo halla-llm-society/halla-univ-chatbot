@@ -638,17 +638,14 @@ class ChatbotStream:
                 block = f"<function name='{meta.name}' args='{args_str}'>\n{out_text}\n</function>"
 
                 if meta.name == "search_internet":
-                    # 검증(1차 OpenAI/2차 Claude) 결과를 검색 블록에 함께 표시
+                    # 검증(Claude 검색 → OpenAI 검증) 결과를 검색 블록에 함께 표시
                     if meta.verification is not None:
                         v = meta.verification
                         if v.get("is_valid"):
-                            v_note = "[검증결과] 1차(OpenAI)·2차(Claude) 교차검증 통과."
+                            v_note = "[검증결과] OpenAI 교차검증 통과."
                         else:
-                            reasons = [
-                                vv.get("reason", "")
-                                for vv in (v.get("openai"), v.get("claude"))
-                                if vv is not None and not vv.get("is_valid", True)
-                            ]
+                            vv = v.get("openai") or {}
+                            reasons = [vv.get("reason", "")]
                             v_note = (
                                 "[검증결과] ⚠️ 교차검증 실패 - 이 검색 결과는 신뢰도가 낮습니다. "
                                 "사유: " + " / ".join(r for r in reasons if r)
@@ -686,7 +683,7 @@ class ChatbotStream:
             web_guidance = (
                 "다음은 인터넷 검색결과입니다. 공식 근거가 아니므로 참고용으로만 사용하세요. "
                 "검색이 안되어 우회/문의 안내만 있을 경우, 무시하고 이 내용은'참조만' 하세요. 반드시 기억검색 근거를 우선 반영하세요. 참조란 안내 전화번호 사이트만을 반영하는것을 말합니다 "
-                "각 검색결과 블록 끝의 [검증결과]는 OpenAI(1차)와 Claude(2차) 두 모델이 이 검색결과의 신뢰도를 교차검증한 결과입니다. "
+                "각 검색결과 블록 끝의 [검증결과]는 검색(Claude)과 다른 모델(OpenAI)이 이 검색결과의 신뢰도를 교차검증한 결과입니다. "
                 "'교차검증 실패'로 표시된 검색결과는 답변에 그대로 인용하지 말고, 사용하더라도 확실하지 않은 정보임을 밝히거나 답변에서 제외하세요."
             )
             sections.append("[웹검색지침]\n" + web_guidance)
@@ -849,7 +846,7 @@ class ChatbotStream:
                 # 함수 호출 토큰 계산
                 self.token_counter.count_function_call(func_name, sanitized_args, str(output))
 
-                # 웹 검색 결과 교차검증 (OpenAI 1차 → Claude 2차)
+                # 웹 검색 결과 교차검증 (Claude 검색 → OpenAI 검증)
                 verification = None
                 if func_name == "search_internet":
                     try:
@@ -948,7 +945,7 @@ class ChatbotStream:
                     sanitized_args = self._sanitize_function_arguments(func_args)
                     self.token_counter.count_function_call(tool_name, sanitized_args, str(output))
 
-                    # 웹 검색 결과 교차검증 (OpenAI 1차 → Claude 2차)
+                    # 웹 검색 결과 교차검증 (Claude 검색 → OpenAI 검증)
                     verification = None
                     if tool_name == "search_internet":
                         try:

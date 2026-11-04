@@ -115,7 +115,7 @@ class BaseLLMProvider(ABC):
     
     def get_provider_name(self) -> str:
         """
-        Provider 이름 반환 (openai, gemini 등)
+        Provider 이름 반환 (openai, claude 등)
         
         Returns:
             str: Provider 이름

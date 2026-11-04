@@ -3,7 +3,7 @@
 
 토큰 사용량을 기반으로 LLM API 비용을 계산합니다.
 pricing.yaml 파일에서 모델별 단가를 로드하여 사용합니다.
-OpenAI와 Gemini API 모두 지원합니다.
+OpenAI와 Claude API 모두 지원합니다.
 """
 
 import yaml
@@ -130,7 +130,7 @@ class CostCalculator:
             Dict: Provider별 비용 통계
                 {
                     "openai": {"input_cost": 0.01, "output_cost": 0.02, "total_cost": 0.03},
-                    "gemini": {"input_cost": 0.005, "output_cost": 0.01, "total_cost": 0.015},
+                    "claude": {"input_cost": 0.005, "output_cost": 0.01, "total_cost": 0.015},
                     ...
                 }
         """
@@ -151,7 +151,7 @@ class CostCalculator:
             usage_list: 사용량 리스트
                        예: [
                            {"model": "gpt-5-nano", "input_tokens": 100, "output_tokens": 50},
-                           {"model": "gemini-1.5-flash", "input_tokens": 200, "output_tokens": 100},
+                           {"model": "claude-sonnet-5-5", "input_tokens": 200, "output_tokens": 100},
                        ]
         
         Returns:

@@ -9,7 +9,6 @@ from pathlib import Path
 
 from .base import BaseLLMProvider
 from .openai_provider import OpenAIProvider
-from .gemini_provider import GeminiProvider
 from .claude_provider import ClaudeProvider
 from .preset_manager import PresetManager
 
@@ -100,25 +99,23 @@ class LLMManager:
         Provider 인스턴스 생성
         
         Args:
-            provider_name: Provider 이름 ("openai", "gemini")
+            provider_name: Provider 이름 ("openai", "claude")
             model_name: 모델 ID
-        
+
         Returns:
             BaseLLMProvider: Provider 인스턴스
-        
+
         Raises:
             NotImplementedError: 지원하지 않는 Provider일 때
         """
         if provider_name == "openai":
             return OpenAIProvider(model_name=model_name)
-        elif provider_name == "gemini":
-            return GeminiProvider(model_name=model_name)
         elif provider_name == "claude":
             return ClaudeProvider(model_name=model_name)
         else:
             raise NotImplementedError(
                 f"Provider '{provider_name}' is not implemented. "
-                f"Supported providers: openai, gemini, claude"
+                f"Supported providers: openai, claude"
             )
     
     def clear_cache(self) -> None:
